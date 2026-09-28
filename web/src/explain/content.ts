@@ -222,6 +222,12 @@ export const CONTENT: Record<string, Explanation> = {
     view: 'spectrum',
     tap: 'master.l',
   },
+  editor: {
+    title: 'Wavetable editor',
+    text: 'Draw a frame with the pen or line (snap to the grid for steps), set harmonics directly, or type a formula. Process, Harmonics and Morph change the selected frames or the whole table; Import builds a table from a recording, following its pitch. Everything you change plays at once, and Cmd/Ctrl+Z undoes it.',
+    view: 'scope',
+    tap: 'focus.osc.a',
+  },
   'global.quality': {
     title: 'Quality (oversampling)',
     text: 'Warps that bend the wave hard (sync, FM, phase distortion, ring mod) create harmonics above half the sample rate, which fold back down as aliasing. Oversampling runs those voices at 2× or 4× and filters the extra away. It only runs while such a warp is in use.',

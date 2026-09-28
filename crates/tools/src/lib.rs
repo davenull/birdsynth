@@ -10,3 +10,4 @@ pub mod mips;
 pub mod noise;
 pub mod preview;
 pub mod resample;
+pub mod wt;

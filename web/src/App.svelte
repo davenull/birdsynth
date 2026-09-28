@@ -29,6 +29,8 @@
   import Overlay from './explain/Overlay.svelte';
   import { explainMode } from './explain/explain.svelte';
   import { nav, type PageId } from './ui/nav.svelte';
+  import EditorView from './editor/EditorView.svelte';
+  import { editorView } from './editor/editor.svelte';
   import { onFrame } from './ui/frame';
 
   const synth = getContext<Synth>('synth');
@@ -88,13 +90,14 @@
       <nav class="tabs" aria-label="Pages">
         {#each PAGES as p (p.id)}
           <button
-            class:on={nav.page === p.id && !browse.open}
+            class:on={nav.page === p.id && !browse.open && editorView.osc === null}
             disabled={!!p.later}
             title={p.later ? `Arrives in ${p.later}` : ''}
-            aria-current={nav.page === p.id && !browse.open ? 'page' : undefined}
+            aria-current={nav.page === p.id && !browse.open && editorView.osc === null ? 'page' : undefined}
             onclick={() => {
               nav.page = p.id;
               browse.open = false;
+              editorView.close();
             }}
             >{p.name}{#if p.id === 'matrix' && routings}<span class="badge">{routings}</span>{/if}</button
           >
@@ -116,6 +119,8 @@
     <main class="page">
       {#if browse.open}
         <Browser />
+      {:else if editorView.osc !== null}
+        <EditorView />
       {:else if nav.page === 'osc'}
         <OscPage />
       {:else if nav.page === 'mix'}
@@ -174,7 +179,9 @@
     flex: none;
     transform-origin: top center;
     display: grid;
-    grid-template-rows: 44px 1fr 200px auto;
+    grid-template-rows: 44px minmax(0, 1fr) 200px auto;
+    /* one column exactly the faceplate's width, whatever a page's content wants */
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
     padding: 10px 12px 12px;
     box-sizing: border-box;
@@ -251,6 +258,7 @@
   }
   .page {
     min-height: 0;
+    min-width: 0;
   }
   .strip {
     display: grid;

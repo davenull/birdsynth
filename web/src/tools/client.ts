@@ -39,3 +39,8 @@ let shared: Tools | null = null;
 export function tools(): Tools {
   return (shared ??= new Tools());
 }
+
+/** Use something else as the tools (tests run tools.wasm in Node without a worker). */
+export function useTools(t: Pick<Tools, 'call'>): void {
+  shared = t as Tools;
+}

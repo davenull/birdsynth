@@ -2,8 +2,8 @@
 
 A Serum 2-style wavetable synth. The Rust engine is compiled to wasm and runs in
 an AudioWorklet; the UI is Svelte 5 + TS. The roadmap and each phase's gates
-are in `docs/plan.md`. P0–P4 are done and the site is public; P5 (the
-wavetable editor) comes next.
+are in `docs/plan.md`. P0–P5 are done and the site is public; P6 (the
+sample-based oscillators) comes next.
 
 ## Commands
 - The shell may lack `~/.cargo/bin`; use `. "$HOME/.cargo/env"` or `node tools/cargo.mjs …`.
@@ -27,6 +27,8 @@ wavetable editor) comes next.
 - Factory presets (`presets/factory.ts`) are written in plain units. Each sets its own `master.volume`, levelled by `tests/patch.test.ts` (it prints the value to use when a preset is off level).
 - The library (`state/library.ts`) keeps user presets, factory ratings and assets in IndexedDB (memory fallback); undo (`state/history.ts`) snapshots the five stores once a gesture settles (400 ms) and resets when a preset loads. MIDI learn (`input/learn.ts`) and tuning (`state/tuning.ts`, parsers in `tuning/tuning.ts`) belong to the setup, not the patch: both live in localStorage.
 - Explainer: `explain/content.ts` (notes per data-explain key; parameters use their spec text), `explain/Overlay.svelte` (explain mode, callouts, the tour card), `explain/tours.ts` (steps can load a teaching patch, switch band-limiting off, turn pages). `tests/explain.test.ts` fails if a key in the markup has no notes; add new `data-explain={...}` templates to its EXPANSIONS.
+- Wavetable editor: the maths is in `crates/tools/src/wt/` (spectrum, process, morph, formula, import), exposed as `tl_wt_*`, `tl_formula*`, `tl_pitch`, `tl_import`. `web/src/tools/handle.ts` is the worker's request handler (tests drive it on tools.wasm in Node; `useTools()` swaps the worker for it). `web/src/editor/model.ts` holds the table being edited, its own undo, and sends changed frames with `TableStore.setFrame` (reshapes replace the table). Editing a factory table re-labels its source `edit:…`, so patches carry its frames.
+- Canvases inside grid or flex cells sit `position: absolute` in a relative wrapper: a canvas sized from its own pixels otherwise grows the row it's measured from. Long content (the frame strip) needs `min-width: 0` up the chain; the stage has one `minmax(0, 1fr)` column.
 - The faceplate's `.viewport` uses `overflow: clip`, not hidden: a hidden box still scrolls on focus() or scrollIntoView and slides the panel sideways.
 
 ## Invariants (all tested)
@@ -39,7 +41,7 @@ wavetable editor) comes next.
 
 ## Verifying in the Browser pane
 - In the pane the AudioContext runs without a gesture, and MIDI is denied: use `__synth.midiIn([...])`.
-- `__synth.telemetry()`, `__synth.telemetryAll()`, `__synth.tap('master.l', n)`, `__synth.matrix()` and `__synth.stats()` (with `underrunEvents`) are the proof points. Presets: `presets()`, `loadPreset(name)`, `savePatch()`/`loadPatch(text)`, `undo()`, `commit()`. MIDI: `learn(key)` then `midiIn([0xB0, cc, v])`, `learned()`. Explainer: `explain.missing()` per page (`page('fx')`), `explain.open(key)`, `explain.inharmonic()`; tours: `tour.start('aliasing')`, `tour.next()`, `tour.settled()`, `tour.state()` (each step's `expect`). `__synth.setPlain(key, value)` sets a parameter in its own unit. Find knobs by their ARIA name, e.g. `find("Osc A Level")`.
+- `__synth.telemetry()`, `__synth.telemetryAll()`, `__synth.tap('master.l', n)`, `__synth.matrix()` and `__synth.stats()` (with `underrunEvents`) are the proof points. Presets: `presets()`, `loadPreset(name)`, `savePatch()`/`loadPatch(text)`, `undo()`, `commit()`. MIDI: `learn(key)` then `midiIn([0xB0, cc, v])`, `learned()`. Explainer: `explain.missing()` per page (`page('fx')`), `explain.open(key)`, `explain.inharmonic()`; tours: `tour.start('aliasing')`, `tour.next()`, `tour.settled()`, `tour.state()` (each step's `expect`). Editor: `editor.open(0)`, `editor.formula(src)`, `editor.draw(points)`, `editor.morph(mode, n)`, `editor.importTone(hz, secs, mode)`, `editor.latency()` (pen → tap ms). `__synth.setPlain(key, value)` sets a parameter in its own unit. Find knobs by their ARIA name, e.g. `find("Osc A Level")`.
 - Pane coordinates: the screenshot frame is smaller than the CSS viewport (e.g. 800 × 758 for 1101 × 1044); convert with the ratio before `left_click_drag`. Viewport emulation (`resize_window`) skews drag coordinates further, so test drags at the pane's own size.
 - Smoothed parameters glide for about 0.2 s (12 ms time constant) before they snap to the target; tests that compare against exact values render ~0.5 s first.
 - Measure pitch with a least-squares fit through all rising zero crossings of `master.l` (as `pitch()` in `tests/engine/harness.ts` does). First/last crossings alone scatter ±0.01 Hz on 8192 frames.

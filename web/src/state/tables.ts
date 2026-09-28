@@ -19,6 +19,8 @@ export interface OscTable {
 
 export interface TableSink {
   loadTable(osc: number, mips: Float32Array, frames: number): void;
+  /** Overwrite one frame of a table the engine already has (the editor's live changes). */
+  updateFrame(osc: number, index: number, mips: Float32Array): void;
 }
 
 type Sub = (osc: number, t: OscTable) => void;
@@ -65,6 +67,24 @@ export class TableStore {
     this.osc[osc] = table;
     this.sink?.loadTable(osc, mips, count);
     for (const fn of this.subs) fn(osc, table);
+  }
+
+  /**
+   * Change one frame of an oscillator's table (the editor, while you draw):
+   * only that frame is band-limited again and sent, so the change is heard
+   * within a few milliseconds.
+   */
+  async setFrame(osc: number, index: number, frame: Float32Array): Promise<void> {
+    const t = this.osc[osc];
+    if (!t || index < 0 || index >= t.count) return;
+    const mips = await tools().call({ op: 'mips', frames: frame.slice(0, CONST.frameLen), count: 1 });
+    if (this.osc[osc] !== t) return; // the table was replaced meanwhile
+    t.frames.set(frame.subarray(0, CONST.frameLen), index * CONST.frameLen);
+    t.mips.set(mips, index * CONST.frameStride);
+    // an edited factory table is the user's now: patches must carry its frames
+    if (t.source.startsWith('factory:')) t.source = `edit:${t.name}`;
+    this.sink?.updateFrame(osc, index, mips);
+    for (const fn of this.subs) fn(osc, t);
   }
 
   /** Import a wavetable WAV. Files without a clm chunk are read as 2048-sample frames. */

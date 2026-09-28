@@ -4,7 +4,7 @@
 
 import { PARAMS, PARAM_ID, type ParamKey } from './gen/params';
 import { toNorm, toPlain } from './state/param-math';
-import { SOURCES, TEL, TEL_COUNT, type TapName } from './gen/protocol';
+import { SOURCES, TAP, TEL, TEL_COUNT, type TapName } from './gen/protocol';
 import { parseMidi } from './input/midi';
 import { exportFile, importFile } from './state/patch';
 import { explain } from './explain/content';
@@ -12,6 +12,8 @@ import { explainMode } from './explain/explain.svelte';
 import { inharmonicDbc } from './explain/measure';
 import { tours } from './explain/tour.svelte';
 import { nav, type PageId } from './ui/nav.svelte';
+import { editorView } from './editor/editor.svelte';
+import type { Scope } from './editor/model';
 import type { Synth } from './synth';
 
 interface PlaybackStats {
@@ -156,6 +158,80 @@ export function installTestApi(synth: Synth): void {
         if (!h.taps.read(0, heard, x)) return null;
         const note = h.tel[TEL.focusPitch];
         return inharmonicDbc(x, h.ctx.sampleRate, 440 * 2 ** ((note - 69) / 12));
+      },
+    },
+    // ------------------------------------------------------------- editor
+    editor: {
+      open: (osc = 0) => editorView.open(synth.tables, osc),
+      close: () => editorView.close(),
+      state: () => {
+        const e = editorView.editor(synth.tables);
+        return { open: editorView.osc, name: e.name, count: e.count, current: e.current, selected: [...e.selected].sort((a, b) => a - b), canUndo: e.canUndo, canRedo: e.canRedo };
+      },
+      /** A frame's samples (every `step`-th). */
+      frame: (i: number, step = 1) => Array.from(editorView.editor(synth.tables).frame(i).filter((_, k) => k % step === 0)),
+      select: (i: number, mode: 'only' | 'toggle' | 'range' = 'only') => editorView.editor(synth.tables).select(i, mode),
+      /** Draw a stroke through [sample index, value] points on the current frame (one undo step). */
+      draw: (points: [number, number][]) => {
+        const e = editorView.editor(synth.tables);
+        e.beginStroke();
+        for (let k = 1; k < points.length; k++) e.segment(points[k - 1][0], points[k - 1][1], points[k][0], points[k][1]);
+        e.endStroke();
+      },
+      formula: (src: string, scope: Scope = 'all') => editorView.editor(synth.tables).formula(src, scope),
+      process: (kind: number, scope: Scope = 'all', a = 0, b = 0) => editorView.editor(synth.tables).process(kind, scope, a, b),
+      morph: (mode: number, target: number) => editorView.editor(synth.tables).morph(mode, target),
+      pwm: (n: number) => editorView.editor(synth.tables).pwm(n),
+      undo: () => editorView.editor(synth.tables).undo(),
+      redo: () => editorView.editor(synth.tables).redo(),
+      settled: () => editorView.editor(synth.tables).settled(),
+      /** Import a generated tone: `hz` for `secs`, a saw plus noise if asked. */
+      importTone: (hz: number, secs: number, mode: number, arg?: number) => {
+        const sr = 48_000;
+        const audio = Float32Array.from({ length: Math.round(sr * secs) }, (_, i) => {
+          let v = 0;
+          for (let h = 1; h * hz < sr / 2 && h <= 40; h++) v += Math.sin((2 * Math.PI * hz * h * i) / sr) / h;
+          return v * 0.5;
+        });
+        return editorView.editor(synth.tables).importAudio(audio, sr, mode, arg ?? sr / hz);
+      },
+      /**
+       * Pen stroke to sound: hold a note, flip the current frame (a rising saw
+       * becomes a falling one) as one stroke, and time how long until Osc A's
+       * tap shows it. Returns ms to the rendered change, and that plus the
+       * output latency (what you'd hear).
+       */
+      latency: async () => {
+        const e = editorView.editor(synth.tables);
+        const h = synth.host;
+        if (!h) return null;
+        const tap = TAP['focus.osc.a'];
+        synth.useTap('focus.osc.a');
+        synth.noteOn(57, 0.8);
+        await new Promise((r) => setTimeout(r, 400));
+        const buf = new Float32Array(512);
+        /** Which way the wave mostly moves: + rising, - falling. */
+        const slope = (end: number) => {
+          if (!h.taps.read(tap, end, buf)) return 0;
+          let d = 0;
+          for (let i = 1; i < buf.length; i++) d += Math.sign(buf[i] - buf[i - 1]);
+          return d;
+        };
+        const was = Math.sign(slope(h.taps.latest(tap)));
+        const before = h.taps.latest(tap);
+        const t0 = performance.now();
+        e.beginStroke();
+        e.writeFrame(e.frame().map((v) => -v));
+        e.endStroke();
+        let ms = -1;
+        for (let tries = 0; tries < 500 && ms < 0; tries++) {
+          await new Promise((r) => setTimeout(r, 1));
+          const end = h.taps.latest(tap);
+          if (end > before && Math.sign(slope(end)) === -was && Math.abs(slope(end)) > 100) ms = performance.now() - t0;
+        }
+        synth.noteOff(57);
+        e.undo();
+        return ms < 0 ? null : { rendered: Math.round(ms * 10) / 10, heard: Math.round((ms + (h.ctx.outputLatency || 0) * 1000) * 10) / 10 };
       },
     },
     tour: {

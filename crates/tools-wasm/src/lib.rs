@@ -22,11 +22,11 @@ fn builder() -> &'static mut MipBuilder {
 }
 
 unsafe fn slice<'a>(ptr: *const f32, len: usize) -> &'a [f32] {
-    unsafe { std::slice::from_raw_parts(ptr, len) }
+    if len == 0 { &[] } else { unsafe { std::slice::from_raw_parts(ptr, len) } }
 }
 
 unsafe fn slice_mut<'a>(ptr: *mut f32, len: usize) -> &'a mut [f32] {
-    unsafe { std::slice::from_raw_parts_mut(ptr, len) }
+    if len == 0 { &mut [] } else { unsafe { std::slice::from_raw_parts_mut(ptr, len) } }
 }
 
 /// Allocate `bytes` (16-byte aligned, zeroed). Null on failure.
@@ -217,4 +217,175 @@ pub unsafe extern "C" fn tl_ir_prepare(l: *const f32, r: *const f32, taps: u32, 
     let d = unsafe { slice_mut(dst, 2 * wt_dsp::conv::channel_len(taps)) };
     wt_dsp::conv::prepare([l, r], d);
     0
+}
+
+// ------------------------------------------------------- wavetable editor
+
+use wt_tools::wt::{formula::Formula, import, morph, process, spectrum};
+
+unsafe fn bytes<'a>(ptr: *const u8, len: usize) -> &'a [u8] {
+    if len == 0 { &[] } else { unsafe { std::slice::from_raw_parts(ptr, len) } }
+}
+
+/// One Process-menu operation (see wt_tools::wt::process::Process::from_abi) on `count` frames in place.
+///
+/// # Safety
+/// `frames` holds count × 2048 floats.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_wt_process(op: u32, a: f32, b: f32, frames: *mut f32, count: u32) -> u32 {
+    let Some(p) = process::Process::from_abi(op, a, b) else { return 1 };
+    process::apply(p, unsafe { slice_mut(frames, count as usize * FRAME_LEN) });
+    0
+}
+
+/// A PWM series of `count` frames from one frame.
+///
+/// # Safety
+/// `src` holds 2048 floats; `dst` holds count × 2048.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_wt_pwm(src: *const f32, count: u32, dst: *mut f32) -> u32 {
+    let out = process::create_pwm(unsafe { slice(src, FRAME_LEN) }, count as usize);
+    unsafe { slice_mut(dst, out.len()) }.copy_from_slice(&out);
+    0
+}
+
+/// The frames' order by brightness, darkest first, into `order` (count u32s).
+///
+/// # Safety
+/// `frames` holds count × 2048 floats; `order` holds count u32s.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_wt_sort(frames: *const f32, count: u32, order: *mut u32) -> u32 {
+    let o = process::brightness_order(unsafe { slice(frames, count as usize * FRAME_LEN) });
+    let d = unsafe { std::slice::from_raw_parts_mut(order, count as usize) };
+    for (d, &i) in d.iter_mut().zip(&o) {
+        *d = i as u32;
+    }
+    0
+}
+
+/// Morph `k` keyframes into `target` frames (mode: 0 crossfade, 1 spectral, 2 spectral with the fundamental's phase zeroed, 3 all phases zeroed).
+///
+/// # Safety
+/// `keys` holds k × 2048 floats; `dst` holds max(target, k) × 2048.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_wt_morph(keys: *const f32, k: u32, target: u32, mode: u32, dst: *mut f32) -> u32 {
+    let Some(m) = morph::Morph::from_abi(mode) else { return 0 };
+    let out = morph::morph(unsafe { slice(keys, k as usize * FRAME_LEN) }, target as usize, m);
+    unsafe { slice_mut(dst, out.len()) }.copy_from_slice(&out);
+    (out.len() / FRAME_LEN) as u32
+}
+
+/// A frame's harmonics: amplitude and phase, 1025 each (index 0 is DC).
+///
+/// # Safety
+/// `frame` holds 2048 floats; `mag` and `phase` hold 1025.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_wt_analyze(frame: *const f32, mag: *mut f32, phase: *mut f32) -> u32 {
+    let n = spectrum::HARMONICS + 1;
+    spectra().analyze(unsafe { slice(frame, FRAME_LEN) }, unsafe { slice_mut(mag, n) }, unsafe { slice_mut(phase, n) });
+    0
+}
+
+/// Harmonics back into a frame.
+///
+/// # Safety
+/// `mag` and `phase` hold 1025 floats; `frame` holds 2048.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_wt_synthesize(mag: *const f32, phase: *const f32, frame: *mut f32) -> u32 {
+    let n = spectrum::HARMONICS + 1;
+    spectra().synthesize(unsafe { slice(mag, n) }, unsafe { slice(phase, n) }, unsafe { slice_mut(frame, FRAME_LEN) });
+    0
+}
+
+static SPECTRA: Global<Option<spectrum::Spectra>> = Global(UnsafeCell::new(None));
+
+fn spectra() -> &'static mut spectrum::Spectra {
+    unsafe { (*SPECTRA.0.get()).get_or_insert_with(spectrum::Spectra::default) }
+}
+
+static FORMULA_ERROR: Global<String> = Global(UnsafeCell::new(String::new()));
+
+/// Run a formula (ASCII, `len` bytes) over `count` frames in place: the
+/// frames flagged in `apply`, with `selected` telling it which are selected
+/// (both `count` bytes, 0 or 1). Returns -1 when it ran, or the byte offset
+/// of the error (its message from tl_formula_error).
+///
+/// # Safety
+/// The pointers hold what's described.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_formula(src: *const u8, len: u32, frames: *mut f32, count: u32, apply: *const u8, selected: *const u8, seed: u32) -> i32 {
+    let err = unsafe { &mut *FORMULA_ERROR.0.get() };
+    let text = match std::str::from_utf8(unsafe { bytes(src, len as usize) }) {
+        Ok(t) => t,
+        Err(e) => {
+            *err = "the formula isn't text".into();
+            return e.valid_up_to() as i32;
+        }
+    };
+    match Formula::compile(text) {
+        Err(e) => {
+            *err = e.msg;
+            e.pos as i32
+        }
+        Ok(f) => {
+            let n = count as usize;
+            let flag = |p: *const u8| unsafe { bytes(p, n) }.iter().map(|&b| b != 0).collect::<Vec<bool>>();
+            f.run(unsafe { slice_mut(frames, n * FRAME_LEN) }, &flag(apply), &flag(selected), seed);
+            err.clear();
+            -1
+        }
+    }
+}
+
+/// Check a formula without running it: -1 if it compiles, else the error's offset.
+///
+/// # Safety
+/// `src` holds `len` bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_formula_check(src: *const u8, len: u32) -> i32 {
+    unsafe { tl_formula(src, len, std::ptr::null_mut(), 0, std::ptr::null(), std::ptr::null(), 0) }
+}
+
+/// The last formula error's message (ASCII) into `out`; returns its length.
+///
+/// # Safety
+/// `out` holds `cap` bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_formula_error(out: *mut u8, cap: u32) -> u32 {
+    let e = unsafe { &*FORMULA_ERROR.0.get() };
+    let b = e.as_bytes();
+    let n = b.len().min(cap as usize);
+    unsafe { std::ptr::copy_nonoverlapping(b.as_ptr(), out, n) };
+    n as u32
+}
+
+/// The fundamental of a recording in Hz, or 0 if it has none.
+///
+/// # Safety
+/// `audio` holds `len` floats.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_pitch(audio: *const f32, len: u32, sr: f32) -> f32 {
+    import::detect_pitch(unsafe { slice(audio, len as usize) }, sr).unwrap_or(0.0)
+}
+
+/// Import a recording into at most `max` frames: mode 0 constant (`arg` = the
+/// period in samples), 1 dynamic, 2 dynamic snapped to zero crossings, 3 FFT
+/// split (`arg` = the block size). Returns the frame count.
+///
+/// # Safety
+/// `audio` holds `len` floats; `dst` holds max × 2048.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_import(mode: u32, audio: *const f32, len: u32, sr: f32, arg: f32, max: u32, dst: *mut f32) -> u32 {
+    let x = unsafe { slice(audio, len as usize) };
+    let max = max as usize;
+    let out = match mode {
+        0 => import::constant(x, arg as f64, max),
+        1 => import::dynamic(x, sr, false, max),
+        2 => import::dynamic(x, sr, true, max),
+        3 => import::fft_split(x, arg as usize, max),
+        _ => return 0,
+    };
+    let n = (out.len() / FRAME_LEN).min(max);
+    unsafe { slice_mut(dst, n * FRAME_LEN) }.copy_from_slice(&out[..n * FRAME_LEN]);
+    n as u32
 }

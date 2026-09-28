@@ -10,6 +10,7 @@
   import RemapEditor from '../graphs/RemapEditor.svelte';
   import { PARAMS, PARAM_ID } from '../../gen/params';
   import { toPlain } from '../../state/param-math';
+  import { editorView } from '../../editor/editor.svelte';
 
   let { osc }: { osc: number } = $props();
   const synth = getContext<Synth>('synth');
@@ -47,6 +48,7 @@
     error = '';
     if (v === '__import') return fileInput?.click();
     if (v === '__export') return exportWav();
+    if (v === '__edit') return editorView.open(synth.tables, osc);
     busy = true;
     try {
       await synth.tables.loadFactory(osc, v);
@@ -94,16 +96,23 @@
 >
   <header>
     <Toggle param={k('enable')} label={NAME.toUpperCase()} {color} power />
-    <select class="table" aria-label={`${NAME} wavetable`} value={tableName} onchange={(e) => pick((e.currentTarget as HTMLSelectElement).value)} disabled={busy}>
+    <select class="table" aria-label={`${NAME} wavetable`} value={tableName} onchange={(e) => {
+      const el = e.currentTarget as HTMLSelectElement;
+      const v = el.value;
+      if (v.startsWith('__')) el.value = tableName; // the file actions aren't tables: keep showing the table
+      void pick(v);
+    }} disabled={busy}>
       {#if !factory.some((t) => t.name === tableName)}<option value={tableName}>{tableName}</option>{/if}
       <optgroup label="Factory">
         {#each factory as t (t.name)}<option value={t.name}>{t.name}{t.frames > 1 ? ` (${t.frames})` : ''}</option>{/each}
       </optgroup>
       <optgroup label="File">
+        <option value="__edit">Edit…</option>
         <option value="__import">Import WAV…</option>
         <option value="__export">Export WAV…</option>
       </optgroup>
     </select>
+    <button class="edit" aria-label={`Edit ${NAME}'s wavetable`} title="Edit this wavetable" onclick={() => editorView.open(synth.tables, osc)}>✎</button>
     <div class="route"><Select param={k('route')} label="" /></div>
     <input bind:this={fileInput} type="file" accept=".wav,audio/wav" hidden onchange={(e) => {
       const f = (e.currentTarget as HTMLInputElement).files?.[0];
@@ -167,6 +176,23 @@
     display: flex;
     align-items: center;
     gap: 6px;
+  }
+  .edit {
+    flex: none;
+    width: 22px;
+    height: 20px;
+    padding: 0;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--text-dim);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .edit:hover {
+    color: var(--text);
+    border-color: var(--accent);
   }
   .table {
     flex: 1;
