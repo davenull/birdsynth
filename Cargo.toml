@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/dsp", "crates/engine", "crates/engine-wasm"]
+members = ["crates/dsp", "crates/engine", "crates/engine-wasm", "crates/tools", "crates/tools-wasm"]
 
 [workspace.package]
 version = "0.1.0"
@@ -10,6 +10,7 @@ publish = false
 [workspace.dependencies]
 wt-dsp = { path = "crates/dsp" }
 wt-engine = { path = "crates/engine" }
+wt-tools = { path = "crates/tools" }
 
 # The wasm engine is always built in release: DSP speed matters even in dev.
 [profile.release]

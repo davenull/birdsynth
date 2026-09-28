@@ -62,16 +62,33 @@ impl ParamInfo {
     }
 }
 
-/// Current normalized and plain values of every parameter.
+/// Current values of every parameter. `set` records a target; parameters
+/// flagged `smooth` glide toward it once per sub-block (`step`), everything
+/// else jumps. `norm` and `plain` report the current (smoothed) value.
 pub struct ParamStore {
+    target: [f32; COUNT],
     norm: [f32; COUNT],
     plain: [f32; COUNT],
+    /// Parameters still gliding toward their target.
+    moving: [u16; COUNT],
+    n_moving: usize,
+    is_moving: [bool; COUNT],
+    coef: f32,
 }
 
 impl Default for ParamStore {
     fn default() -> Self {
-        let mut s = ParamStore { norm: [0.0; COUNT], plain: [0.0; COUNT] };
+        let mut s = ParamStore {
+            target: [0.0; COUNT],
+            norm: [0.0; COUNT],
+            plain: [0.0; COUNT],
+            moving: [0; COUNT],
+            n_moving: 0,
+            is_moving: [false; COUNT],
+            coef: 1.0,
+        };
         for (i, info) in INFO.iter().enumerate() {
+            s.target[i] = info.default;
             s.norm[i] = info.default;
             s.plain[i] = info.to_plain(info.default);
         }
@@ -80,17 +97,62 @@ impl Default for ParamStore {
 }
 
 impl ParamStore {
-    /// Set a normalized value. Unknown ids are ignored and reported as false.
+    /// Smoothing time for `smooth` parameters, given the sample rate and the
+    /// sub-block length.
+    pub fn set_smoothing(&mut self, sr: f32, block: usize, ms: f32) {
+        self.coef = 1.0 - (-(block as f32) / (ms * 0.001 * sr)).exp();
+    }
+
+    /// Set a normalized target. Unknown ids are ignored and reported as false.
     #[inline]
     pub fn set(&mut self, id: usize, n: f32) -> bool {
-        match INFO.get(id) {
-            Some(info) => {
-                let n = if n.is_nan() { info.default } else { n.clamp(0.0, 1.0) };
-                self.norm[id] = n;
-                self.plain[id] = info.to_plain(n);
-                true
+        let Some(info) = INFO.get(id) else { return false };
+        let n = if n.is_nan() { info.default } else { n.clamp(0.0, 1.0) };
+        self.target[id] = n;
+        if info.flags & FLAG_SMOOTH != 0 && self.coef < 1.0 {
+            if !self.is_moving[id] && self.norm[id] != n {
+                self.is_moving[id] = true;
+                self.moving[self.n_moving] = id as u16;
+                self.n_moving += 1;
             }
-            None => false,
+        } else {
+            self.norm[id] = n;
+            self.plain[id] = info.to_plain(n);
+        }
+        true
+    }
+
+    /// Jump every smoothed parameter to its target (after a reset).
+    pub fn snap(&mut self) {
+        for i in 0..self.n_moving {
+            let id = self.moving[i] as usize;
+            self.norm[id] = self.target[id];
+            self.plain[id] = INFO[id].to_plain(self.target[id]);
+            self.is_moving[id] = false;
+        }
+        self.n_moving = 0;
+    }
+
+    /// Advance smoothing by one sub-block.
+    pub fn step(&mut self) {
+        let mut i = 0;
+        while i < self.n_moving {
+            let id = self.moving[i] as usize;
+            let t = self.target[id];
+            let mut v = self.norm[id] + (t - self.norm[id]) * self.coef;
+            let done = (t - v).abs() < 1e-5;
+            if done {
+                v = t;
+            }
+            self.norm[id] = v;
+            self.plain[id] = INFO[id].to_plain(v);
+            if done {
+                self.is_moving[id] = false;
+                self.n_moving -= 1;
+                self.moving[i] = self.moving[self.n_moving];
+            } else {
+                i += 1;
+            }
         }
     }
 
@@ -102,6 +164,17 @@ impl ParamStore {
     #[inline]
     pub fn norm(&self, id: u16) -> f32 {
         self.norm[id as usize]
+    }
+
+    #[inline]
+    pub fn target(&self, id: u16) -> f32 {
+        self.target[id as usize]
+    }
+
+    /// Plain value with a normalized modulation offset added.
+    #[inline]
+    pub fn modded(&self, id: u16, offset: f32) -> f32 {
+        INFO[id as usize].to_plain(self.norm[id as usize] + offset)
     }
 }
 
@@ -138,5 +211,23 @@ mod tests {
         assert!(!s.set(COUNT, 0.5));
         assert!(s.set(p::OSC_LEVEL[0] as usize, 2.0));
         assert_eq!(s.plain(p::OSC_LEVEL[0]), 1.0);
+    }
+
+    #[test]
+    fn smoothed_params_glide_and_settle() {
+        let mut s = ParamStore::default();
+        s.set_smoothing(48_000.0, 16, 10.0);
+        let id = p::OSC_LEVEL[0];
+        s.set(id as usize, 0.0);
+        assert_eq!(s.norm(id), 0.75, "a smooth param doesn't jump");
+        s.step();
+        assert!(s.norm(id) < 0.75 && s.norm(id) > 0.0);
+        for _ in 0..1000 {
+            s.step();
+        }
+        assert_eq!(s.norm(id), 0.0);
+        // un-smoothed params jump
+        s.set(p::OSC_SEMI[0] as usize, 1.0);
+        assert_eq!(s.plain(p::OSC_SEMI[0]), 12.0);
     }
 }

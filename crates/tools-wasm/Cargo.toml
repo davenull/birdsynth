@@ -1,0 +1,13 @@
+[package]
+name = "wt-tools-wasm"
+description = "The tools C ABI, built as tools.wasm for the tools Web Worker"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wt-tools.workspace = true
+wt-dsp.workspace = true

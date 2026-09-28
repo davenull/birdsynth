@@ -5,3 +5,4 @@ pub mod mip;
 pub mod phase;
 pub mod rng;
 pub mod saw;
+pub mod warp;

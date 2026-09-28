@@ -16,6 +16,12 @@ voiceSlots = 40     # extra slots let stolen voices fade out while new ones star
 subBlock = 16       # control-rate grid, in frames
 maxBlock = 2048     # most frames one wt_render call may produce
 cmdCapacity = 262144
+maxUnison = 16
+maxModSlots = 64
+maxFrames = 256     # frames per wavetable
+frameLen = 2048     # samples per frame (the Serum format)
+frameStride = 9227  # floats per mip-mapped frame: 9216 samples + 11 guards (see crates/dsp/src/mip.rs)
+oscCount = 3
 
 [[command]]
 name = "SetParam"
@@ -112,6 +118,53 @@ doc = "Clear all DSP state (voices, smoothers, tails) but keep parameters."
 fields = []
 
 [[command]]
+name = "LoadTable"
+op = 20
+doc = "Give an oscillator a wavetable: `bytes` of mip-mapped frames at `ptr` (from wt_asset_alloc). The engine takes ownership."
+fields = [
+  { name = "osc", type = "u8" },
+  { name = "frames", type = "u16" },
+  { name = "ptr", type = "u32" },
+  { name = "bytes", type = "u32" },
+]
+
+[[command]]
+name = "UpdateFrame"
+op = 21
+doc = "Overwrite one mip-mapped frame of an oscillator's table from an asset; the engine frees the asset."
+fields = [
+  { name = "osc", type = "u8" },
+  { name = "index", type = "u16" },
+  { name = "ptr", type = "u32" },
+  { name = "bytes", type = "u32" },
+]
+
+[[command]]
+name = "ResetTable"
+op = 22
+doc = "Return an oscillator to the built-in saw."
+fields = [{ name = "osc", type = "u8" }]
+
+[[command]]
+name = "SetModSlot"
+op = 24
+doc = "Configure one modulation matrix slot. flags: bit 0 bipolar, bit 1 bypass. source 0 clears the slot."
+fields = [
+  { name = "slot", type = "u8" },
+  { name = "source", type = "u8" },
+  { name = "aux", type = "u8" },
+  { name = "flags", type = "u8" },
+  { name = "dest", type = "u16" },
+  { name = "amount", type = "f32" },
+]
+
+[[command]]
+name = "ClearMod"
+op = 25
+doc = "Clear every modulation slot."
+fields = []
+
+[[command]]
 name = "Debug"
 op = 31
 doc = "Test hooks; see [debug]."
@@ -122,6 +175,21 @@ fields = [
 
 [debug]
 Trap = 1            # panic inside the engine, to exercise trap recovery
+Scalar = 2          # arg 1: render oscillators with the scalar reference kernel instead of SIMD
+
+# Modulation sources, in matrix order. Indices are stable: append only.
+[sources]
+names = [
+  "None",
+  "Env 1", "Env 2", "Env 3", "Env 4",
+  "Velocity", "Note", "Mod Wheel", "Pitch Bend", "Aftertouch", "Poly AT", "Release Vel",
+  "Rand 1", "Rand 2", "Rand Discrete", "Voice Index", "Voice Mod 1", "Voice Mod 2", "Active Voices", "Fixed",
+  "LFO 1", "LFO 2", "LFO 3", "LFO 4", "LFO 5", "LFO 6", "LFO 7", "LFO 8", "LFO 9", "LFO 10",
+  "LFO 1 Y", "LFO 2 Y", "LFO 3 Y", "LFO 4 Y", "LFO 5 Y", "LFO 6 Y", "LFO 7 Y", "LFO 8 Y", "LFO 9 Y", "LFO 10 Y",
+  "Macro 1", "Macro 2", "Macro 3", "Macro 4", "Macro 5", "Macro 6", "Macro 7", "Macro 8",
+  "MPE X", "MPE Y", "MPE Z",
+  "Osc A", "Osc B", "Osc C", "Sub", "Noise", "Filter 1", "Filter 2",
+]
 
 # Telemetry: f32 slots the engine refreshes on every render.
 [[telemetry]]
@@ -142,6 +210,23 @@ count = 40
 [[telemetry]]
 name = "voiceLevel"   # amp-envelope level per voice slot
 count = 40
+[[telemetry]]
+name = "oscWtPos"     # the focused voice's wavetable position per oscillator, after modulation
+count = 3
+[[telemetry]]
+name = "oscFrames"    # frames in each oscillator's table
+count = 3
+[[telemetry]]
+name = "tableErrors"  # rejected LoadTable/UpdateFrame commands
+[[telemetry]]
+name = "focusPitch"   # the focused voice's pitch in semitones (MIDI note, glide included)
+[[telemetry]]
+name = "focusEnv"     # the focused voice's envelope levels
+count = 4
+[[telemetry]]
+name = "focusCutoff"  # Filter 1 cutoff of the focused voice, Hz, after modulation
+[[telemetry]]
+name = "modSlots"     # active modulation slots
 
 # Taps: signals the engine can record for scopes and the explainer.
 [[tap]]
@@ -152,3 +237,11 @@ name = "master.r"
 name = "focus.osc"    # the focused voice's oscillator output, before the amp
 [[tap]]
 name = "focus.out"    # the focused voice after the amp
+[[tap]]
+name = "focus.osc.a"  # each oscillator of the focused voice, mono, before the filter
+[[tap]]
+name = "focus.osc.b"
+[[tap]]
+name = "focus.osc.c"
+[[tap]]
+name = "focus.filter" # the focused voice after Filter 1, mono

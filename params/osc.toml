@@ -55,7 +55,7 @@ max = 12
 default = 0
 unit = "st"
 flags = ["mod"]
-explain = "Shifts the pitch in semitones, the steps between neighbouring piano keys."
+explain = "Shifts the pitch in semitones, the steps between neighbouring piano keys. In Harmonics or Ratio mode it picks a harmonic instead."
 
 [[param]]
 key = "fine"
@@ -78,3 +78,210 @@ default = 0.0
 unit = "st"
 flags = ["mod"]
 explain = "A continuous pitch offset in semitones, for sweeps and glides."
+
+[[param]]
+key = "pitch_mode"
+name = "Pitch Mode"
+short = "Mode"
+curve = "enum"
+options = ["Semitones", "Harmonics", "Ratio"]
+default = 0
+explain = "How the Semitone control counts. Semitones: piano steps. Harmonics: the n-th harmonic of the note (negative values give subharmonics). Ratio: the n-th harmonic of Osc A's pitch."
+
+[[param]]
+key = "wt_pos"
+name = "WT Position"
+short = "WT Pos"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Which frame of the wavetable plays. Sweeping it morphs the sound from one single-cycle waveform to the next."
+
+[[param]]
+key = "wt_smooth"
+name = "Smooth Frames"
+short = "Smooth"
+curve = "bool"
+default = 1
+explain = "On: positions between frames blend the two neighbours, so sweeps are seamless. Off: the position snaps to the nearest frame, for stepped, digital sweeps."
+
+[[param]]
+key = "phase"
+name = "Phase"
+curve = "lin"
+min = 0.0
+max = 360.0
+default = 180.0
+unit = "deg"
+flags = ["mod"]
+explain = "Where in its cycle the oscillator starts each note."
+
+[[param]]
+key = "rand_phase"
+name = "Random Phase"
+short = "Rand"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 1.0
+unit = "%"
+explain = "How far each note's start phase is randomized. Random phases keep unison voices from starting in lockstep."
+
+[[param]]
+key = "phase_mem"
+name = "Phase Memory"
+short = "Memory"
+curve = "bool"
+default = 0
+explain = "New notes continue from where the last note's oscillator left off instead of restarting."
+
+[[param]]
+key = "unison"
+name = "Unison"
+short = "Unison"
+curve = "int"
+min = 1
+max = 16
+default = 1
+unit = "voices"
+explain = "Stacks copies of the oscillator, each slightly detuned and spread across the stereo field, for a thick, chorused sound."
+
+[[param]]
+key = "detune"
+name = "Unison Detune"
+short = "Detune"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.25
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How far apart the unison voices are tuned, up to the Range."
+
+[[param]]
+key = "blend"
+name = "Unison Blend"
+short = "Blend"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.75
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Balance between the centre voice and the detuned side voices."
+
+[[param]]
+key = "width"
+name = "Unison Width"
+short = "Width"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 1.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How widely the unison voices spread across the stereo field."
+
+[[param]]
+key = "uni_range"
+name = "Unison Range"
+short = "Range"
+curve = "lin"
+min = 0.0
+max = 48.0
+default = 2.0
+unit = "st"
+explain = "The widest detune, in semitones, that full Detune reaches."
+
+[[param]]
+key = "uni_mode"
+name = "Unison Mode"
+short = "Uni Mode"
+curve = "enum"
+options = ["Linear", "Super", "Exp", "Inv", "Random"]
+default = 0
+explain = "How the voices are spread between the extremes. Linear: evenly. Super: like the classic supersaw, dense near the centre. Exp: clustered at the centre. Inv: pushed to the edges. Random: new offsets every note."
+
+[[param]]
+key = "uni_stack"
+name = "Unison Stack"
+short = "Stack"
+curve = "enum"
+options = ["Off", "12", "24", "12+24", "+7", "+7+12", "Center -12", "Center -24"]
+default = 0
+explain = "Transposes some unison voices by octaves or fifths, to build chords and octave stacks from one oscillator."
+
+[[param]]
+key = "wt_spread"
+name = "WT Spread"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod"]
+explain = "Gives each unison voice a slightly different wavetable position."
+
+[[param]]
+key = "warp_spread"
+name = "Warp Spread"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod"]
+explain = "Gives each unison voice a slightly different warp amount."
+
+[[param]]
+key = "warp1_mode"
+name = "Warp 1 Mode"
+short = "Warp 1"
+curve = "enum"
+options = ["Off", "Sync", "Window Sync", "Bend +", "Bend -", "Bend +/-", "PWM", "Asym +", "Asym -", "Asym +/-", "Flip", "Mirror", "Remap 1", "Remap 2", "Remap 3", "Remap 4", "Quantize", "FM <- A", "FM <- B", "FM <- C", "FM <- Sub", "FM <- Noise", "FM <- Filter 1", "FM <- Filter 2", "PD <- A", "PD <- B", "PD <- C", "PD <- Sub", "PD <- Noise", "PD <- Filter 1", "PD <- Filter 2", "PD Self", "AM <- A", "AM <- B", "AM <- C", "AM <- Sub", "AM <- Noise", "AM <- Filter 1", "AM <- Filter 2", "RM <- A", "RM <- B", "RM <- C", "RM <- Sub", "RM <- Noise", "RM <- Filter 1", "RM <- Filter 2", "Soft Clip", "Hard Clip", "Soft Sat", "Tape Sat", "Tube", "Diode 1", "Diode 2", "Lin Fold", "Sin Fold", "Sine Shaper", "Asym Dist", "Stomp", "Zero-Square", "Lowpass", "Highpass", "Even/Odd"]
+default = 0
+explain = "The first warp: reshapes the waveform as it plays, by bending its timing, syncing it, or distorting it."
+
+[[param]]
+key = "warp1_amount"
+name = "Warp 1 Amount"
+short = "Warp 1"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How strongly the first warp acts."
+
+[[param]]
+key = "warp2_mode"
+name = "Warp 2 Mode"
+short = "Warp 2"
+curve = "enum"
+options = ["Off", "Sync", "Window Sync", "Bend +", "Bend -", "Bend +/-", "PWM", "Asym +", "Asym -", "Asym +/-", "Flip", "Mirror", "Remap 1", "Remap 2", "Remap 3", "Remap 4", "Quantize", "FM <- A", "FM <- B", "FM <- C", "FM <- Sub", "FM <- Noise", "FM <- Filter 1", "FM <- Filter 2", "PD <- A", "PD <- B", "PD <- C", "PD <- Sub", "PD <- Noise", "PD <- Filter 1", "PD <- Filter 2", "PD Self", "AM <- A", "AM <- B", "AM <- C", "AM <- Sub", "AM <- Noise", "AM <- Filter 1", "AM <- Filter 2", "RM <- A", "RM <- B", "RM <- C", "RM <- Sub", "RM <- Noise", "RM <- Filter 1", "RM <- Filter 2", "Soft Clip", "Hard Clip", "Soft Sat", "Tape Sat", "Tube", "Diode 1", "Diode 2", "Lin Fold", "Sin Fold", "Sine Shaper", "Asym Dist", "Stomp", "Zero-Square", "Lowpass", "Highpass", "Even/Odd"]
+default = 0
+explain = "The second warp, applied after the first."
+
+[[param]]
+key = "warp2_amount"
+name = "Warp 2 Amount"
+short = "Warp 2"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How strongly the second warp acts."
+
+[[param]]
+key = "filter"
+name = "To Filter"
+short = "Filter"
+curve = "bool"
+default = [1, 1, 1]
+explain = "Sends this oscillator through Filter 1 when the filter is on; otherwise it goes straight to the amp."

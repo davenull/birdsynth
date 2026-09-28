@@ -141,6 +141,7 @@
   data-param={param}
   data-explain={param}
   style:--knob-color={color}
+  style:--knob-w={`${Math.max(44, size + 18)}px`}
   {onpointerdown}
   {onpointermove}
   {onwheel}
@@ -177,7 +178,7 @@
     display: grid;
     justify-items: center;
     gap: 1px;
-    width: 64px;
+    width: var(--knob-w, 64px);
     user-select: none;
     touch-action: none;
     cursor: ns-resize;
@@ -214,17 +215,22 @@
     stroke-linecap: round;
   }
   .label {
-    font-size: 10.5px;
+    font-size: 10px;
     color: var(--text-dim);
     letter-spacing: 0.02em;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: var(--knob-w, 64px);
   }
   .value,
   .edit {
-    font: 10.5px/1.2 var(--font-num);
+    font: 10px/1.2 var(--font-num);
     color: var(--text);
     white-space: nowrap;
-    width: 60px;
+    width: calc(var(--knob-w, 64px) - 2px);
+    overflow: hidden;
+    text-overflow: ellipsis;
     text-align: center;
   }
   .edit {

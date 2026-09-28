@@ -6,6 +6,7 @@ import { PARAM_ID, type ParamKey } from './gen/params';
 import { DEBUG, TEL, TEL_COUNT, TAP, type TapName } from './gen/protocol';
 import { EngineHost } from './audio/host';
 import { ParamBank } from './state/bank';
+import { TableStore } from './state/tables';
 import type { MidiSink } from './input/midi';
 
 export type SynthStatus = 'idle' | 'starting' | 'running' | 'suspended' | 'error';
@@ -34,6 +35,7 @@ export interface Telemetry {
 
 export class Synth implements MidiSink {
   readonly bank = new ParamBank();
+  readonly tables = new TableStore();
   host: EngineHost | null = null;
   status: SynthStatus = 'idle';
   error = '';
@@ -45,7 +47,7 @@ export class Synth implements MidiSink {
   private readonly held = new Map<number, Held>();
   /** "channel:note" -> noteIds, newest last (a key can be held from two inputs). */
   private readonly byKey = new Map<string, number[]>();
-  private tapNames: TapName[] = ['master.l', 'master.r', 'focus.osc', 'focus.out'];
+  private tapNames: TapName[] = ['master.l', 'master.r', 'focus.osc', 'focus.out', 'focus.osc.a', 'focus.osc.b', 'focus.osc.c', 'focus.filter'];
 
   constructor() {
     this.bank.onAny((id, v) => this.host?.send((w) => w.setParam(0, id, v)));
@@ -76,6 +78,7 @@ export class Synth implements MidiSink {
           },
         });
         this.host = host;
+        this.tables.attach(host);
         const follow = () => {
           if (this.status !== 'error') this.setStatus(host.ctx.state === 'running' ? 'running' : 'suspended');
         };
@@ -83,6 +86,9 @@ export class Synth implements MidiSink {
         this.resync();
         if (host.ctx.state !== 'running') await host.ctx.resume().catch(() => {});
         follow();
+        // every oscillator starts on the factory saw (the engine's built-in
+        // saw covers the moment before it arrives)
+        await Promise.all([0, 1, 2].map((o) => (this.tables.osc[o] ? null : this.tables.loadFactory(o, 'Saw'))));
       } catch (e) {
         this.error = String((e as Error)?.message ?? e);
         this.setStatus('error');
@@ -98,7 +104,7 @@ export class Synth implements MidiSink {
     if (this.host && this.host.ctx.state !== 'running') void this.host.ctx.resume();
   }
 
-  /** Send the whole state: every parameter, the taps and the notes still held. */
+  /** Send the whole state: every parameter, the tables, the taps and the notes still held. */
   resync(): void {
     const host = this.host;
     if (!host) return;
@@ -106,8 +112,16 @@ export class Synth implements MidiSink {
     host.send((w) => {
       const v = this.bank.values;
       for (let id = 0; id < v.length; id++) w.setParam(0, id, v[id]);
+    });
+    this.tables.resync();
+    host.send((w) => {
       for (const [noteId, n] of this.held) w.noteOn(0, n.note, n.channel, n.velocity, noteId);
     });
+  }
+
+  /** Route a matrix slot (P1 has no matrix page yet; the test API and presets use this). */
+  setModSlot(slot: number, source: number, dest: number, amount: number, flags = 0, aux = 0): void {
+    this.host?.send((w) => w.setModSlot(0, slot, source, aux, flags, dest, amount));
   }
 
   // ----------------------------------------------------------- params

@@ -1,6 +1,8 @@
 # birdsynth: a Serum 2–style wavetable synth (browser app, Rust→WASM engine, explainer layer)
 
-**Status:** P0 finished 2026-09-28. Every P0 gate passes, and staging runs on the VM at :8001, reachable at https://birdsynth.abusing.technology (noindex until P4). Next is P1.
+**Status:** P0 and P1 finished 2026-09-28; every gate so far passes. Staging runs on the VM at :8001, reachable at https://birdsynth.abusing.technology (noindex until P4). Next is P2.
+
+P1 measurements: pitch within ±0.5 cent C0–C8 at 44.1/48/96 kHz; saw aliasing ≤ −60 dBc (20 Hz–12 kHz fundamentals, audible band); worst centroid step 0.88% over a 2-octave glide (audible band); SIMD = scalar bit for bit; filters within ±0.3 dB of analytic; 16 voices × 16 unison = 2.9% of real time in Node (scalar 4.5%).
 
 ## Context
 You want a full wavetable synthesizer in the style of Serum. The choices so far:

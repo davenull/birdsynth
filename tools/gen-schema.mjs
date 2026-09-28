@@ -148,6 +148,7 @@ const align = (n, a) => Math.ceil(n / a) * a;
 
 const constants = proto.constants ?? {};
 const commands = (proto.command ?? []).map((c) => {
+  if ((c.fields ?? []).some((f) => f.name === 'frame')) fail(`command ${c.name}: a field can't be called "frame" (every command already has one)`);
   let off = 0;
   const fields = (c.fields ?? []).map((f) => {
     const size = SIZES[f.type];
@@ -175,6 +176,7 @@ const telemetry = (proto.telemetry ?? []).map((t) => {
 const taps = (proto.tap ?? []).map((t, i) => ({ name: t.name, index: i }));
 if (taps.length > 32) fail('at most 32 taps fit the u32 tap mask');
 const debug = proto.debug ?? {};
+const sources = proto.sources?.names ?? ['None'];
 
 // ------------------------------------------------------------------ hash
 const canon = JSON.stringify({
@@ -184,6 +186,7 @@ const canon = JSON.stringify({
   telemetry: telemetry.map((t) => [t.name, t.offset, t.count]),
   taps: taps.map((t) => t.name),
   debug,
+  sources,
 });
 let hash = 0x811c9dc5;
 for (const b of Buffer.from(canon, 'utf8')) {
@@ -273,6 +276,9 @@ function rustProtocol() {
   L.push(`    pub const LEN: usize = ${telLen};`, '}', '', 'pub mod tap {');
   for (const t of taps) L.push(`    pub const ${screaming(t.name)}: usize = ${t.index};`);
   L.push(`    pub const COUNT: usize = ${taps.length};`, `    pub const NAMES: [&str; COUNT] = [${taps.map((t) => `"${t.name}"`).join(', ')}];`, '}', '');
+  L.push('/// Modulation sources, in matrix order.', 'pub mod source {');
+  sources.forEach((n, i) => L.push(`    pub const ${screaming(n.replace(/\+/g, 'plus'))}: u8 = ${i};`));
+  L.push(`    pub const COUNT: usize = ${sources.length};`, `    pub const NAMES: [&str; COUNT] = [${sources.map((n) => JSON.stringify(n)).join(', ')}];`, '}', '');
   return L.join('\n');
 }
 
@@ -387,6 +393,14 @@ function tsProtocol() {
     '    return this.u8.subarray(0, this.pos);',
     '  }',
     '',
+    '  /** Copy the batch into `dst` at `at` without creating any views (safe in an audio callback). */',
+    '  copyInto(dst: Uint8Array, at: number): number {',
+    '    const n = this.pos;',
+    '    const src = this.u8;',
+    '    for (let i = 0; i < n; i++) dst[at + i] = src[i];',
+    '    return n;',
+    '  }',
+    '',
     '  /** Forget everything written. (The Reset command is reset(frame).) */',
     '  clear(): void {',
     '    this.pos = 0;',
@@ -427,6 +441,7 @@ function tsProtocol() {
   L.push('} as const;', '', `export const TAP_NAMES = [${taps.map((t) => JSON.stringify(t.name)).join(', ')}] as const;`, '', 'export type TapName = (typeof TAP_NAMES)[number];', '', 'export const TAP: Readonly<Record<TapName, number>> = {');
   for (const t of taps) L.push(`  ${JSON.stringify(t.name)}: ${t.index},`);
   L.push('};', '');
+  L.push(`export const SOURCES = ${JSON.stringify(sources)} as const;`, '', 'export type SourceName = (typeof SOURCES)[number];', '');
   return L.join('\n');
 }
 

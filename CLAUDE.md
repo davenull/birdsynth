@@ -2,7 +2,7 @@
 
 A Serum 2-style wavetable synth. The Rust engine is compiled to wasm and runs in
 an AudioWorklet; the UI is Svelte 5 + TS. The roadmap and each phase's gates
-are in `docs/plan.md`. Phase 0 is done; P1 (the wavetable oscillator core)
+are in `docs/plan.md`. P0 and P1 are done; P2 (full voice and modulation)
 comes next.
 
 ## Commands
@@ -10,6 +10,13 @@ comes next.
 - `npm test` runs everything: it builds the wasm, then `cargo test --workspace`, then vitest.
 - Dev server: `preview_start {name: "birdsynth"}` (from `.claude/launch.json`) on :5173. The Vite plugin rebuilds `engine.wasm` when `.rs`/`.toml` files change.
 - After editing `params/` or `schema/`, run `npm run gen`. A test fails if the generated files are stale. Never hand-edit `crates/engine/src/spec/*` or `web/src/gen/*`.
+
+## Layout notes
+- `crates/dsp`: mip layout (`mip.rs`), warps (`warp.rs`, shared by the engine and previews), phase/math/rng, the built-in saw.
+- `crates/engine`: `engine.rs` (commands, allocation, render loop), `voice.rs`, `osc/` (kernel with scalar + SIMD, unison), `filter/`, `modmatrix.rs`, `tables.rs` (host-filled assets), `params.rs` (smoothing), `tests.rs` (the P1 gates).
+- `crates/tools` + `tools-wasm`: mip builder, factory tables, resampling, previews; runs in `web/src/tools/worker.ts`.
+- Commands carry wasm32 pointers (u32): native Rust tests must not pass real pointers through commands (load tables with `tables_mut()` instead).
+- Enum option lists in params/*.toml only grow at the end (patches will store option names).
 
 ## Invariants (all tested)
 - `engine.wasm` imports nothing. Keep `getrandom`/wasm-bindgen out of the dependency tree.

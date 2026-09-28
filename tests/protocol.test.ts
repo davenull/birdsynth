@@ -53,7 +53,7 @@ describe('param math', () => {
       for (const n of [0, 0.25, 0.5, 0.75, 1]) {
         const s = snap(p, n);
         const back = toNorm(p, toPlain(p, s));
-        expect(Math.abs(back - s), p.key).toBeLessThan(1e-9);
+        expect(Math.abs(back - s), p.key).toBeLessThan(1e-6); // plain values are f32, like the engine's
       }
     }
   });

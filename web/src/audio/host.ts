@@ -107,6 +107,20 @@ export class EngineHost {
     for (const b of this.w.take()) this.post({ t: 'cmd', b }, [b]);
   }
 
+  /** Give an oscillator a mip-mapped table (frames × frameStride floats). The data is copied. */
+  loadTable(osc: number, mips: Float32Array, frames: number): void {
+    const data = mips.slice().buffer;
+    this.flush(); // keep order with commands already written
+    this.post({ t: 'table', osc, frames, data }, [data]);
+  }
+
+  /** Overwrite one mip-mapped frame of an oscillator's table. The data is copied. */
+  updateFrame(osc: number, index: number, mips: Float32Array): void {
+    const data = mips.slice().buffer;
+    this.flush();
+    this.post({ t: 'frame', osc, index, data }, [data]);
+  }
+
   setTaps(names: readonly TapName[]): void {
     let mask = 0;
     for (const n of names) mask |= 1 << TAP_NAMES.indexOf(n);

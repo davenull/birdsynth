@@ -2,22 +2,58 @@
 
 use crate::params::{Curve, ParamInfo};
 
-pub const COUNT: usize = 43;
+pub const COUNT: usize = 126;
 
 pub const ENV_ATTACK: [u16; 4] = [0, 5, 10, 15];
 pub const ENV_HOLD: [u16; 4] = [1, 6, 11, 16];
 pub const ENV_DECAY: [u16; 4] = [2, 7, 12, 17];
 pub const ENV_SUSTAIN: [u16; 4] = [3, 8, 13, 18];
 pub const ENV_RELEASE: [u16; 4] = [4, 9, 14, 19];
-pub const MASTER_VOLUME: u16 = 20;
-pub const OSC_ENABLE: [u16; 3] = [21, 28, 35];
-pub const OSC_LEVEL: [u16; 3] = [22, 29, 36];
-pub const OSC_PAN: [u16; 3] = [23, 30, 37];
-pub const OSC_OCTAVE: [u16; 3] = [24, 31, 38];
-pub const OSC_SEMI: [u16; 3] = [25, 32, 39];
-pub const OSC_FINE: [u16; 3] = [26, 33, 40];
-pub const OSC_COARSE: [u16; 3] = [27, 34, 41];
-pub const VOICE_POLYPHONY: u16 = 42;
+pub const FILTER_ENABLE: [u16; 2] = [20, 27];
+pub const FILTER_TYPE: [u16; 2] = [21, 28];
+pub const FILTER_CUTOFF: [u16; 2] = [22, 29];
+pub const FILTER_RES: [u16; 2] = [23, 30];
+pub const FILTER_DRIVE: [u16; 2] = [24, 31];
+pub const FILTER_MIX: [u16; 2] = [25, 32];
+pub const FILTER_KEYTRACK: [u16; 2] = [26, 33];
+pub const MASTER_VOLUME: u16 = 34;
+pub const OSC_ENABLE: [u16; 3] = [35, 62, 89];
+pub const OSC_LEVEL: [u16; 3] = [36, 63, 90];
+pub const OSC_PAN: [u16; 3] = [37, 64, 91];
+pub const OSC_OCTAVE: [u16; 3] = [38, 65, 92];
+pub const OSC_SEMI: [u16; 3] = [39, 66, 93];
+pub const OSC_FINE: [u16; 3] = [40, 67, 94];
+pub const OSC_COARSE: [u16; 3] = [41, 68, 95];
+pub const OSC_PITCH_MODE: [u16; 3] = [42, 69, 96];
+pub const OSC_WT_POS: [u16; 3] = [43, 70, 97];
+pub const OSC_WT_SMOOTH: [u16; 3] = [44, 71, 98];
+pub const OSC_PHASE: [u16; 3] = [45, 72, 99];
+pub const OSC_RAND_PHASE: [u16; 3] = [46, 73, 100];
+pub const OSC_PHASE_MEM: [u16; 3] = [47, 74, 101];
+pub const OSC_UNISON: [u16; 3] = [48, 75, 102];
+pub const OSC_DETUNE: [u16; 3] = [49, 76, 103];
+pub const OSC_BLEND: [u16; 3] = [50, 77, 104];
+pub const OSC_WIDTH: [u16; 3] = [51, 78, 105];
+pub const OSC_UNI_RANGE: [u16; 3] = [52, 79, 106];
+pub const OSC_UNI_MODE: [u16; 3] = [53, 80, 107];
+pub const OSC_UNI_STACK: [u16; 3] = [54, 81, 108];
+pub const OSC_WT_SPREAD: [u16; 3] = [55, 82, 109];
+pub const OSC_WARP_SPREAD: [u16; 3] = [56, 83, 110];
+pub const OSC_WARP1_MODE: [u16; 3] = [57, 84, 111];
+pub const OSC_WARP1_AMOUNT: [u16; 3] = [58, 85, 112];
+pub const OSC_WARP2_MODE: [u16; 3] = [59, 86, 113];
+pub const OSC_WARP2_AMOUNT: [u16; 3] = [60, 87, 114];
+pub const OSC_FILTER: [u16; 3] = [61, 88, 115];
+pub const VOICE_POLYPHONY: u16 = 116;
+pub const VOICE_MONO: u16 = 117;
+pub const VOICE_LEGATO: u16 = 118;
+pub const VOICE_GLIDE: u16 = 119;
+pub const VOICE_GLIDE_ALWAYS: u16 = 120;
+pub const VOICE_GLIDE_SCALED: u16 = 121;
+pub const VOICE_GLIDE_CURVE: u16 = 122;
+pub const VOICE_STEAL: u16 = 123;
+pub const VOICE_BEND_UP: u16 = 124;
+pub const VOICE_BEND_DOWN: u16 = 125;
 
 pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "env.1.attack", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.025, flags: 1 },
@@ -40,6 +76,20 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "env.4.decay", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.31498027, flags: 1 },
     ParamInfo { key: "env.4.sustain", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 1 },
     ParamInfo { key: "env.4.release", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.07768081, flags: 1 },
+    ParamInfo { key: "filter.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "filter.1.type", curve: Curve::Enum(12), min: 0.0, max: 11.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "filter.1.cutoff", curve: Curve::Exp, min: 20.0, max: 22000.0, default: 0.4364313, flags: 3 },
+    ParamInfo { key: "filter.1.res", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.1, flags: 3 },
+    ParamInfo { key: "filter.1.drive", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "filter.1.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "filter.1.keytrack", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "filter.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "filter.2.type", curve: Curve::Enum(12), min: 0.0, max: 11.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "filter.2.cutoff", curve: Curve::Exp, min: 20.0, max: 22000.0, default: 0.4364313, flags: 3 },
+    ParamInfo { key: "filter.2.res", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.1, flags: 3 },
+    ParamInfo { key: "filter.2.drive", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "filter.2.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "filter.2.keytrack", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
     ParamInfo { key: "master.volume", curve: Curve::Db, min: -60.0, max: 6.0, default: 0.8181818, flags: 2 },
     ParamInfo { key: "osc.a.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
     ParamInfo { key: "osc.a.level", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.75, flags: 3 },
@@ -48,6 +98,26 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "osc.a.semi", curve: Curve::Int, min: -12.0, max: 12.0, default: 0.5, flags: 1 },
     ParamInfo { key: "osc.a.fine", curve: Curve::Lin, min: -100.0, max: 100.0, default: 0.5, flags: 1 },
     ParamInfo { key: "osc.a.coarse", curve: Curve::Lin, min: -48.0, max: 48.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "osc.a.pitch_mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.a.wt_pos", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "osc.a.wt_smooth", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "osc.a.phase", curve: Curve::Lin, min: 0.0, max: 360.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "osc.a.rand_phase", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "osc.a.phase_mem", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.a.unison", curve: Curve::Int, min: 1.0, max: 16.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.a.detune", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "osc.a.blend", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.75, flags: 3 },
+    ParamInfo { key: "osc.a.width", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "osc.a.uni_range", curve: Curve::Lin, min: 0.0, max: 48.0, default: 0.041666668, flags: 0 },
+    ParamInfo { key: "osc.a.uni_mode", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.a.uni_stack", curve: Curve::Enum(8), min: 0.0, max: 7.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.a.wt_spread", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "osc.a.warp_spread", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "osc.a.warp1_mode", curve: Curve::Enum(62), min: 0.0, max: 61.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.a.warp1_amount", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "osc.a.warp2_mode", curve: Curve::Enum(62), min: 0.0, max: 61.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.a.warp2_amount", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "osc.a.filter", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
     ParamInfo { key: "osc.b.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "osc.b.level", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.75, flags: 3 },
     ParamInfo { key: "osc.b.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
@@ -55,6 +125,26 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "osc.b.semi", curve: Curve::Int, min: -12.0, max: 12.0, default: 0.5, flags: 1 },
     ParamInfo { key: "osc.b.fine", curve: Curve::Lin, min: -100.0, max: 100.0, default: 0.5, flags: 1 },
     ParamInfo { key: "osc.b.coarse", curve: Curve::Lin, min: -48.0, max: 48.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "osc.b.pitch_mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.b.wt_pos", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "osc.b.wt_smooth", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "osc.b.phase", curve: Curve::Lin, min: 0.0, max: 360.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "osc.b.rand_phase", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "osc.b.phase_mem", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.b.unison", curve: Curve::Int, min: 1.0, max: 16.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.b.detune", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "osc.b.blend", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.75, flags: 3 },
+    ParamInfo { key: "osc.b.width", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "osc.b.uni_range", curve: Curve::Lin, min: 0.0, max: 48.0, default: 0.041666668, flags: 0 },
+    ParamInfo { key: "osc.b.uni_mode", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.b.uni_stack", curve: Curve::Enum(8), min: 0.0, max: 7.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.b.wt_spread", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "osc.b.warp_spread", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "osc.b.warp1_mode", curve: Curve::Enum(62), min: 0.0, max: 61.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.b.warp1_amount", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "osc.b.warp2_mode", curve: Curve::Enum(62), min: 0.0, max: 61.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.b.warp2_amount", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "osc.b.filter", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
     ParamInfo { key: "osc.c.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "osc.c.level", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.75, flags: 3 },
     ParamInfo { key: "osc.c.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
@@ -62,5 +152,34 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "osc.c.semi", curve: Curve::Int, min: -12.0, max: 12.0, default: 0.5, flags: 1 },
     ParamInfo { key: "osc.c.fine", curve: Curve::Lin, min: -100.0, max: 100.0, default: 0.5, flags: 1 },
     ParamInfo { key: "osc.c.coarse", curve: Curve::Lin, min: -48.0, max: 48.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "osc.c.pitch_mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.c.wt_pos", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "osc.c.wt_smooth", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "osc.c.phase", curve: Curve::Lin, min: 0.0, max: 360.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "osc.c.rand_phase", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "osc.c.phase_mem", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.c.unison", curve: Curve::Int, min: 1.0, max: 16.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.c.detune", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "osc.c.blend", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.75, flags: 3 },
+    ParamInfo { key: "osc.c.width", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "osc.c.uni_range", curve: Curve::Lin, min: 0.0, max: 48.0, default: 0.041666668, flags: 0 },
+    ParamInfo { key: "osc.c.uni_mode", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.c.uni_stack", curve: Curve::Enum(8), min: 0.0, max: 7.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.c.wt_spread", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "osc.c.warp_spread", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "osc.c.warp1_mode", curve: Curve::Enum(62), min: 0.0, max: 61.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.c.warp1_amount", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "osc.c.warp2_mode", curve: Curve::Enum(62), min: 0.0, max: 61.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.c.warp2_amount", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "osc.c.filter", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
     ParamInfo { key: "voice.polyphony", curve: Curve::Int, min: 1.0, max: 32.0, default: 0.22580644, flags: 0 },
+    ParamInfo { key: "voice.mono", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "voice.legato", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "voice.glide", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "voice.glide_always", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "voice.glide_scaled", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "voice.glide_curve", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 0 },
+    ParamInfo { key: "voice.steal", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "voice.bend_up", curve: Curve::Int, min: 0.0, max: 48.0, default: 0.041666668, flags: 0 },
+    ParamInfo { key: "voice.bend_down", curve: Curve::Int, min: 0.0, max: 48.0, default: 0.041666668, flags: 0 },
 ];

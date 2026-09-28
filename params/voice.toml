@@ -12,4 +12,83 @@ min = 1
 max = 32
 default = 8
 unit = "voices"
-explain = "How many notes can sound at once. When you play more, the oldest voice is faded out quickly and reused."
+explain = "How many notes can sound at once. When you play more, a voice is faded out quickly and reused; Steal decides which."
+
+[[param]]
+key = "mono"
+name = "Mono"
+curve = "bool"
+default = 0
+explain = "Plays one note at a time. The most recent key wins; releasing it returns to a key still held."
+
+[[param]]
+key = "legato"
+name = "Legato"
+curve = "bool"
+default = 0
+explain = "In mono, overlapping notes don't restart the envelopes; the pitch just moves to the new note."
+
+[[param]]
+key = "glide"
+name = "Glide"
+curve = "pow:3"
+min = 0.0
+max = 10000.0
+default = 0.0
+unit = "ms"
+explain = "Portamento: the time to slide from one note's pitch to the next."
+
+[[param]]
+key = "glide_always"
+name = "Glide Always"
+short = "Always"
+curve = "bool"
+default = 0
+explain = "Glides on every note. Off: only when notes overlap."
+
+[[param]]
+key = "glide_scaled"
+name = "Glide Scaled"
+short = "Scaled"
+curve = "bool"
+default = 0
+explain = "The glide time is per octave, so wide leaps take longer than small steps."
+
+[[param]]
+key = "glide_curve"
+name = "Glide Curve"
+short = "Curve"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+explain = "The shape of the slide: negative starts fast and settles slowly, positive starts slowly."
+
+[[param]]
+key = "steal"
+name = "Steal Priority"
+short = "Steal"
+curve = "enum"
+options = ["Oldest", "Newest", "Lowest", "Highest", "Velocity"]
+default = 0
+explain = "Which voice gives way when every voice is busy: the oldest note, the newest, the lowest, the highest, or the softest."
+
+[[param]]
+key = "bend_up"
+name = "Bend Up"
+curve = "int"
+min = 0
+max = 48
+default = 2
+unit = "st"
+explain = "How far the pitch wheel bends up at full travel."
+
+[[param]]
+key = "bend_down"
+name = "Bend Down"
+curve = "int"
+min = 0
+max = 48
+default = 2
+unit = "st"
+explain = "How far the pitch wheel bends down at full travel."

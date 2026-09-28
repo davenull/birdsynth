@@ -1,0 +1,10 @@
+[package]
+name = "wt-tools"
+description = "Offline helpers: mip-map building, factory wavetables, previews"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+wt-dsp.workspace = true
+realfft = "3.5"

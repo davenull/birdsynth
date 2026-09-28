@@ -47,7 +47,14 @@ export function views(buf: ArrayBuffer): BlockViews {
 export type ToWorklet =
   | { t: 'cmd'; b: ArrayBuffer }
   | { t: 'taps'; mask: number }
-  | { t: 'pool'; bufs: ArrayBuffer[] };
+  | { t: 'pool'; bufs: ArrayBuffer[] }
+  /** A whole mip-mapped table for an oscillator (frames × frameStride floats). */
+  | { t: 'table'; osc: number; frames: number; data: ArrayBuffer }
+  /** One mip-mapped frame to overwrite in an oscillator's table. */
+  | { t: 'frame'; osc: number; index: number; data: ArrayBuffer };
+
+/** Largest slice of an upload copied into wasm memory per render quantum. */
+export const UPLOAD_CHUNK = 512 * 1024;
 
 export type FromWorklet =
   | { t: 'ready'; abi: number; sampleRate: number }

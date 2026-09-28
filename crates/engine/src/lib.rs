@@ -4,9 +4,16 @@
 mod engine;
 mod env;
 mod events;
-pub mod spec;
+pub mod filter;
+pub mod modmatrix;
+pub mod osc;
 pub mod params;
+pub mod spec;
+pub mod tables;
 mod voice;
+
+#[cfg(test)]
+mod tests;
 
 pub use engine::{Engine, RenderError};
 pub use spec::protocol::Command;

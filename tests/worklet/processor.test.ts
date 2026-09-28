@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { buildSync } from 'esbuild';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { BLOCK_BYTES, BLOCK_FRAMES, HDR, POOL_SIZE, TAPS_AT, TEL_AT } from '../../web/src/audio/block';
-import { CmdWriter, DEBUG, TAP, TEL } from '../../web/src/gen/protocol';
+import { CmdWriter, CONST, DEBUG, TAP, TEL } from '../../web/src/gen/protocol';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const SR = 48_000;
@@ -30,17 +30,19 @@ type Msg = unknown;
 
 function makeWorklet() {
   const counts = { typed: 0 };
-  const counted = <T extends new (...a: never[]) => object>(Base: T): T =>
-    class extends (Base as new (...a: unknown[]) => object) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const counted = (Base: any): any =>
+    class extends Base {
       constructor(...a: unknown[]) {
         super(...a);
         counts.typed++;
       }
-    } as unknown as T;
+    };
 
   const posted: Msg[] = [];
   let frame = 0;
-  let ctor: (new (o: unknown) => { port: FakePort; process(i: unknown, o: Float32Array[][]): boolean }) | null = null;
+  type Proc = { port: FakePort; process(i: unknown, o: Float32Array[][]): boolean };
+  let ctor: (new (o: unknown) => Proc) | null = null;
 
   class FakePort {
     onmessage: ((e: { data: unknown }) => void) | null = null;
@@ -73,7 +75,8 @@ function makeWorklet() {
   if (!ctor) throw new Error('processor did not register');
 
   const wasm = fs.readFileSync(path.join(ROOT, 'web/wasm/engine.wasm'));
-  const proc = new (ctor as NonNullable<typeof ctor>)({ processorOptions: { wasm: wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength) } });
+  const Ctor = ctor as unknown as new (o: unknown) => Proc;
+  const proc = new Ctor({ processorOptions: { wasm: wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength) } });
   const send = (data: unknown) => proc.port.onmessage!({ data });
   const L = new Float32Array(128);
   const R = new Float32Array(128);
@@ -162,6 +165,40 @@ describe('worklet processor', () => {
     // with the pool empty, further quanta are counted as dropped, not allocated
     w.step();
     expect(w.posted.filter((m) => m instanceof ArrayBuffer).length).toBe(POOL_SIZE);
+  });
+
+  it('uploads a table a chunk per quantum without allocating in process()', () => {
+    const w = makeWorklet();
+    w.send({ t: 'pool', bufs: Array.from({ length: POOL_SIZE }, () => new ArrayBuffer(BLOCK_BYTES)) });
+    const frames = 64;
+    const data = new Float32Array(frames * CONST.frameStride).fill(0.25); // a DC table
+    w.send({ t: 'table', osc: 0, frames, data: data.buffer });
+    w.cmd((c) => c.noteOn(0, 60, 0, 1, 1));
+    const recycle = () => {
+      for (let i = w.posted.length - 1; i >= 0; i--) {
+        const m = w.posted[i];
+        if (m instanceof ArrayBuffer) {
+          w.posted.splice(i, 1);
+          w.send(m);
+        }
+      }
+    };
+    w.resetAllocs();
+    const chunks = Math.ceil((frames * CONST.frameStride * 4) / (512 * 1024));
+    for (let i = 0; i < chunks + 16; i++) {
+      w.step();
+      recycle();
+    }
+    expect(w.allocsInProcess()).toBe(0);
+    // the engine now reports the table and plays its DC level (0.25 * 0.75 level * -6 dB)
+    const blk = w.posted.filter((m): m is ArrayBuffer => m instanceof ArrayBuffer);
+    for (let i = 0; i < 16; i++) {
+      w.step();
+      recycle();
+    }
+    const last = [...w.posted].reverse().find((m): m is ArrayBuffer => m instanceof ArrayBuffer) ?? blk.at(-1)!;
+    void last;
+    expect(Math.abs(w.L[100] - 0.25 * 0.75 * 10 ** (-6 / 20))).toBeLessThan(1e-3);
   });
 
   it('restarts after a trap and plays again as soon as the host resends', () => {

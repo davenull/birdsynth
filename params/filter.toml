@@ -1,0 +1,79 @@
+# The two filters. P1 wires Filter 1; Filter 2 and full routing arrive in P2.
+
+[group]
+key = "filter"
+name = "Filter"
+instances = ["1", "2"]
+instance_names = ["Filter 1", "Filter 2"]
+
+[[param]]
+key = "enable"
+name = "On"
+curve = "bool"
+default = 0
+explain = "Switches the filter on. While it's off, the signal passes untouched."
+
+[[param]]
+key = "type"
+name = "Type"
+curve = "enum"
+options = ["Low 12", "Low 24", "High 12", "High 24", "Band 12", "Band 24", "Notch 12", "Notch 24", "Ladder Low 6", "Ladder Low 12", "Ladder Low 18", "Ladder Low 24"]
+default = 0
+explain = "The filter's shape. Low passes lows and cuts highs; High does the reverse; Band keeps a band around the cutoff; Notch removes one. 12 or 24 is how steeply it cuts, in dB per octave. The Ladder types model the classic four-stage transistor ladder."
+
+[[param]]
+key = "cutoff"
+name = "Cutoff"
+curve = "exp"
+min = 20.0
+max = 22000.0
+default = 425.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "The frequency where the filter starts to act."
+
+[[param]]
+key = "res"
+name = "Resonance"
+short = "Res"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.1
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Boosts frequencies right at the cutoff. High settings ring, and the ladder types sing on their own near the top."
+
+[[param]]
+key = "drive"
+name = "Drive"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Pushes the signal into saturation on the way into the filter, adding harmonics and grit."
+
+[[param]]
+key = "mix"
+name = "Mix"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 1.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Blend of the filtered signal with the dry signal."
+
+[[param]]
+key = "keytrack"
+name = "Key Track"
+short = "Key"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod"]
+explain = "Moves the cutoff with the note played. At 100% the cutoff follows the keyboard exactly, so every note gets the same brightness."

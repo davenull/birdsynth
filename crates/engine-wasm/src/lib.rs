@@ -15,6 +15,7 @@ use std::fmt::Write as _;
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
 use wt_engine::Engine;
+use wt_engine::tables::AssetBuf;
 use wt_engine::spec::{params, protocol as proto};
 
 // ------------------------------------------------------------ allocator
@@ -198,24 +199,20 @@ pub extern "C" fn wt_param_plain(id: u32, norm: f32) -> f32 {
 
 /// Allocate a zeroed, 16-byte aligned region for an asset the host will
 /// copy in (wavetables, samples, IRs). Returns null on failure. Called on
-/// the command path, never while rendering.
+/// the command path, never while rendering. Ownership passes to the engine
+/// with a command such as LoadTable.
 #[unsafe(no_mangle)]
 pub extern "C" fn wt_asset_alloc(bytes: u32) -> *mut u8 {
-    match Layout::from_size_align(bytes as usize, 16) {
-        Ok(l) if l.size() > 0 => unsafe { std::alloc::alloc_zeroed(l) },
-        _ => std::ptr::null_mut(),
-    }
+    AssetBuf::alloc(bytes as usize).map_or(std::ptr::null_mut(), |a| a.into_raw().0)
 }
 
-/// Free a region from `wt_asset_alloc`, given the same size.
+/// Free an asset the engine never took (for example after a failed upload).
 ///
 /// # Safety
-/// `ptr` must come from `wt_asset_alloc(bytes)` and not be freed twice.
+/// `ptr` must come from `wt_asset_alloc(bytes)` and not have been handed to the engine.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn wt_asset_free(ptr: *mut u8, bytes: u32) {
-    if let Ok(l) = Layout::from_size_align(bytes as usize, 16)
-        && !ptr.is_null()
-    {
-        unsafe { std::alloc::dealloc(ptr, l) }
+    if !ptr.is_null() {
+        drop(unsafe { AssetBuf::from_raw(ptr, bytes as usize) });
     }
 }

@@ -8,7 +8,7 @@
 // block comes back from the main thread.
 
 import { ABI_HASH, CmdWriter, TEL } from '../../gen/protocol';
-import { BLOCK_FRAMES, BLOCK_MAX_TAPS, HDR, TAPS_AT, TEL_AT, views, type BlockViews, type FromWorklet, type ToWorklet } from '../block';
+import { BLOCK_FRAMES, BLOCK_MAX_TAPS, HDR, TAPS_AT, TEL_AT, UPLOAD_CHUNK, views, type BlockViews, type FromWorklet, type ToWorklet } from '../block';
 
 // AudioWorkletGlobalScope globals, declared here so the DOM typings stay
 // untouched (they would clash with a global worklet lib).
@@ -35,6 +35,21 @@ interface EngineExports {
   wt_tap_count(): number;
   wt_panic_ptr(): number;
   wt_panic_len(): number;
+  wt_asset_alloc(bytes: number): number;
+  wt_asset_free(ptr: number, bytes: number): void;
+}
+
+/** An asset being copied into wasm memory a chunk per quantum. */
+interface Upload {
+  kind: 'table' | 'frame';
+  osc: number;
+  index: number;
+  frames: number;
+  ptr: number;
+  bytes: number;
+  src: Uint8Array[];
+  dst: Uint8Array;
+  next: number;
 }
 
 type Resizable = WebAssembly.Memory & { toResizableBuffer?: () => ArrayBuffer };
@@ -79,6 +94,7 @@ class WtProcessor extends AudioWorkletProcessor {
   private tapViews: Float32Array[] = [];
   private tapMask = 0;
   private readonly local = new CmdWriter(4096);
+  private uploads: Upload[] = [];
 
   // blocks going back to the main thread
   private readonly pool: BlockViews[] = [];
@@ -140,13 +156,16 @@ class WtProcessor extends AudioWorkletProcessor {
     this.tel = new Float32Array(this.buf, ex.wt_tel_ptr(), ex.wt_tel_len());
     this.tapViews = [];
     for (let i = 0; i < ex.wt_tap_count(); i++) this.tapViews.push(new Float32Array(this.buf, ex.wt_tap_ptr(i), q));
+    for (const u of this.uploads) u.dst = new Uint8Array(this.buf, u.ptr, u.bytes);
   }
 
-  /** Queue commands the processor itself issues (tap mask, warm-up). */
+  /** Queue commands the processor itself issues (tap mask, warm-up, uploads). No views are made. */
   private localCmd(fill: (w: CmdWriter) => void): void {
     this.local.clear();
     fill(this.local);
-    this.pushCmd(this.local.bytes());
+    const n = this.local.length;
+    if (this.cmdLen + n > this.cmd.length) this.applyPending();
+    this.cmdLen += this.local.copyInto(this.cmd, this.cmdLen);
   }
 
   private pushCmd(src: Uint8Array): void {
@@ -196,7 +215,62 @@ class WtProcessor extends AudioWorkletProcessor {
       case 'pool':
         for (const b of d.bufs) this.pool.push(views(b));
         break;
+      case 'table':
+      case 'frame':
+        if (!this.dead) this.startUpload(d);
+        break;
     }
+  }
+
+  /** Allocate the asset and split the source into chunks (views made here, not in process()). */
+  private startUpload(d: Extract<ToWorklet, { t: 'table' | 'frame' }>): void {
+    const bytes = d.data.byteLength;
+    if (d.t === 'table') {
+      // a newer table for the same oscillator makes a pending one pointless
+      this.uploads = this.uploads.filter((u) => {
+        if (u.kind === 'table' && u.osc === d.osc) {
+          this.ex.wt_asset_free(u.ptr, u.bytes);
+          return false;
+        }
+        return true;
+      });
+    }
+    const ptr = this.ex.wt_asset_alloc(bytes);
+    if (!ptr) {
+      this.post({ t: 'log', msg: `worklet: out of memory for a ${bytes}-byte ${d.t}` });
+      return;
+    }
+    if (!this.resizable && this.mem.buffer !== this.buf) {
+      this.buf = this.mem.buffer; // the allocation grew memory
+      this.makeViews();
+    }
+    const src: Uint8Array[] = [];
+    for (let at = 0; at < bytes; at += UPLOAD_CHUNK) src.push(new Uint8Array(d.data, at, Math.min(UPLOAD_CHUNK, bytes - at)));
+    this.uploads.push({
+      kind: d.t,
+      osc: d.osc,
+      index: d.t === 'frame' ? d.index : 0,
+      frames: d.t === 'table' ? d.frames : 1,
+      ptr,
+      bytes,
+      src,
+      dst: new Uint8Array(this.buf, ptr, bytes),
+      next: 0,
+    });
+  }
+
+  /** Copy one chunk of the oldest upload; hand it to the engine when complete. */
+  private pumpUploads(): void {
+    const u = this.uploads[0];
+    if (!u) return;
+    u.dst.set(u.src[u.next], u.next * UPLOAD_CHUNK);
+    u.next++;
+    if (u.next < u.src.length) return;
+    this.uploads.shift();
+    this.localCmd((w) => {
+      if (u.kind === 'table') w.loadTable(0, u.osc, u.frames, u.ptr, u.bytes);
+      else w.updateFrame(0, u.osc, u.index, u.ptr, u.bytes);
+    });
   }
 
   /** The engine trapped: report it and start a fresh instance. The main thread resends the patch. */
@@ -209,6 +283,7 @@ class WtProcessor extends AudioWorkletProcessor {
       // the old instance is unusable; keep the JS error text
     }
     this.traps++;
+    this.uploads = []; // they point into the old instance; the host resends its tables
     try {
       this.instantiate();
       this.post({ t: 'trap', msg, traps: this.traps });
@@ -234,6 +309,7 @@ class WtProcessor extends AudioWorkletProcessor {
       this.quantum = n; // quanta are 128 frames today, but stay correct if that changes
       this.makeViews();
     }
+    if (this.uploads.length) this.pumpUploads();
     this.applyPending();
     try {
       const t0 = Date.now();

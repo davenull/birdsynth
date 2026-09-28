@@ -12,6 +12,21 @@ pub fn note_to_hz(note: f64) -> f64 {
     440.0 * ((note - 69.0) / 12.0).exp2()
 }
 
+/// Semitones to a frequency ratio.
+#[inline]
+pub fn semis_to_ratio(semis: f32) -> f32 {
+    (semis * (1.0 / 12.0)).exp2()
+}
+
+/// A cheap tanh (rational approximation, exact at 0 and saturating at ±1),
+/// good to about 2% and monotonic, for saturation stages.
+#[inline]
+pub fn fast_tanh(x: f32) -> f32 {
+    let x = x.clamp(-3.0, 3.0);
+    let x2 = x * x;
+    x * (27.0 + x2) / (27.0 + 9.0 * x2)
+}
+
 /// Flush values too small to hear to zero, so feedback state never goes subnormal.
 /// Wasm has no flush-to-zero mode, and subnormals are slow on x86.
 #[inline]

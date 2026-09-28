@@ -6,25 +6,33 @@ import type { ParamInfo } from '../gen/params';
 
 const clamp01 = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n);
 
+const f = Math.fround;
+
+/**
+ * Plain value of a normalized one. Linear, stepped and dB curves reproduce
+ * the engine's f32 arithmetic step by step, so a value exactly between two
+ * steps rounds the same way on both sides.
+ */
 export function toPlain(p: ParamInfo, norm: number): number {
-  const n = Number.isNaN(norm) ? p.def : clamp01(norm);
-  const span = p.max - p.min;
+  const n = f(Number.isNaN(norm) ? p.def : clamp01(norm));
+  const min = f(p.min);
+  const span = f(f(p.max) - min);
   const c = p.curve;
   switch (c.kind) {
     case 'lin':
-      return p.min + span * n;
+      return f(min + f(span * n));
     case 'exp':
-      return p.min * Math.pow(p.max / p.min, n);
+      return f(p.min * Math.pow(p.max / p.min, n));
     case 'pow':
-      return p.min + span * Math.pow(n, c.k);
+      return f(min + f(span * f(Math.pow(n, c.k))));
     case 'db':
-      return n <= 0 ? -Infinity : p.min + span * n;
+      return n <= 0 ? -Infinity : f(min + f(span * n));
     case 'int':
-      return Math.floor(p.min + span * n + 0.5);
+      return Math.floor(f(f(min + f(span * n)) + 0.5));
     case 'bool':
       return n >= 0.5 ? 1 : 0;
     case 'enum':
-      return Math.floor(n * (c.options.length - 1) + 0.5);
+      return Math.floor(f(f(n * f(c.options.length - 1)) + 0.5));
   }
 }
 
