@@ -1,0 +1,17 @@
+# Master section: the last stage before the audio output.
+
+[group]
+key = "master"
+name = "Master"
+
+[[param]]
+key = "volume"
+name = "Master Volume"
+short = "Volume"
+curve = "db"
+min = -60.0
+max = 6.0
+default = -6.0
+unit = "dB"
+flags = ["smooth"]
+explain = "Final output level. Like Serum, the synth doesn't limit its output, so a big chord can clip; turn this down if the meter goes red."

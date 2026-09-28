@@ -1,0 +1,80 @@
+# The three main oscillators, A, B and C. Each is an instance of the same set.
+
+[group]
+key = "osc"
+name = "Oscillator"
+instances = ["a", "b", "c"]
+instance_names = ["Osc A", "Osc B", "Osc C"]
+
+[[param]]
+key = "enable"
+name = "On"
+curve = "bool"
+default = [1, 0, 0]
+explain = "Switches the oscillator on or off. An oscillator that's off costs no CPU."
+
+[[param]]
+key = "level"
+name = "Level"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.75
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How loud this oscillator is before it reaches the filters and the amp envelope."
+
+[[param]]
+key = "pan"
+name = "Pan"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+unit = "pan"
+flags = ["mod", "smooth"]
+explain = "Places the oscillator left or right in the stereo field."
+
+[[param]]
+key = "octave"
+name = "Octave"
+curve = "int"
+min = -4
+max = 4
+default = 0
+unit = "oct"
+flags = ["mod"]
+explain = "Shifts the pitch in whole octaves: each step doubles or halves the frequency."
+
+[[param]]
+key = "semi"
+name = "Semitone"
+curve = "int"
+min = -12
+max = 12
+default = 0
+unit = "st"
+flags = ["mod"]
+explain = "Shifts the pitch in semitones, the steps between neighbouring piano keys."
+
+[[param]]
+key = "fine"
+name = "Fine"
+curve = "lin"
+min = -100.0
+max = 100.0
+default = 0.0
+unit = "ct"
+flags = ["mod"]
+explain = "Fine tuning in cents (hundredths of a semitone). Small offsets between oscillators make them beat against each other."
+
+[[param]]
+key = "coarse"
+name = "Coarse"
+curve = "lin"
+min = -48.0
+max = 48.0
+default = 0.0
+unit = "st"
+flags = ["mod"]
+explain = "A continuous pitch offset in semitones, for sweeps and glides."

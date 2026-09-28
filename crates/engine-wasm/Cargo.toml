@@ -1,0 +1,12 @@
+[package]
+name = "wt-engine-wasm"
+description = "The engine's C ABI, built as engine.wasm for the AudioWorklet"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wt-engine.workspace = true

@@ -1,0 +1,4 @@
+# Only what the image serves goes into the build context.
+*
+!dist
+!deploy/nginx.conf

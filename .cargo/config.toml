@@ -1,0 +1,7 @@
+[target.wasm32-unknown-unknown]
+rustflags = [
+  "-C", "target-feature=+simd128",
+  # Pre-size memory so the engine rarely grows it. 64 MiB initial, 2 GiB max.
+  "-C", "link-arg=--initial-memory=67108864",
+  "-C", "link-arg=--max-memory=2147483648",
+]

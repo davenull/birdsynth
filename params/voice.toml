@@ -1,0 +1,15 @@
+# Voicing: how notes are turned into voices.
+
+[group]
+key = "voice"
+name = "Voicing"
+
+[[param]]
+key = "polyphony"
+name = "Polyphony"
+curve = "int"
+min = 1
+max = 32
+default = 8
+unit = "voices"
+explain = "How many notes can sound at once. When you play more, the oldest voice is faded out quickly and reused."

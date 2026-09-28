@@ -1,0 +1,154 @@
+# Binary protocol between the host (main thread and worklet) and the engine.
+#
+# A command batch is a run of commands, each laid out as
+#   u16 op · u16 reserved (0) · u32 payload bytes · f64 frame · payload
+# with the payload padded to a multiple of 8 bytes. `frame` is the absolute
+# audio frame the command applies at; 0 means "as soon as possible".
+# Note-ons start at their exact frame; everything else lands on the next
+# 16-frame control boundary.
+#
+# tools/gen-schema.mjs turns this file and params/*.toml into the Rust and
+# TypeScript codecs. Changing anything here changes ABI_HASH.
+
+[constants]
+maxVoices = 32      # the polyphony limit
+voiceSlots = 40     # extra slots let stolen voices fade out while new ones start
+subBlock = 16       # control-rate grid, in frames
+maxBlock = 2048     # most frames one wt_render call may produce
+cmdCapacity = 262144
+
+[[command]]
+name = "SetParam"
+op = 1
+doc = "Set a parameter to a normalized value in 0..1."
+fields = [
+  { name = "id", type = "u16" },
+  { name = "value", type = "f32" },
+]
+
+[[command]]
+name = "NoteOn"
+op = 2
+doc = "Start a note. noteId is chosen by the host and matched by NoteOff."
+fields = [
+  { name = "note", type = "u8" },
+  { name = "channel", type = "u8" },
+  { name = "velocity", type = "f32" },
+  { name = "noteId", type = "u32" },
+]
+
+[[command]]
+name = "NoteOff"
+op = 3
+doc = "Release a note: by noteId when it's non-zero, else by note and channel."
+fields = [
+  { name = "note", type = "u8" },
+  { name = "channel", type = "u8" },
+  { name = "velocity", type = "f32" },
+  { name = "noteId", type = "u32" },
+]
+
+[[command]]
+name = "AllNotesOff"
+op = 4
+doc = "Release every voice (MIDI CC 123)."
+fields = []
+
+[[command]]
+name = "AllSoundOff"
+op = 5
+doc = "Fade every voice out within a few milliseconds (MIDI CC 120)."
+fields = []
+
+[[command]]
+name = "PitchBend"
+op = 6
+doc = "Pitch wheel position, -1..1."
+fields = [
+  { name = "channel", type = "u8" },
+  { name = "value", type = "f32" },
+]
+
+[[command]]
+name = "Controller"
+op = 7
+doc = "A MIDI continuous controller, value 0..1."
+fields = [
+  { name = "channel", type = "u8" },
+  { name = "cc", type = "u8" },
+  { name = "value", type = "f32" },
+]
+
+[[command]]
+name = "ChannelPressure"
+op = 8
+doc = "Channel aftertouch, 0..1."
+fields = [
+  { name = "channel", type = "u8" },
+  { name = "value", type = "f32" },
+]
+
+[[command]]
+name = "PolyPressure"
+op = 9
+doc = "Per-note aftertouch, 0..1."
+fields = [
+  { name = "note", type = "u8" },
+  { name = "channel", type = "u8" },
+  { name = "value", type = "f32" },
+  { name = "noteId", type = "u32" },
+]
+
+[[command]]
+name = "SetTaps"
+op = 16
+doc = "Choose which taps the engine records (bit i = tap i)."
+fields = [{ name = "mask", type = "u32" }]
+
+[[command]]
+name = "Reset"
+op = 17
+doc = "Clear all DSP state (voices, smoothers, tails) but keep parameters."
+fields = []
+
+[[command]]
+name = "Debug"
+op = 31
+doc = "Test hooks; see [debug]."
+fields = [
+  { name = "code", type = "u32" },
+  { name = "arg", type = "f32" },
+]
+
+[debug]
+Trap = 1            # panic inside the engine, to exercise trap recovery
+
+# Telemetry: f32 slots the engine refreshes on every render.
+[[telemetry]]
+name = "voicesActive"
+[[telemetry]]
+name = "peakL"
+[[telemetry]]
+name = "peakR"
+[[telemetry]]
+name = "focusVoice"   # slot of the most recent sounding voice, -1 if none
+[[telemetry]]
+name = "queueDrops"
+[[telemetry]]
+name = "unknownCmds"
+[[telemetry]]
+name = "voiceNote"    # MIDI note per voice slot, -1 when the slot is free
+count = 40
+[[telemetry]]
+name = "voiceLevel"   # amp-envelope level per voice slot
+count = 40
+
+# Taps: signals the engine can record for scopes and the explainer.
+[[tap]]
+name = "master.l"
+[[tap]]
+name = "master.r"
+[[tap]]
+name = "focus.osc"    # the focused voice's oscillator output, before the amp
+[[tap]]
+name = "focus.out"    # the focused voice after the amp

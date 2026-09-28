@@ -1,0 +1,9 @@
+[package]
+name = "wt-engine"
+description = "The synth engine: voices, modulation and effects, driven by binary commands"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+wt-dsp.workspace = true

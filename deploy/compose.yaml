@@ -1,0 +1,17 @@
+# Runs on the VM with rootless podman:  podman compose up -d
+# deploy.sh writes .env next to this file with the image to run.
+name: birdsynth
+
+services:
+  web:
+    image: ${BIRDSYNTH_IMAGE:-localhost/birdsynth:latest}
+    pull_policy: ${BIRDSYNTH_PULL:-missing}
+    container_name: birdsynth
+    ports:
+      - "8001:8080"
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

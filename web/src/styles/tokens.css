@@ -1,0 +1,31 @@
+/* birdsynth faceplate tokens. The instrument keeps one dark palette in every
+   OS theme, like a hardware panel. Signal colours are fixed roles: each
+   source keeps its colour everywhere it appears (knobs, rings, scopes, and
+   later the explainer). */
+:root {
+  color-scheme: dark;
+
+  --face: #121418;
+  --panel: #1b1e24;
+  --panel-2: #232730;
+  --line: #2d323c;
+  --glass: #0d0f12;
+  --text: #e7e9ee;
+  --text-dim: #9aa1ad;
+  --text-faint: #666d79;
+
+  --knob-face: #262a33;
+  --knob-track: #353b47;
+
+  /* signal roles */
+  --osc-a: #4ea3ff;
+  --osc-b: #ff9f43;
+  --osc-c: #2ed3b7;
+  --env: #a6e05a;
+  --accent: var(--osc-a);
+  --clip: #ff5252;
+
+  --radius: 6px;
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-num: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}

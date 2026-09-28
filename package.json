@@ -1,0 +1,36 @@
+{
+  "name": "birdsynth",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "gen": "node tools/gen-schema.mjs",
+    "gen:check": "node tools/gen-schema.mjs --check",
+    "build:wasm": "node tools/build-wasm.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node tools/build-wasm.mjs && node tools/cargo.mjs test --workspace --quiet && vitest run",
+    "test:js": "vitest run",
+    "check": "svelte-check --tsconfig ./tsconfig.json --threshold warning"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tsconfig/svelte": "^5.0.8",
+    "@types/node": "^26.6.3",
+    "esbuild": "^0.28.2",
+    "smol-toml": "^1.9.0",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}
