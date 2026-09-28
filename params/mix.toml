@@ -1,0 +1,14 @@
+# The mixer: how the filters combine.
+
+[group]
+key = "mix"
+name = "Mix"
+
+[[param]]
+key = "filter_routing"
+name = "Filter Routing"
+short = "Filters"
+curve = "enum"
+options = ["Serial", "Parallel"]
+default = 0
+explain = "Serial: Filter 1 feeds Filter 2. Parallel: the two filter their own share of the signal side by side, and their outputs are mixed."

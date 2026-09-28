@@ -10,6 +10,7 @@ import { buildSync } from 'esbuild';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { BLOCK_BYTES, BLOCK_FRAMES, HDR, POOL_SIZE, TAPS_AT, TEL_AT } from '../../web/src/audio/block';
 import { CmdWriter, CONST, DEBUG, TAP, TEL } from '../../web/src/gen/protocol';
+import { PARAMS } from '../../web/src/gen/params';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const SR = 48_000;
@@ -199,6 +200,35 @@ describe('worklet processor', () => {
     const last = [...w.posted].reverse().find((m): m is ArrayBuffer => m instanceof ArrayBuffer) ?? blk.at(-1)!;
     void last;
     expect(Math.abs(w.L[100] - 0.25 * 0.75 * 10 ** (-6 / 20))).toBeLessThan(1e-3);
+  });
+
+  it('uploads a sample into a slot and the noise oscillator plays it', () => {
+    const w = makeWorklet();
+    w.send({ t: 'pool', bufs: Array.from({ length: POOL_SIZE }, () => new ArrayBuffer(BLOCK_BYTES)) });
+    const frames = 4800;
+    const data = new Float32Array(frames).fill(0.5); // DC, so the output is easy to predict
+    w.send({ t: 'sample', slot: 0, frames, rate: SR, data: data.buffer });
+    const id = (key: string) => PARAMS.find((p) => p.key === key)!.id;
+    w.cmd((c) => {
+      c.setParam(0, id('osc.a.enable'), 0);
+      c.setParam(0, id('noise.enable'), 1);
+      c.noteOn(0, 60, 0, 1, 1);
+    });
+    w.resetAllocs();
+    for (let i = 0; i < 40; i++) {
+      w.step();
+      for (let k = w.posted.length - 1; k >= 0; k--) {
+        const m = w.posted[k];
+        if (m instanceof ArrayBuffer) {
+          w.posted.splice(k, 1);
+          w.send(m);
+        }
+      }
+    }
+    expect(w.allocsInProcess()).toBe(0);
+    const level = PARAMS[id('noise.level')];
+    const want = 0.5 * (level.min + (level.max - level.min) * level.def) * 10 ** (-6 / 20);
+    expect(Math.abs(w.L[100] - want)).toBeLessThan(1e-3);
   });
 
   it('restarts after a trap and plays again as soon as the host resends', () => {

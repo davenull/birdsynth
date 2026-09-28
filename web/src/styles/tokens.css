@@ -23,6 +23,14 @@
   --osc-c: #2ed3b7;
   --env: #a6e05a;
   --filter: #e6b450;
+  --sub: #8ab4f8;
+  --noise: #c9d1d9;
+  --lfo: #c77dff;
+  --macro: #ffd166;
+  --vel: #f78c6b;
+  --ctl: #7fd1e8;
+  --misc: #9aa7ff;
+  --mpe: #ff6ec7;
   --accent: var(--osc-a);
   --clip: #ff5252;
 

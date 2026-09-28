@@ -19,6 +19,8 @@
 
   let canvas = $state<HTMLCanvasElement>();
   let live = $state(false);
+  // record this tap while the scope is on screen
+  $effect(() => synth.useTap(tap));
 
   onMount(() => {
     const buf = new Float32Array(span * 2);

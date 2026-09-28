@@ -13,13 +13,33 @@ pub const BYPASS: u8 = 2;
 /// dest_of value for a parameter no slot modulates.
 pub const NONE: u8 = u8::MAX;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Slot {
     pub source: u8,
     pub aux: u8,
     pub flags: u8,
     pub dest: u16,
     pub amount: f32,
+    /// Bends the source: 0 is straight, positive pushes values down, negative up.
+    pub curve: f32,
+    /// Final scale of the slot (1 = full).
+    pub output: f32,
+}
+
+impl Default for Slot {
+    fn default() -> Self {
+        Slot { source: 0, aux: 0, flags: 0, dest: 0, amount: 0.0, curve: 0.0, output: 1.0 }
+    }
+}
+
+/// Bend a source value (0..1, or -1..1 by magnitude) by a curve in -1..1.
+#[inline]
+pub fn bend(v: f32, c: f32) -> f32 {
+    if c == 0.0 {
+        return v;
+    }
+    let e = (c * 2.0).exp2();
+    v.signum() * v.abs().powf(e)
 }
 
 impl Slot {
@@ -39,6 +59,8 @@ pub fn bipolar_source(s: u8) -> bool {
 /// Per-voice source values, indexed by source number.
 pub type Sources = [f32; source::COUNT];
 
+const _: () = assert!(source::COUNT <= 64, "used-source bitmask is a u64");
+
 pub struct Matrix {
     slots: [Slot; MAX_MOD_SLOTS],
     /// Destination index of each parameter, or NONE.
@@ -48,6 +70,8 @@ pub struct Matrix {
     slot_dest: [u8; MAX_MOD_SLOTS],
     pub dests: usize,
     live: usize,
+    /// Bit s is set when a live slot reads source s (as source or aux).
+    used: u64,
 }
 
 impl Default for Matrix {
@@ -59,6 +83,7 @@ impl Default for Matrix {
             slot_dest: [NONE; MAX_MOD_SLOTS],
             dests: 0,
             live: 0,
+            used: 0,
         }
     }
 }
@@ -88,8 +113,9 @@ impl Matrix {
     }
 
     /// Does any slot use this source? Lets voices skip computing unused sources.
+    #[inline]
     pub fn uses(&self, s: u8) -> bool {
-        self.slots.iter().any(|sl| sl.live() && (sl.source == s || sl.aux == s))
+        (self.used >> s) & 1 != 0
     }
 
     fn rebuild(&mut self) {
@@ -98,6 +124,7 @@ impl Matrix {
         }
         self.dests = 0;
         self.live = 0;
+        self.used = 0;
         for i in 0..MAX_MOD_SLOTS {
             let s = self.slots[i];
             self.slot_dest[i] = NONE;
@@ -105,6 +132,10 @@ impl Matrix {
                 continue;
             }
             self.live += 1;
+            self.used |= 1 << s.source;
+            if s.aux != source::NONE {
+                self.used |= 1 << s.aux;
+            }
             let p = s.dest as usize;
             if self.dest_of[p] == NONE {
                 self.dest_of[p] = self.dests as u8;
@@ -130,7 +161,7 @@ impl Matrix {
                 (false, true) => 0.5 * (raw + 1.0),
             };
             let aux = if s.aux == source::NONE { 1.0 } else { src[s.aux as usize] };
-            out[d as usize] += s.amount * v * aux;
+            out[d as usize] += s.amount * bend(v, s.curve) * aux * s.output;
         }
     }
 }
@@ -149,6 +180,7 @@ mod tests {
         m.set(4, Slot { source: source::NOTE, dest: p::OSC_LEVEL[0], amount: 1.0, ..Slot::default() });
         assert_eq!(m.dests, 2);
         assert_eq!(m.live(), 3);
+        assert!(m.uses(source::ENV_2) && m.uses(source::NOTE) && !m.uses(source::ENV_1));
         let mut src = [0.0; source::COUNT];
         src[source::ENV_2 as usize] = 1.0;
         src[source::VELOCITY as usize] = 0.5;
@@ -171,6 +203,7 @@ mod tests {
         m.eval(&src, &mut out);
         assert_eq!(out[0], 1.0);
         m.set(0, Slot { flags: BYPASS, ..m.slot(0) });
+        assert!((bend(0.5, 0.5) - 0.25).abs() < 1e-6, "curve 0.5 squares the value");
         assert_eq!(m.dests, 0);
         assert_eq!(m.dest_of[0], NONE);
         m.clear();

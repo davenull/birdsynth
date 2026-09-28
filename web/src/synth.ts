@@ -3,10 +3,14 @@
 // MIDI) and the test API all play through here.
 
 import { PARAM_ID, type ParamKey } from './gen/params';
-import { DEBUG, TEL, TEL_COUNT, TAP, type TapName } from './gen/protocol';
+import { DEBUG, TEL, TEL_COUNT, TAP, type CmdWriter, type TapName } from './gen/protocol';
 import { EngineHost } from './audio/host';
+import { BLOCK_MAX_TAPS } from './audio/block';
 import { ParamBank } from './state/bank';
 import { TableStore } from './state/tables';
+import { LfoShapes } from './state/lfo';
+import { ModMatrix, slotFlags, type ModSlot } from './state/matrix';
+import { NoiseStore } from './state/noise';
 import type { MidiSink } from './input/midi';
 
 export type SynthStatus = 'idle' | 'starting' | 'running' | 'suspended' | 'error';
@@ -36,6 +40,9 @@ export interface Telemetry {
 export class Synth implements MidiSink {
   readonly bank = new ParamBank();
   readonly tables = new TableStore();
+  readonly matrix = new ModMatrix();
+  readonly lfo = new LfoShapes();
+  readonly noise = new NoiseStore(this.bank);
   host: EngineHost | null = null;
   status: SynthStatus = 'idle';
   error = '';
@@ -47,10 +54,15 @@ export class Synth implements MidiSink {
   private readonly held = new Map<number, Held>();
   /** "channel:note" -> noteIds, newest last (a key can be held from two inputs). */
   private readonly byKey = new Map<string, number[]>();
-  private tapNames: TapName[] = ['master.l', 'master.r', 'focus.osc', 'focus.out', 'focus.osc.a', 'focus.osc.b', 'focus.osc.c', 'focus.filter'];
+  /** Taps something on screen is showing, with a count of users each. A block carries at most BLOCK_MAX_TAPS. */
+  private readonly tapUse = new Map<TapName, number>();
 
   constructor() {
     this.bank.onAny((id, v) => this.host?.send((w) => w.setParam(0, id, v)));
+    this.matrix.attach((i, s) => this.host?.send((w) => writeSlot(w, i, s)));
+    this.lfo.attach((lfo, kind, pts) =>
+      this.host?.send((w) => w.setLfoShape(0, lfo, kind === 'path' ? 1 : 0, pts.length, pts.flatMap((p) => [p.x, p.y, p.c]))),
+    );
   }
 
   onStatus(fn: (s: SynthStatus) => void): () => void {
@@ -79,6 +91,7 @@ export class Synth implements MidiSink {
         });
         this.host = host;
         this.tables.attach(host);
+        this.noise.attach(host);
         const follow = () => {
           if (this.status !== 'error') this.setStatus(host.ctx.state === 'running' ? 'running' : 'suspended');
         };
@@ -89,6 +102,7 @@ export class Synth implements MidiSink {
         // every oscillator starts on the factory saw (the engine's built-in
         // saw covers the moment before it arrives)
         await Promise.all([0, 1, 2].map((o) => (this.tables.osc[o] ? null : this.tables.loadFactory(o, 'Saw'))));
+        await this.noise.load();
       } catch (e) {
         this.error = String((e as Error)?.message ?? e);
         this.setStatus('error');
@@ -104,24 +118,53 @@ export class Synth implements MidiSink {
     if (this.host && this.host.ctx.state !== 'running') void this.host.ctx.resume();
   }
 
-  /** Send the whole state: every parameter, the tables, the taps and the notes still held. */
+  /** Send the whole state: parameters, matrix, LFO shapes, tables, noise, taps and the notes still held. */
   resync(): void {
     const host = this.host;
     if (!host) return;
-    host.setTaps(this.tapNames);
+    this.pushTaps();
     host.send((w) => {
       const v = this.bank.values;
       for (let id = 0; id < v.length; id++) w.setParam(0, id, v[id]);
+      w.clearMod(0);
     });
+    this.matrix.resync();
+    this.lfo.resync();
     this.tables.resync();
+    this.noise.resync();
     host.send((w) => {
       for (const [noteId, n] of this.held) w.noteOn(0, n.note, n.channel, n.velocity, noteId);
     });
   }
 
-  /** Route a matrix slot (P1 has no matrix page yet; the test API and presets use this). */
-  setModSlot(slot: number, source: number, dest: number, amount: number, flags = 0, aux = 0): void {
-    this.host?.send((w) => w.setModSlot(0, slot, source, aux, flags, dest, amount));
+  /** Route a matrix slot directly (the test API and presets; the UI uses `matrix`). */
+  setModSlot(slot: number, source: number, dest: number, amount: number, flags = 0, aux = 0, curve = 0, output = 1): void {
+    this.matrix.set(slot, source ? { source, aux, dest, amount, curve, output, bipolar: !!(flags & 1), bypass: !!(flags & 2) } : null);
+  }
+
+  // ------------------------------------------------------------- taps
+  /** Ask for a tap while something shows it; call the returned function when done. */
+  useTap(name: TapName): () => void {
+    this.tapUse.set(name, (this.tapUse.get(name) ?? 0) + 1);
+    this.pushTaps();
+    let done = false;
+    return () => {
+      if (done) return;
+      done = true;
+      const n = (this.tapUse.get(name) ?? 1) - 1;
+      if (n > 0) this.tapUse.set(name, n);
+      else this.tapUse.delete(name);
+      this.pushTaps();
+    };
+  }
+
+  /** Taps being recorded now (the oldest requests win when more than a block carries are wanted). */
+  get activeTaps(): TapName[] {
+    return [...this.tapUse.keys()].slice(0, BLOCK_MAX_TAPS);
+  }
+
+  private pushTaps(): void {
+    this.host?.setTaps(this.activeTaps);
   }
 
   // ----------------------------------------------------------- params
@@ -229,4 +272,9 @@ export class Synth implements MidiSink {
   debugTrap(): void {
     this.host?.send((w) => w.debug(0, DEBUG.Trap, 0));
   }
+}
+
+function writeSlot(w: CmdWriter, i: number, s: ModSlot | null): void {
+  if (s) w.setModSlot(0, i, s.source, s.aux, slotFlags(s), s.dest, s.amount, s.curve, s.output);
+  else w.setModSlot(0, i, 0, 0, 0, 0, 0, 0, 1);
 }

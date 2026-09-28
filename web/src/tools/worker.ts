@@ -17,6 +17,9 @@ interface Exports {
   tl_factory_build(i: number, dst: number): number;
   tl_resample(src: number, len: number, dst: number): number;
   tl_preview(frame: number, w1: number, a1: number, w2: number, a2: number, points: number, dst: number): number;
+  tl_noise_len(): number;
+  tl_noise_rate(): number;
+  tl_noise_build(i: number, dst: number): number;
 }
 
 const ready: Promise<Exports> = WebAssembly.instantiateStreaming(fetch(toolsUrl), {}).then((r) => r.instance.exports as unknown as Exports);
@@ -88,6 +91,14 @@ function handle(ex: Exports, req: ToolsReq): { result: unknown; transfer: Transf
           const out = f32(ex, dst, req.points).slice();
           return { result: out, transfer: [out.buffer] };
         });
+      });
+    }
+    case 'noise': {
+      const n = ex.tl_noise_len();
+      return withBuf(ex, n * 4, (dst) => {
+        if (ex.tl_noise_build(req.index, dst) !== 0) throw new Error(`no noise ${req.index}`);
+        const data = f32(ex, dst, n).slice();
+        return { result: { data, rate: ex.tl_noise_rate() }, transfer: [data.buffer] };
       });
     }
   }

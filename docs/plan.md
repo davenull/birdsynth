@@ -1,8 +1,10 @@
 # birdsynth: a Serum 2–style wavetable synth (browser app, Rust→WASM engine, explainer layer)
 
-**Status:** P0 and P1 finished 2026-09-28; every gate so far passes. Staging runs on the VM at :8001, reachable at https://birdsynth.abusing.technology (noindex until P4). Next is P2.
+**Status:** P0, P1 and P2 finished 2026-09-28; every gate so far passes. Staging runs on the VM at :8001, reachable at https://birdsynth.abusing.technology (noindex until P4). Next is P3.
 
 P1 measurements: pitch within ±0.5 cent C0–C8 at 44.1/48/96 kHz; saw aliasing ≤ −60 dBc (20 Hz–12 kHz fundamentals, audible band); worst centroid step 0.88% over a 2-octave glide (audible band); SIMD = scalar bit for bit; filters within ±0.3 dB of analytic; 16 voices × 16 unison = 2.9% of real time in Node (scalar 4.5%).
+
+P2 measurements: envelope segments end on the 16-frame grid (≤ 0.33 ms late) at 120 and 60 BPM and 2× rate; LFO periods exact to < 0.1% (Free and Retrig, 0.37–31 Hz over 60 s); BPM-synced LFOs drift < 1e-4 cycles (free) and < 1e-3 (retriggered) over 60 s; the matrix matches the TS model over 1,000 random routings (curves, aux, output, bipolar, bypass) to 2e-5; the fused FM loop (A←B and the A↔B cycle, 4 × 3 unison lanes) is bit-exact against an independent reference; hard-sync aliasing at C6 is −34.7 / −41.8 / −46.5 dB at 1× / 2× / 4×. Heavy patch without FX (16 voices, 3 osc × 16 unison, two warps each, 2 driven ladders, 16 matrix slots) = 16.8% of real time in Node, about 19% in the browser worklet with 0 underruns over 30 s. The fuller voice costs 16 × 16 unison 2.9% → 4.1%.
 
 ## Context
 You want a full wavetable synthesizer in the style of Serum. The choices so far:

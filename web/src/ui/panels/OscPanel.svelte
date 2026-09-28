@@ -14,8 +14,8 @@
   const NAME = $derived(`Osc ${L.toUpperCase()}`);
   const color = $derived(`var(--osc-${L})`);
   const k = (s: string) => `osc.${L}.${s}` as ParamKey;
-  /** Warp modes built so far (the list grows in later phases). */
-  const WARP_MAX = 9;
+  /** Warp modes built so far: phase warps and cross-modulation (the distortion and filter warps arrive in P3). */
+  const WARP_MAX = 45;
 
   let tableName = $state('Saw');
   let factory = $state<{ name: string; frames: number }[]>([]);
@@ -91,7 +91,7 @@
         <option value="__export">Export WAV…</option>
       </optgroup>
     </select>
-    <Toggle param={k('filter')} label="F1" {color} />
+    <div class="route"><Select param={k('route')} label="" /></div>
     <input bind:this={fileInput} type="file" accept=".wav,audio/wav" hidden onchange={(e) => {
       const f = (e.currentTarget as HTMLInputElement).files?.[0];
       if (f) importFile(f);
@@ -163,8 +163,11 @@
     padding: 2px 4px;
   }
   .display {
-    height: 112px;
+    height: 104px;
     flex: none;
+  }
+  .route :global(select) {
+    max-width: 74px;
   }
   .grid {
     display: grid;

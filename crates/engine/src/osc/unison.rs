@@ -65,15 +65,15 @@ fn super_pos(i: usize, n: usize) -> f32 {
 
 /// Semitone offset a stack mode adds to lane i (in detune order).
 fn stack_offset(stack: u8, i: usize, n: usize) -> f32 {
-    let centre = i * 2 + 1 == n || (n % 2 == 0 && (i + 1 == n / 2 || i == n / 2));
+    let centre = i * 2 + 1 == n || (n.is_multiple_of(2) && (i + 1 == n / 2 || i == n / 2));
     match stack {
         1 => if i % 2 == 1 { 12.0 } else { 0.0 },
         2 => if i % 2 == 1 { 24.0 } else { 0.0 },
         3 => [0.0, 12.0, 24.0][i % 3],
         4 => if i % 2 == 1 { 7.0 } else { 0.0 },
         5 => [0.0, 7.0, 12.0][i % 3],
-        6 => if centre { -12.0 } else { 0.0 },
-        7 => if centre { -24.0 } else { 0.0 },
+        6 if centre => -12.0,
+        7 if centre => -24.0,
         _ => 0.0,
     }
 }
@@ -110,7 +110,7 @@ pub fn layout(p: &UniParams, random: &[f32; MAX_LANES]) -> Layout {
             MODE_RANDOM => random[i] * 2.0 - 1.0,
             _ => linear(j, n),
         };
-        let centre = j * 2 + 1 == n || (n % 2 == 0 && (j + 1 == n / 2 || j == n / 2));
+        let centre = j * 2 + 1 == n || (n.is_multiple_of(2) && (j + 1 == n / 2 || j == n / 2));
         let g = if centre { 1.0 - 0.5 * p.blend } else { p.blend };
         gains[i] = g;
         power += g * g;

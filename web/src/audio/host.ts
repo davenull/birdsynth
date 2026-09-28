@@ -121,6 +121,13 @@ export class EngineHost {
     this.post({ t: 'frame', osc, index, data }, [data]);
   }
 
+  /** Give a sample slot (0: noise) mono audio recorded at `rate` Hz. The data is copied. */
+  loadSample(slot: number, audio: Float32Array, rate: number): void {
+    const data = audio.slice().buffer;
+    this.flush();
+    this.post({ t: 'sample', slot, frames: audio.length, rate, data }, [data]);
+  }
+
   setTaps(names: readonly TapName[]): void {
     let mask = 0;
     for (const n of names) mask |= 1 << TAP_NAMES.indexOf(n);

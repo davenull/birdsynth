@@ -2,7 +2,8 @@
 // tests and the browser console, e.g.
 //   __synth.noteOn(60); __synth.telemetry(); __synth.midiIn([0x90, 64, 100])
 
-import { PARAMS, type ParamKey } from './gen/params';
+import { PARAMS, PARAM_ID, type ParamKey } from './gen/params';
+import { toNorm, toPlain } from './state/param-math';
 import { SOURCES, TEL, TEL_COUNT, type TapName } from './gen/protocol';
 import { parseMidi } from './input/midi';
 import type { Synth } from './synth';
@@ -13,6 +14,7 @@ interface PlaybackStats {
 }
 
 export function installTestApi(synth: Synth): void {
+  const kept = new Set<TapName>();
   const api = {
     synth,
     start: () => synth.start(),
@@ -23,6 +25,9 @@ export function installTestApi(synth: Synth): void {
     allNotesOff: () => synth.allNotesOff(),
     setParam: (key: ParamKey, norm: number) => synth.setParam(key, norm),
     getParam: (key: ParamKey) => synth.getParam(key),
+    /** Set a parameter in its own unit: __synth.setPlain('filter.1.cutoff', 800) */
+    setPlain: (key: ParamKey, plain: number) => synth.setParam(key, toNorm(PARAMS[PARAM_ID[key]], plain)),
+    getPlain: (key: ParamKey) => toPlain(PARAMS[PARAM_ID[key]], synth.getParam(key)),
     params: () => PARAMS.map((p) => p.key),
     /** Feed raw MIDI bytes through the same parser Web MIDI uses. */
     midiIn: (bytes: number[]) => parseMidi(bytes, synth),
@@ -41,10 +46,33 @@ export function installTestApi(synth: Synth): void {
     },
     sources: () => [...SOURCES],
     /** Route a matrix slot: __synth.mod(0, 'Env 2', 'filter.1.cutoff', 0.5) */
-    mod: (slot: number, source: string, dest: ParamKey, amount: number, bipolar = false) =>
-      synth.setModSlot(slot, SOURCES.indexOf(source as (typeof SOURCES)[number]), PARAMS.find((p) => p.key === dest)!.id, amount, bipolar ? 1 : 0),
+    mod: (slot: number, source: string, dest: ParamKey, amount: number, bipolar = false, curve = 0, output = 1, aux = 'None') =>
+      synth.setModSlot(
+        slot,
+        SOURCES.indexOf(source as (typeof SOURCES)[number]),
+        PARAMS.find((p) => p.key === dest)!.id,
+        amount,
+        bipolar ? 1 : 0,
+        SOURCES.indexOf(aux as (typeof SOURCES)[number]),
+        curve,
+        output,
+      ),
+    /** The routed slots, readable: [{ slot, source, dest, amount, ... }]. */
+    matrix: () =>
+      synth.matrix.slots.flatMap((s, slot) =>
+        s ? [{ slot, source: SOURCES[s.source], aux: SOURCES[s.aux], dest: PARAMS[s.dest].key, amount: s.amount, curve: s.curve, output: s.output, bipolar: s.bipolar, bypass: s.bypass }] : [],
+      ),
+    /** Keep a tap recording (scopes do this themselves while shown). */
+    useTap: (name: TapName) => synth.useTap(name),
     loadTable: (osc: number, name: string) => synth.tables.loadFactory(osc, name),
-    tap: (name: TapName, frames = 1024) => Array.from(synth.tap(name, frames)),
+    /** The newest frames of a tap. A tap read here stays recorded from then on. */
+    tap: (name: TapName, frames = 1024) => {
+      if (!kept.has(name)) {
+        kept.add(name);
+        synth.useTap(name);
+      }
+      return Array.from(synth.tap(name, frames));
+    },
     stats: () => {
       const ctx = synth.host?.ctx;
       const ps = (ctx as unknown as { playbackStats?: PlaybackStats } | undefined)?.playbackStats;

@@ -7,7 +7,7 @@ use std::alloc::{Layout, alloc_zeroed, dealloc};
 use std::cell::UnsafeCell;
 
 use wt_dsp::mip::{FRAME_LEN, FRAME_STRIDE};
-use wt_tools::{factory, mips::MipBuilder, preview, resample};
+use wt_tools::{factory, mips::MipBuilder, noise, preview, resample};
 
 struct Global<T>(UnsafeCell<T>);
 
@@ -126,5 +126,34 @@ pub unsafe extern "C" fn tl_resample(src: *const f32, len: u32, dst: *mut f32) -
 pub unsafe extern "C" fn tl_preview(frame: *const f32, w1_mode: u32, w1_amt: f32, w2_mode: u32, w2_amt: f32, points: u32, dst: *mut f32) -> u32 {
     let (f, d) = unsafe { (slice(frame, FRAME_LEN), slice_mut(dst, points as usize)) };
     preview::cycle(f, (w1_mode as u8, w1_amt), (w2_mode as u8, w2_amt), d);
+    0
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn tl_noise_count() -> u32 {
+    noise::NAMES.len() as u32
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn tl_noise_len() -> u32 {
+    noise::LEN as u32
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn tl_noise_rate() -> f32 {
+    noise::RATE
+}
+
+/// Generate noise `i` into dst (tl_noise_len() floats). Returns 0 on success.
+///
+/// # Safety
+/// `dst` must hold tl_noise_len() floats.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_noise_build(i: u32, dst: *mut f32) -> u32 {
+    if i as usize >= noise::NAMES.len() {
+        return 1;
+    }
+    let d = unsafe { slice_mut(dst, noise::LEN) };
+    noise::build(i as usize, d);
     0
 }

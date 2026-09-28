@@ -1,4 +1,4 @@
-<!-- Voicing: polyphony, mono and legato, glide, stealing and bend range. -->
+<!-- Voicing: polyphony, mono and legato, glide and stealing. Bend range and tempo live on the GLOBAL page. -->
 <script lang="ts">
   import Knob from '../primitives/Knob.svelte';
   import Select from '../primitives/Select.svelte';
@@ -10,18 +10,16 @@
 <section class="panel voicing" data-explain="voice" aria-label="Voicing">
   <h2>VOICING</h2>
   <div class="row">
-    <Knob param="voice.polyphony" label="Voices" size={28} {color} />
-    <Knob param="voice.glide" size={28} {color} />
-    <Knob param="voice.glide_curve" size={28} {color} />
-    <Knob param="voice.bend_up" size={26} {color} />
-    <Knob param="voice.bend_down" size={26} {color} />
+    <Knob param="voice.polyphony" label="Voices" size={24} {color} compact />
+    <Knob param="voice.glide" size={24} {color} compact />
+    <Knob param="voice.glide_curve" size={24} {color} compact />
+    <Select param="voice.steal" />
   </div>
   <div class="row toggles">
     <Toggle param="voice.mono" />
     <Toggle param="voice.legato" />
     <Toggle param="voice.glide_always" />
     <Toggle param="voice.glide_scaled" />
-    <Select param="voice.steal" />
   </div>
 </section>
 
@@ -44,7 +42,7 @@
     gap: 2px;
   }
   .toggles {
-    gap: 5px;
+    gap: 4px;
     flex-wrap: wrap;
   }
 </style>

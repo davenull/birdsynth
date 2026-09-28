@@ -41,10 +41,12 @@ interface EngineExports {
 
 /** An asset being copied into wasm memory a chunk per quantum. */
 interface Upload {
-  kind: 'table' | 'frame';
+  kind: 'table' | 'frame' | 'sample';
+  /** Oscillator, or sample slot. */
   osc: number;
   index: number;
   frames: number;
+  rate: number;
   ptr: number;
   bytes: number;
   src: Uint8Array[];
@@ -217,18 +219,20 @@ class WtProcessor extends AudioWorkletProcessor {
         break;
       case 'table':
       case 'frame':
+      case 'sample':
         if (!this.dead) this.startUpload(d);
         break;
     }
   }
 
   /** Allocate the asset and split the source into chunks (views made here, not in process()). */
-  private startUpload(d: Extract<ToWorklet, { t: 'table' | 'frame' }>): void {
+  private startUpload(d: Extract<ToWorklet, { t: 'table' | 'frame' | 'sample' }>): void {
     const bytes = d.data.byteLength;
-    if (d.t === 'table') {
-      // a newer table for the same oscillator makes a pending one pointless
+    const target = d.t === 'sample' ? d.slot : d.osc;
+    if (d.t !== 'frame') {
+      // a newer table (or sample) for the same slot makes a pending one pointless
       this.uploads = this.uploads.filter((u) => {
-        if (u.kind === 'table' && u.osc === d.osc) {
+        if (u.kind === d.t && u.osc === target) {
           this.ex.wt_asset_free(u.ptr, u.bytes);
           return false;
         }
@@ -248,9 +252,10 @@ class WtProcessor extends AudioWorkletProcessor {
     for (let at = 0; at < bytes; at += UPLOAD_CHUNK) src.push(new Uint8Array(d.data, at, Math.min(UPLOAD_CHUNK, bytes - at)));
     this.uploads.push({
       kind: d.t,
-      osc: d.osc,
+      osc: target,
       index: d.t === 'frame' ? d.index : 0,
-      frames: d.t === 'table' ? d.frames : 1,
+      frames: d.t === 'frame' ? 1 : d.frames,
+      rate: d.t === 'sample' ? d.rate : 0,
       ptr,
       bytes,
       src,
@@ -269,6 +274,7 @@ class WtProcessor extends AudioWorkletProcessor {
     this.uploads.shift();
     this.localCmd((w) => {
       if (u.kind === 'table') w.loadTable(0, u.osc, u.frames, u.ptr, u.bytes);
+      else if (u.kind === 'sample') w.loadSample(0, u.osc, u.frames, u.rate, u.ptr, u.bytes);
       else w.updateFrame(0, u.osc, u.index, u.ptr, u.bytes);
     });
   }

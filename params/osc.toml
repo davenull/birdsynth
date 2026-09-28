@@ -279,9 +279,45 @@ flags = ["mod", "smooth"]
 explain = "How strongly the second warp acts."
 
 [[param]]
-key = "filter"
-name = "To Filter"
-short = "Filter"
-curve = "bool"
-default = [1, 1, 1]
-explain = "Sends this oscillator through Filter 1 when the filter is on; otherwise it goes straight to the amp."
+key = "route"
+name = "Route"
+curve = "enum"
+options = ["Filters", "Main", "Direct", "None"]
+default = 0
+explain = "Where the oscillator goes. Filters: into Filter 1 and Filter 2, split by Balance. Main: skip the filters, into the main FX. Direct: skip filters and FX. None: silent, but still usable as a modulation source."
+
+[[param]]
+key = "balance"
+name = "Filter Balance"
+short = "F1<>F2"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How the oscillator divides between the two filters: all Filter 1 at the left, all Filter 2 at the right."
+
+[[param]]
+key = "send1"
+name = "Bus 1 Send"
+short = "Bus 1"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How much of the oscillator also goes to FX Bus 1."
+
+[[param]]
+key = "send2"
+name = "Bus 2 Send"
+short = "Bus 2"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How much of the oscillator also goes to FX Bus 2."

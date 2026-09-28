@@ -27,7 +27,7 @@ pub fn cycle_to_frame(src: &[f32], dst: &mut [f32]) {
     let scale = 1.0 / n as f32;
     for k in 0..=keep {
         let mut c = spec[k] * scale;
-        if n % 2 == 0 && k == n / 2 && k < FRAME_LEN / 2 {
+        if n.is_multiple_of(2) && k == n / 2 && k < FRAME_LEN / 2 {
             c *= 0.5;
         }
         out_spec[k] = c;

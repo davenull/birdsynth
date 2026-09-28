@@ -1,4 +1,4 @@
-# The two filters. P1 wires Filter 1; Filter 2 and full routing arrive in P2.
+# The two filters.
 
 [group]
 key = "filter"
@@ -77,3 +77,25 @@ default = 0.0
 unit = "%"
 flags = ["mod"]
 explain = "Moves the cutoff with the note played. At 100% the cutoff follows the keyboard exactly, so every note gets the same brightness."
+
+[[param]]
+key = "level"
+name = "Level"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 1.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "The filter's output level."
+
+[[param]]
+key = "pan"
+name = "Pan"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+unit = "pan"
+flags = ["mod", "smooth"]
+explain = "Stereo position of the filter's output."

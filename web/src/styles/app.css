@@ -16,3 +16,31 @@ body {
 button {
   font: inherit;
 }
+
+/* drag-to-modulate: the chip under the pointer, and the knobs it can land on */
+.mod-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  pointer-events: none;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--mod-color, var(--lfo));
+  color: #111;
+  font: 600 11px var(--font-ui);
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+body.mod-dragging,
+body.mod-dragging * {
+  cursor: copy !important;
+}
+body.mod-dragging [data-mod='1'] {
+  outline: 1px dashed color-mix(in srgb, var(--mod-color) 45%, transparent);
+  outline-offset: -1px;
+}
+body.mod-dragging [data-mod='1'].mod-over {
+  outline: 2px solid var(--mod-color);
+  background: color-mix(in srgb, var(--mod-color) 14%, transparent);
+}

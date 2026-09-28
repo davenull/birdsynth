@@ -1,0 +1,45 @@
+# Settings for the whole synth.
+
+[group]
+key = "global"
+name = "Global"
+
+[[param]]
+key = "quality"
+name = "Oscillator Quality"
+short = "Quality"
+curve = "enum"
+options = ["Normal", "High (2x)", "Ultra (4x)"]
+default = 1
+explain = "Runs the voices at twice or four times the sample rate when FM, ring modulation, sync or distortion warps are in use, which keeps their extra harmonics from folding back as aliasing. Costs CPU."
+
+[[param]]
+key = "bpm"
+name = "Tempo"
+curve = "lin"
+min = 20.0
+max = 300.0
+default = 120.0
+unit = "BPM"
+explain = "The tempo that synced LFOs and envelopes follow."
+
+[[param]]
+key = "env_rate"
+name = "Envelope Rate"
+short = "Env Rate"
+curve = "exp"
+min = 0.1
+max = 10.0
+default = 1.0
+unit = "x"
+explain = "Speeds up (above 1) or slows down every envelope at once."
+
+[[param]]
+key = "lfo_rate"
+name = "LFO Rate"
+curve = "exp"
+min = 0.1
+max = 10.0
+default = 1.0
+unit = "x"
+explain = "Speeds up or slows down every LFO at once."

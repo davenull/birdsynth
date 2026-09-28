@@ -1,0 +1,140 @@
+# The noise oscillator: plays one of birdsynth's generated noise samples.
+
+[group]
+key = "noise"
+name = "Noise"
+
+[[param]]
+key = "enable"
+name = "Noise On"
+short = "On"
+curve = "bool"
+default = 0
+explain = "Switches the noise oscillator on."
+
+[[param]]
+key = "type"
+name = "Noise Type"
+short = "Type"
+curve = "enum"
+options = ["White", "Pink", "Brown", "Blue", "Violet", "Crackle", "Digital", "Hiss", "Wind", "Rain", "Metal", "Geiger"]
+default = 0
+explain = "Which noise sample plays. White has equal energy at every frequency; Pink and Brown lean darker; the textures add character."
+
+[[param]]
+key = "level"
+name = "Noise Level"
+short = "Level"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.5
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How loud the noise is."
+
+[[param]]
+key = "pan"
+name = "Noise Pan"
+short = "Pan"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+unit = "pan"
+flags = ["mod", "smooth"]
+explain = "Stereo position of the noise."
+
+[[param]]
+key = "pitch"
+name = "Noise Pitch"
+short = "Pitch"
+curve = "lin"
+min = -48.0
+max = 48.0
+default = 0.0
+unit = "st"
+flags = ["mod"]
+explain = "Plays the noise sample faster or slower, which shifts its colour."
+
+[[param]]
+key = "keytrack"
+name = "Noise Key Track"
+short = "Key"
+curve = "bool"
+default = 0
+explain = "Plays the sample faster for higher notes, as if it were pitched."
+
+[[param]]
+key = "oneshot"
+name = "Noise One-Shot"
+short = "1-Shot"
+curve = "bool"
+default = 0
+explain = "Plays the sample once per note instead of looping: good for clicks and transients."
+
+[[param]]
+key = "phase"
+name = "Noise Start"
+short = "Start"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+explain = "Where in the sample each note starts."
+
+[[param]]
+key = "rand"
+name = "Noise Random Start"
+short = "Rand"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 1.0
+unit = "%"
+explain = "How far the start point is randomized per note."
+
+[[param]]
+key = "route"
+name = "Route"
+curve = "enum"
+options = ["Filters", "Main", "Direct", "None"]
+default = 0
+explain = "Where it goes: through the filters (split by Balance), straight to the main FX, direct to the output, or nowhere (still a modulation source)."
+
+[[param]]
+key = "balance"
+name = "Filter Balance"
+short = "F1<>F2"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Split between Filter 1 (left) and Filter 2 (right)."
+
+[[param]]
+key = "send1"
+name = "Bus 1 Send"
+short = "Bus 1"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How much also goes to FX Bus 1."
+
+[[param]]
+key = "send2"
+name = "Bus 2 Send"
+short = "Bus 2"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How much also goes to FX Bus 2."

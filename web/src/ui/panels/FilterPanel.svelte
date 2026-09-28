@@ -1,4 +1,4 @@
-<!-- Filter 1: type, response graph and controls. -->
+<!-- One filter: type, response graph and the main controls. The MIX page has the rest. -->
 <script lang="ts">
   import type { ParamKey } from '../../gen/params';
   import Knob from '../primitives/Knob.svelte';
@@ -17,21 +17,20 @@
     <Select param={k('type')} label="" wide />
   </header>
   <div class="graph"><FilterGraph {n} {color} /></div>
-  <div class="grid">
-    <Knob param={k('cutoff')} size={34} {color} />
-    <Knob param={k('res')} size={34} {color} />
-    <Knob param={k('drive')} size={34} {color} />
-    <Knob param={k('mix')} size={30} {color} />
-    <Knob param={k('keytrack')} size={30} {color} />
+  <div class="row">
+    <Knob param={k('cutoff')} size={28} {color} compact />
+    <Knob param={k('res')} size={28} {color} compact />
+    <Knob param={k('drive')} size={28} {color} compact />
+    <Knob param={k('mix')} size={28} {color} compact />
   </div>
 </section>
 
 <style>
   .filter {
     display: grid;
-    grid-template-rows: auto 150px auto;
-    gap: 8px;
-    align-content: start;
+    grid-template-rows: auto 1fr auto;
+    gap: 6px;
+    min-height: 0;
   }
   header {
     display: grid;
@@ -42,10 +41,8 @@
   .graph {
     min-height: 0;
   }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    justify-items: center;
-    row-gap: 4px;
+  .row {
+    display: flex;
+    justify-content: space-between;
   }
 </style>

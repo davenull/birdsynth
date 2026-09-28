@@ -148,7 +148,7 @@ fields = [{ name = "osc", type = "u8" }]
 [[command]]
 name = "SetModSlot"
 op = 24
-doc = "Configure one modulation matrix slot. flags: bit 0 bipolar, bit 1 bypass. source 0 clears the slot."
+doc = "Configure one modulation matrix slot. flags: bit 0 bipolar, bit 1 bypass. source 0 clears the slot. curve bends the source (-1..1); output scales the result."
 fields = [
   { name = "slot", type = "u8" },
   { name = "source", type = "u8" },
@@ -156,6 +156,31 @@ fields = [
   { name = "flags", type = "u8" },
   { name = "dest", type = "u16" },
   { name = "amount", type = "f32" },
+  { name = "curve", type = "f32" },
+  { name = "output", type = "f32" },
+]
+
+[[command]]
+name = "SetLfoShape"
+op = 26
+doc = "An LFO's drawn shape (kind 0: points x, y, curve with x in 0..1 and y in -1..1) or path (kind 1: points x, y, curve in the XY plane). count points follow, three f32 each."
+fields = [
+  { name = "lfo", type = "u8" },
+  { name = "kind", type = "u8" },
+  { name = "count", type = "u16" },
+]
+tail = { type = "f32" }
+
+[[command]]
+name = "LoadSample"
+op = 27
+doc = "Give a sample slot (0: noise) mono f32 audio at ptr (from wt_asset_alloc) recorded at `rate` Hz. The engine takes ownership."
+fields = [
+  { name = "slot", type = "u8" },
+  { name = "frames", type = "u32" },
+  { name = "rate", type = "f32" },
+  { name = "ptr", type = "u32" },
+  { name = "bytes", type = "u32" },
 ]
 
 [[command]]
@@ -227,6 +252,26 @@ count = 4
 name = "focusCutoff"  # Filter 1 cutoff of the focused voice, Hz, after modulation
 [[telemetry]]
 name = "modSlots"     # active modulation slots
+[[telemetry]]
+name = "modDest"      # parameter id of each modulation destination, -1 when unused
+count = 64
+[[telemetry]]
+name = "modValue"     # the focused voice's modulated (normalized) value of each destination
+count = 64
+[[telemetry]]
+name = "lfoValue"     # the focused voice's LFO outputs (X), -1..1
+count = 10
+[[telemetry]]
+name = "lfoY"         # Y outputs (Path and chaos types)
+count = 10
+[[telemetry]]
+name = "lfoPhase"     # where each LFO is in its cycle, 0..1
+count = 10
+[[telemetry]]
+name = "macroValue"   # the focused voice's macro values after modulation
+count = 8
+[[telemetry]]
+name = "oversample"   # voice-path oversampling factor in use (1, 2 or 4)
 
 # Taps: signals the engine can record for scopes and the explainer.
 [[tap]]
@@ -245,3 +290,9 @@ name = "focus.osc.b"
 name = "focus.osc.c"
 [[tap]]
 name = "focus.filter" # the focused voice after Filter 1, mono
+[[tap]]
+name = "focus.filter2" # after Filter 2, mono
+[[tap]]
+name = "focus.sub"
+[[tap]]
+name = "focus.noise"

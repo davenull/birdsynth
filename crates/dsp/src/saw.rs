@@ -8,21 +8,34 @@ use crate::mip::{FRAME_LEN, FRAME_STRIDE, LEVELS, LEVEL_OFFSET, harmonics, level
 /// +1 at half a cycle, a drop to -1, and back up to 0. Every level shares one
 /// scale, so the fundamental is equally loud whichever level plays.
 pub fn saw_frame() -> Vec<f32> {
+    additive_frame(|h| if h % 2 == 1 { 1.0 / h as f64 } else { -1.0 / h as f64 })
+}
+
+/// A band-limited triangle (0 at phase 0, peak at a quarter cycle), for the sub.
+pub fn triangle_frame() -> Vec<f32> {
+    additive_frame(|h| match h % 4 {
+        1 => 1.0 / (h * h) as f64,
+        3 => -1.0 / (h * h) as f64,
+        _ => 0.0,
+    })
+}
+
+/// Build a mip-mapped frame from sine partials `coef(h)` (h = 1..=1024).
+pub fn additive_frame(coef: impl Fn(usize) -> f64) -> Vec<f32> {
     let mut out = vec![0.0f32; FRAME_STRIDE];
     let n = FRAME_LEN;
     // For each sample of the finest grid, sum harmonics with the Chebyshev
     // recurrence sin((h+1)x) = 2cos(x)sin(hx) - sin((h-1)x), and store the
     // partial sum into every level whose harmonic count has been reached.
-    let inv_h: Vec<f64> = (0..=harmonics(0)).map(|h| if h == 0 { 0.0 } else { 1.0 / h as f64 }).collect();
+    let c: Vec<f64> = (0..=harmonics(0)).map(|h| if h == 0 { 0.0 } else { coef(h) }).collect();
     for i in 0..n {
         let x = std::f64::consts::TAU * i as f64 / n as f64;
         let c2 = 2.0 * x.cos();
         let (mut s_prev, mut s) = (0.0f64, x.sin());
         let mut sum = 0.0f64;
         let mut level = LEVELS; // levels are reached from the top (1 harmonic) down
-        for (h, &inv) in inv_h.iter().enumerate().skip(1) {
-            let sign = if h % 2 == 1 { 1.0 } else { -1.0 };
-            sum += sign * s * inv;
+        for (h, &k) in c.iter().enumerate().skip(1) {
+            sum += k * s;
             while level > 0 && harmonics(level - 1) == h {
                 level -= 1;
                 let len = level_len(level);
@@ -71,6 +84,14 @@ mod tests {
         }
         let peak = lvl0.iter().fold(0.0f32, |m, v| m.max(v.abs()));
         assert!((peak - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn triangle_peaks_at_a_quarter_cycle() {
+        let t = triangle_frame();
+        assert!((t[512] - 1.0).abs() < 1e-3, "{}", t[512]);
+        assert!(t[0].abs() < 1e-6);
+        assert!((t[1536] + 1.0).abs() < 1e-3);
     }
 
     #[test]

@@ -126,6 +126,25 @@ impl Ladder {
     }
 }
 
+/// Internal block length at 4× oversampling.
+pub const MAX_N: usize = N * 4;
+
+/// Per-sub-block coefficients (from `FilterState::prepare`).
+#[derive(Clone, Copy, Debug)]
+pub struct Coeffs {
+    kind: u8,
+    ladder: bool,
+    four: bool,
+    g0: f32,
+    dg: f32,
+    k: f32,
+    comp: f32,
+    tap: usize,
+    drive: f32,
+    dnorm: f32,
+    mix: f32,
+}
+
 /// Per-voice filter state (stereo).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FilterState {
@@ -133,6 +152,7 @@ pub struct FilterState {
     ladder: [Ladder; 2],
     g_prev: f32,
     kind_prev: u8,
+    sr_prev: f32,
     primed: bool,
 }
 
@@ -141,61 +161,85 @@ impl FilterState {
         *self = FilterState::default();
     }
 
-    /// Filter `buf` (stereo, from sample `start`) in place.
-    pub fn process(&mut self, p: &FilterParams, sr: f32, buf: &mut [[f32; N]; 2], start: usize) {
-        if !self.primed || p.kind != self.kind_prev {
+    /// Coefficients for the next `len` samples at sample rate `sr`.
+    pub fn prepare(&mut self, p: &FilterParams, sr: f32, len: usize) -> Coeffs {
+        if !self.primed || p.kind != self.kind_prev || sr != self.sr_prev {
             self.reset();
             self.primed = true;
             self.kind_prev = p.kind;
+            self.sr_prev = sr;
             self.g_prev = g_of(p.cutoff, sr);
         }
         let g1 = g_of(p.cutoff, sr);
         let g0 = self.g_prev;
         self.g_prev = g1;
-        let dg = (g1 - g0) / N as f32;
-        let mix = p.mix.clamp(0.0, 1.0);
         let drive = if p.drive > 0.0 { 1.0 + 7.0 * p.drive } else { 0.0 };
-        let dnorm = if drive > 0.0 { 1.0 / fast_tanh(drive) } else { 1.0 };
+        let ladder = is_ladder(p.kind);
+        let k = if ladder { ladder_k(p.res) } else { svf_k(p.res) };
+        Coeffs {
+            kind: p.kind,
+            ladder,
+            four: matches!(p.kind, LOW24 | HIGH24 | BAND24 | NOTCH24),
+            g0,
+            dg: (g1 - g0) / len as f32,
+            k,
+            comp: ladder_comp(k),
+            tap: if ladder { (p.kind - LADDER6) as usize } else { 0 },
+            drive,
+            dnorm: if drive > 0.0 { 1.0 / fast_tanh(drive) } else { 1.0 },
+            mix: p.mix.clamp(0.0, 1.0),
+        }
+    }
 
-        if is_ladder(p.kind) {
-            let k = ladder_k(p.res);
-            let comp = ladder_comp(k);
-            let tap = (p.kind - LADDER6) as usize;
-            for i in start..N {
-                let g = g0 + dg * (i + 1) as f32;
-                let gg = g / (1.0 + g);
-                for ch in 0..2 {
-                    let dry = buf[ch][i];
-                    let x = if drive > 0.0 { fast_tanh(dry * drive) * dnorm } else { dry };
-                    let y = self.ladder[ch].tick(x, gg, k)[tap] * comp;
-                    buf[ch][i] = dry + (y - dry) * mix;
-                }
-            }
-            for l in self.ladder.iter_mut() {
-                l.flush();
+    /// One stereo sample (index `i` within the prepared block).
+    #[inline(always)]
+    pub fn tick(&mut self, c: &Coeffs, i: usize, x: [f32; 2]) -> [f32; 2] {
+        let g = c.g0 + c.dg * (i + 1) as f32;
+        let mut out = [0.0f32; 2];
+        if c.ladder {
+            let gg = g / (1.0 + g);
+            for ch in 0..2 {
+                let dry = x[ch];
+                let v = if c.drive > 0.0 { fast_tanh(dry * c.drive) * c.dnorm } else { dry };
+                let y = self.ladder[ch].tick(v, gg, c.k)[c.tap] * c.comp;
+                out[ch] = dry + (y - dry) * c.mix;
             }
         } else {
-            let k = svf_k(p.res);
-            let four = matches!(p.kind, LOW24 | HIGH24 | BAND24 | NOTCH24);
-            for i in start..N {
-                let g = g0 + dg * (i + 1) as f32;
-                let a1 = 1.0 / (1.0 + g * (g + k));
-                let a1b = 1.0 / (1.0 + g * (g + SQRT_2));
-                for ch in 0..2 {
-                    let dry = buf[ch][i];
-                    let x = if drive > 0.0 { fast_tanh(dry * drive) * dnorm } else { dry };
-                    let [s1, s2] = &mut self.svf[ch];
-                    let y1 = pick(p.kind, s1.tick(x, g, k, a1), x, k);
-                    let y = if four { pick(p.kind, s2.tick(y1, g, SQRT_2, a1b), y1, SQRT_2) } else { y1 };
-                    buf[ch][i] = dry + (y - dry) * mix;
-                }
-            }
-            for ch in self.svf.iter_mut() {
-                for s in ch.iter_mut() {
-                    s.flush();
-                }
+            let a1 = 1.0 / (1.0 + g * (g + c.k));
+            let a1b = 1.0 / (1.0 + g * (g + SQRT_2));
+            for ch in 0..2 {
+                let dry = x[ch];
+                let v = if c.drive > 0.0 { fast_tanh(dry * c.drive) * c.dnorm } else { dry };
+                let [s1, s2] = &mut self.svf[ch];
+                let y1 = pick(c.kind, s1.tick(v, g, c.k, a1), v, c.k);
+                let y = if c.four { pick(c.kind, s2.tick(y1, g, SQRT_2, a1b), y1, SQRT_2) } else { y1 };
+                out[ch] = dry + (y - dry) * c.mix;
             }
         }
+        out
+    }
+
+    /// Flush tiny state values to zero (once per sub-block).
+    pub fn finish(&mut self) {
+        for l in self.ladder.iter_mut() {
+            l.flush();
+        }
+        for ch in self.svf.iter_mut() {
+            for s in ch.iter_mut() {
+                s.flush();
+            }
+        }
+    }
+
+    /// Filter `buf` (stereo, samples `start..len`) in place.
+    pub fn process(&mut self, p: &FilterParams, sr: f32, buf: &mut [[f32; MAX_N]; 2], start: usize, len: usize) {
+        let c = self.prepare(p, sr, len);
+        for i in start..len {
+            let y = self.tick(&c, i, [buf[0][i], buf[1][i]]);
+            buf[0][i] = y[0];
+            buf[1][i] = y[1];
+        }
+        self.finish();
     }
 }
 
@@ -286,14 +330,14 @@ mod tests {
         let blocks = (SR as usize * 2) / N;
         let (mut peak, mut dot_s, mut dot_c, mut count) = (0.0f64, 0.0f64, 0.0f64, 0usize);
         for b in 0..blocks {
-            let mut buf = [[0.0f32; N]; 2];
+            let mut buf = [[0.0f32; MAX_N]; 2];
             for i in 0..N {
                 let t = (b * N + i) as f64 / SR as f64;
-                let v = (amp as f64 * (std::f64::consts::TAU * f as f64 * t).sin()) as f32;
+                let v = (amp * (std::f64::consts::TAU * f as f64 * t).sin()) as f32;
                 buf[0][i] = v;
                 buf[1][i] = v;
             }
-            st.process(&p, SR, &mut buf, 0);
+            st.process(&p, SR, &mut buf, 0, N);
             if b >= blocks / 2 {
                 for i in 0..N {
                     let t = (b * N + i) as f64 / SR as f64;
@@ -306,7 +350,7 @@ mod tests {
             }
         }
         let _ = peak;
-        ((2.0 * (dot_s * dot_s + dot_c * dot_c).sqrt() / count as f64) / amp as f64) as f32
+        ((2.0 * (dot_s * dot_s + dot_c * dot_c).sqrt() / count as f64) / amp) as f32
     }
 
     #[test]
@@ -335,16 +379,16 @@ mod tests {
             for b in 0..blocks {
                 // a loud saw, with the cutoff swept up and down each second
                 let t = b as f32 * N as f32 / SR;
-                let cutoff = 60.0 * (1.0 + 300.0 * (0.5 + 0.5 * (t * 6.28).sin()));
+                let cutoff = 60.0 * (1.0 + 300.0 * (0.5 + 0.5 * (t * std::f32::consts::TAU).sin()));
                 let p = FilterParams { kind, cutoff, res: 1.0, drive: 0.5, mix: 1.0 };
-                let mut buf = [[0.0f32; N]; 2];
+                let mut buf = [[0.0f32; MAX_N]; 2];
                 for i in 0..N {
                     let ph = ((b * N + i) as f32 * 110.0 / SR).fract();
                     buf[0][i] = 2.0 * ph - 1.0;
                     buf[1][i] = buf[0][i];
                 }
-                st.process(&p, SR, &mut buf, 0);
-                for v in buf[0] {
+                st.process(&p, SR, &mut buf, 0, N);
+                for &v in &buf[0][..N] {
                     assert!(v.is_finite(), "type {kind} went non-finite");
                     peak = peak.max(v.abs());
                 }

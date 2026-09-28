@@ -2,21 +2,36 @@
 //!
 //! Rendering runs on a fixed 16-frame control grid (`SUB_BLOCK`). Note-ons
 //! start at their exact frame; every other timed command lands on the first
-//! grid boundary at or after its frame. Structural commands (tables, the
-//! matrix, taps) take effect immediately. Nothing in `render` allocates.
+//! grid boundary at or after its frame. Structural commands (tables,
+//! samples, the matrix, LFO shapes, taps) take effect immediately. Nothing
+//! in `render` allocates.
+//!
+//! Voices render at 1, 2 or 4 times the output rate (the Quality setting,
+//! used only when a patch has warps that need it); the buses are decimated
+//! back with halfband filters before the master stage.
+//!
+//! Modulation policy: per-voice destinations use each voice's own sources.
+//! Global destinations (master, global, mix) follow the newest voice that's
+//! still sounding and hold its values after it ends. Non-poly (and
+//! free-running) LFOs are shared by every voice, as are macros and
+//! controllers.
 
 use wt_dsp::math;
+use wt_dsp::oversample::{self, Halfband};
 use wt_dsp::rng::Rng;
+use wt_dsp::saw;
 
-use crate::env::EnvTimes;
 use crate::events::{Event, EventQueue};
-use crate::modmatrix::{Matrix, Slot};
-use crate::osc::unison::MAX_LANES;
+use crate::filter::MAX_N;
+use crate::lfo::{self, LfoSettings, LfoState, Point, Shape};
+use crate::modmatrix::{Matrix, NONE, Slot};
+use crate::osc::{self, unison::MAX_LANES};
 use crate::params::ParamStore;
+use crate::samples::{self, Samples};
 use crate::spec::params as p;
-use crate::spec::protocol::{self as proto, Command, HEADER_BYTES, MAX_BLOCK, MAX_VOICES, OSC_COUNT, SUB_BLOCK, VOICE_SLOTS, tap, tel};
+use crate::spec::protocol::{self as proto, Command, HEADER_BYTES, MAX_BLOCK, MAX_MOD_SLOTS, MAX_VOICES, OSC_COUNT, SUB_BLOCK, VOICE_SLOTS, tap, tel};
 use crate::tables::{AssetBuf, Tables};
-use crate::voice::{Start, Voice, VoiceCtx, VoiceTaps};
+use crate::voice::{self, Buses, LFOS, MACROS, Scratch, Start, Voice, VoiceCtx, VoiceTaps};
 
 const N: usize = SUB_BLOCK;
 const QUEUE_CAPACITY: usize = 4096;
@@ -27,10 +42,13 @@ const SMOOTH_MS: f32 = 12.0;
 /// Pitch-bend smoothing: fast enough to feel direct, slow enough not to zipper.
 const BEND_MS: f32 = 6.0;
 const MAX_HELD: usize = 128;
+/// Bus channels that are decimated: main, direct, bus 1, bus 2 (L and R each).
+const DEC_CH: usize = 8;
 
 const _: () = assert!(tel::VOICE_NOTE_LEN == VOICE_SLOTS && tel::VOICE_LEVEL_LEN == VOICE_SLOTS);
 const _: () = assert!(MAX_BLOCK.is_multiple_of(SUB_BLOCK));
 const _: () = assert!(tel::OSC_WT_POS_LEN == OSC_COUNT && tel::FOCUS_ENV_LEN == 4);
+const _: () = assert!(tel::LFO_VALUE_LEN == LFOS && tel::MACRO_VALUE_LEN == MACROS && tel::MOD_VALUE_LEN == MAX_MOD_SLOTS);
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RenderError {
@@ -46,6 +64,12 @@ struct Held {
     note_id: u32,
 }
 
+/// Is a parameter a global destination (one value for the whole synth)?
+pub fn is_global(id: u16) -> bool {
+    let k = p::INFO[id as usize].key;
+    k.starts_with("master.") || k.starts_with("global.") || k.starts_with("mix.")
+}
+
 pub struct Engine {
     sr: f32,
     /// Absolute frame of the next sample to render.
@@ -57,19 +81,33 @@ pub struct Engine {
     note_count: u32,
     focus: Option<usize>,
     tables: Tables,
+    samples: Samples,
+    triangle: Vec<f32>,
     matrix: Matrix,
     rng: Rng,
     held: Vec<Held>,
     last_pitch: Option<f32>,
     last_phase: [[u32; MAX_LANES]; OSC_COUNT],
+    lfo_shapes: [Shape; LFOS],
+    lfo_paths: [Shape; LFOS],
+    /// Shared LFO states (non-poly and free-running LFOs), and their outputs.
+    lfo_global: [LfoState; LFOS],
+    lfo_out: [(f32, f32); LFOS],
+    /// Held modulation offsets for global destinations (by destination index).
+    global_off: [f32; MAX_MOD_SLOTS],
     bend_target: f32,
     bend: f32,
-    bend_prev: f32,
     bend_coef: f32,
     modwheel: f32,
     aftertouch: f32,
     sustain: bool,
     scalar: bool,
+    os: usize,
+    hb: [f32; oversample::TAPS],
+    /// Two decimation stages per bus channel (4x uses both).
+    dec: [[Halfband; 2]; DEC_CH],
+    buses: Box<Buses>,
+    scratch: Box<Scratch>,
     out: [Vec<f32>; 2],
     taps: Vec<Vec<f32>>,
     tap_mask: u32,
@@ -77,7 +115,6 @@ pub struct Engine {
     master_prev: f32,
     unknown_cmds: u32,
     table_errors: u32,
-    mix: [[f32; N]; 2],
     vtaps: VoiceTaps,
 }
 
@@ -96,19 +133,30 @@ impl Engine {
             note_count: 0,
             focus: None,
             tables: Tables::default(),
+            samples: Samples::default(),
+            triangle: saw::triangle_frame(),
             matrix: Matrix::default(),
             rng: Rng::new(0x5EED),
             held: Vec::with_capacity(MAX_HELD),
             last_pitch: None,
             last_phase: [[0; MAX_LANES]; OSC_COUNT],
+            lfo_shapes: [Shape::default_curve(); LFOS],
+            lfo_paths: [Shape::default_path(); LFOS],
+            lfo_global: [LfoState::default(); LFOS],
+            lfo_out: [(0.0, 0.0); LFOS],
+            global_off: [0.0; MAX_MOD_SLOTS],
             bend_target: 0.0,
             bend: 0.0,
-            bend_prev: 0.0,
             bend_coef: 1.0 - (-(N as f32) / (BEND_MS * 0.001 * sample_rate)).exp(),
             modwheel: 0.0,
             aftertouch: 0.0,
             sustain: false,
             scalar: false,
+            os: 1,
+            hb: oversample::design(),
+            dec: [[Halfband::default(); 2]; DEC_CH],
+            buses: Box::default(),
+            scratch: Box::default(),
             out: [vec![0.0; MAX_BLOCK], vec![0.0; MAX_BLOCK]],
             taps: (0..tap::COUNT).map(|_| vec![0.0; MAX_BLOCK]).collect(),
             tap_mask: 0,
@@ -116,7 +164,6 @@ impl Engine {
             master_prev,
             unknown_cmds: 0,
             table_errors: 0,
-            mix: [[0.0; N]; 2],
             vtaps: VoiceTaps::default(),
         });
         e.write_telemetry([0.0, 0.0]);
@@ -151,9 +198,30 @@ impl Engine {
         &mut self.tables
     }
 
+    pub fn samples_mut(&mut self) -> &mut Samples {
+        &mut self.samples
+    }
+
+    #[cfg(test)]
+    pub(crate) fn voices(&self) -> &[Voice] {
+        &self.voices
+    }
+
     /// Use the scalar reference oscillator kernel (tests and debugging).
     pub fn set_scalar(&mut self, on: bool) {
         self.scalar = on;
+    }
+
+    /// Set an LFO's drawn shape, or its XY path.
+    pub fn set_lfo_shape(&mut self, lfo: usize, path: bool, pts: &[Point]) {
+        if lfo >= LFOS || pts.is_empty() {
+            return;
+        }
+        if path {
+            self.lfo_paths[lfo].set(pts, true);
+        } else {
+            self.lfo_shapes[lfo].set(pts, false);
+        }
     }
 
     /// Decode and queue a command batch. Returns how many commands decoded.
@@ -171,9 +239,14 @@ impl Engine {
                 self.unknown_cmds += 1;
                 break;
             };
-            match proto::decode(op, &buf[start..end]) {
+            let payload = &buf[start..end];
+            match proto::decode(op, payload) {
                 Some(cmd) => {
-                    self.command(cmd, frame);
+                    match proto::tail_offset(op) {
+                        Some(at) if at <= payload.len() => self.command_tail(cmd, &payload[at..]),
+                        Some(_) => self.unknown_cmds += 1,
+                        None => self.command(cmd, frame),
+                    }
                     count += 1;
                 }
                 None => self.unknown_cmds += 1,
@@ -181,6 +254,19 @@ impl Engine {
             pos = end;
         }
         count
+    }
+
+    /// Commands with a variable-length tail (applied immediately).
+    fn command_tail(&mut self, cmd: Command, tail: &[u8]) {
+        if let Command::SetLfoShape { lfo, kind, count } = cmd {
+            let n = (count as usize).min(lfo::MAX_POINTS).min(tail.len() / 12);
+            let rd = |i: usize| f32::from_le_bytes([tail[i], tail[i + 1], tail[i + 2], tail[i + 3]]);
+            let mut pts = [Point::default(); lfo::MAX_POINTS];
+            for (i, pt) in pts.iter_mut().enumerate().take(n) {
+                *pt = Point { x: rd(i * 12), y: rd(i * 12 + 4), c: rd(i * 12 + 8) };
+            }
+            self.set_lfo_shape(lfo as usize, kind == 1, &pts[..n]);
+        }
     }
 
     /// Accept one decoded command. Structural ones take effect now;
@@ -205,24 +291,34 @@ impl Engine {
                     self.table_errors += 1;
                 }
             }
-            Command::UpdateFrame { osc, index: fr, ptr, bytes } => {
+            Command::UpdateFrame { osc, index, ptr, bytes } => {
                 if ptr == 0 {
                     self.table_errors += 1;
                     return;
                 }
                 let asset = unsafe { AssetBuf::from_raw(ptr as usize as *mut u8, bytes as usize) };
-                if self.tables.update_frame(osc as usize, fr as usize, asset.as_f32()).is_err() {
+                if self.tables.update_frame(osc as usize, index as usize, asset.as_f32()).is_err() {
                     self.table_errors += 1;
                 }
             }
             Command::ResetTable { osc } => self.tables.reset(osc as usize),
-            Command::SetModSlot { slot, source, aux, flags, dest, amount } => {
-                let ok = self.matrix.set(slot as usize, Slot { source, aux, flags, dest, amount });
-                if !ok {
+            Command::LoadSample { slot, frames, rate, ptr, bytes } => {
+                if ptr == 0 {
+                    self.table_errors += 1;
+                    return;
+                }
+                let asset = unsafe { AssetBuf::from_raw(ptr as usize as *mut u8, bytes as usize) };
+                if self.samples.load(slot as usize, asset, frames as usize, rate).is_err() {
+                    self.table_errors += 1;
+                }
+            }
+            Command::SetModSlot { slot, source, aux, flags, dest, amount, curve, output } => {
+                if !self.matrix.set(slot as usize, Slot { source, aux, flags, dest, amount, curve, output }) {
                     self.unknown_cmds += 1;
                 }
             }
             Command::ClearMod => self.matrix.clear(),
+            Command::SetLfoShape { .. } => {} // needs its tail: see `apply`
             _ => {
                 let frame = if frame > 0.0 { frame as u64 } else { 0 };
                 self.queue.push(Event { frame, cmd });
@@ -230,7 +326,8 @@ impl Engine {
         }
     }
 
-    /// Clear voices, pending events and smoothing; parameters and tables are kept.
+    /// Clear voices, pending events and smoothing; parameters, tables,
+    /// samples, the matrix and LFO shapes are kept.
     pub fn reset(&mut self) {
         self.queue.clear();
         for v in &mut self.voices {
@@ -241,9 +338,13 @@ impl Engine {
         self.last_pitch = None;
         self.sustain = false;
         self.bend = self.bend_target;
-        self.bend_prev = self.bend;
         self.params.snap();
         self.master_prev = math::db_to_gain(self.params.plain(p::MASTER_VOLUME));
+        for d in self.dec.iter_mut().flatten() {
+            d.reset();
+        }
+        self.lfo_global = [LfoState::default(); LFOS];
+        self.global_off = [0.0; MAX_MOD_SLOTS];
     }
 
     /// Render `frames` samples starting at absolute frame `start`. A negative
@@ -258,7 +359,7 @@ impl Engine {
         for sb in 0..frames / N {
             let t0 = self.frame + (sb * N) as u64;
             self.dispatch(t0);
-            self.render_sub_block(sb * N);
+            self.render_sub_block(sb * N, t0);
         }
         self.frame += frames as u64;
         let mut peak = [0.0f32; 2];
@@ -323,7 +424,12 @@ impl Engine {
                 _ => {}
             },
             Command::ChannelPressure { value, .. } => self.aftertouch = value.clamp(0.0, 1.0),
-            Command::PolyPressure { .. } => {} // a per-voice source arrives with P2
+            Command::PolyPressure { note, channel, value, note_id } => {
+                let hit = |v: &Voice| v.active && if note_id != 0 { v.note_id == note_id } else { v.note == note && v.channel == channel };
+                for v in self.voices.iter_mut().filter(|v| hit(v)) {
+                    v.poly_at = value.clamp(0.0, 1.0);
+                }
+            }
             _ => {}
         }
     }
@@ -348,15 +454,40 @@ impl Engine {
         }
     }
 
+    /// Settings of the LFOs that restart with a note (Retrig or Env mode),
+    /// for the poly LFOs (`poly`) or the shared ones.
+    fn note_lfos(&self, poly: bool) -> [Option<LfoSettings>; LFOS] {
+        let bpm = self.params.plain(p::GLOBAL_BPM);
+        let rate = self.params.plain(p::GLOBAL_LFO_RATE);
+        let mut out = [None; LFOS];
+        for (i, o) in out.iter_mut().enumerate() {
+            let set = voice::lfo_settings_from(|id| self.params.plain(id), i, bpm, rate);
+            let is_poly = self.params.plain(p::LFO_POLY[i]) >= 0.5;
+            if set.mode != lfo::MODE_FREE && is_poly == poly {
+                *o = Some(set);
+            }
+        }
+        out
+    }
+
+    fn env_from_zero(&self) -> [bool; 4] {
+        [0, 1, 2, 3].map(|e| self.params.plain(p::ENV_RETRIG[e]) >= 0.5)
+    }
+
+    /// Which envelopes restart on a mono note change: all of them unless
+    /// playing legato, each flipped by its Legato Invert switch.
+    fn mono_retrigger(&self, base: bool) -> [bool; 4] {
+        [0, 1, 2, 3].map(|e| base != (self.params.plain(p::ENV_LEGATO_INVERT[e]) >= 0.5))
+    }
+
     fn note_on(&mut self, note: u8, channel: u8, velocity: f32, note_id: u32, offset: usize) {
         if velocity <= 0.0 {
             return self.note_off(note, channel, 0.0, note_id);
         }
-        let pr = &self.params;
-        let mono = pr.plain(p::VOICE_MONO) >= 0.5;
-        let legato = pr.plain(p::VOICE_LEGATO) >= 0.5;
-        let glide_on = pr.plain(p::VOICE_GLIDE) > 0.0;
-        let always = pr.plain(p::VOICE_GLIDE_ALWAYS) >= 0.5 || (mono && legato);
+        let mono = self.params.plain(p::VOICE_MONO) >= 0.5;
+        let legato = self.params.plain(p::VOICE_LEGATO) >= 0.5;
+        let glide_on = self.params.plain(p::VOICE_GLIDE) > 0.0;
+        let always = self.params.plain(p::VOICE_GLIDE_ALWAYS) >= 0.5 || (mono && legato);
         let overlapping = !self.held.is_empty();
         if self.held.len() < MAX_HELD {
             self.held.push(Held { note, channel, velocity, note_id });
@@ -364,16 +495,30 @@ impl Engine {
         let glide_from = if glide_on && (always || overlapping) { self.last_pitch } else { None };
         self.last_pitch = Some(note as f32);
 
+        // shared LFOs in Retrig/Env mode restart with every note
+        let shared = self.note_lfos(false);
+        for (i, set) in shared.iter().enumerate() {
+            if let Some(set) = set {
+                let seed = self.rng.next_u32();
+                self.lfo_global[i].trigger(set, seed);
+            }
+        }
+        let from_zero = self.env_from_zero();
+
         if mono {
             // reuse the newest voice that's still going
             let current = (0..VOICE_SLOTS).filter(|&i| self.voices[i].active && !self.voices[i].killing()).max_by_key(|&i| self.voices[i].age);
             if let Some(i) = current {
-                let v = &self.voices[i];
-                let from = v.pitch();
-                let held_down = !v.released;
+                let from = self.voices[i].pitch();
+                let held_down = !self.voices[i].released;
                 let glide = if glide_from.is_some() { self.glide_len(from, note as f32) } else { 0.0 };
-                let retrigger = !(legato && held_down);
-                self.voices[i].retarget(note, note_id, velocity, glide, retrigger);
+                let base = !(legato && held_down);
+                let retrigger = self.mono_retrigger(base);
+                self.voices[i].retarget(note, note_id, velocity, glide, retrigger, from_zero);
+                if base {
+                    let lfos = self.note_lfos(true);
+                    self.voices[i].retrigger_lfos(&lfos, &mut self.rng);
+                }
                 self.focus = Some(i);
                 // mono keeps one voice: fade any others
                 let k = self.kill_samples();
@@ -386,13 +531,13 @@ impl Engine {
             }
         }
 
-        let poly = if mono { 1 } else { (pr.plain(p::VOICE_POLYPHONY) as usize).clamp(1, MAX_VOICES) };
+        let poly = if mono { 1 } else { (self.params.plain(p::VOICE_POLYPHONY) as usize).clamp(1, MAX_VOICES) };
         let sounding = self.voices.iter().filter(|v| v.active && !v.killing()).count();
-        if sounding >= poly {
-            if let Some(i) = self.steal_victim() {
-                let k = self.kill_samples();
-                self.voices[i].kill(k);
-            }
+        if sounding >= poly
+            && let Some(i) = self.steal_victim()
+        {
+            let k = self.kill_samples();
+            self.voices[i].kill(k);
         }
         let slot = match self.voices.iter().position(|v| !v.active) {
             Some(i) => i,
@@ -411,6 +556,8 @@ impl Engine {
         self.age += 1;
         self.note_count = self.note_count.wrapping_add(1);
         let last = self.last_phase;
+        let lfo = self.note_lfos(true);
+        let noise_frames = self.samples.get(samples::NOISE).map_or(1, |s| s.frames);
         let start = Start {
             note,
             channel,
@@ -425,6 +572,10 @@ impl Engine {
             phase,
             rand_phase,
             memory: [memory[0].then_some(&last[0]), memory[1].then_some(&last[1]), memory[2].then_some(&last[2])],
+            noise_start: (self.params.plain(p::NOISE_PHASE), self.params.plain(p::NOISE_RAND)),
+            noise_frames,
+            lfo,
+            env_from_zero: from_zero,
             rng: &mut self.rng,
         };
         self.voices[slot].start(start);
@@ -462,7 +613,9 @@ impl Engine {
                 let glide_on = self.params.plain(p::VOICE_GLIDE) > 0.0;
                 let from = self.voices[i].pitch();
                 let glide = if glide_on { self.glide_len(from, back.note as f32) } else { 0.0 };
-                self.voices[i].retarget(back.note, back.note_id, back.velocity, glide, !legato);
+                let retrigger = self.mono_retrigger(!legato);
+                let from_zero = self.env_from_zero();
+                self.voices[i].retarget(back.note, back.note_id, back.velocity, glide, retrigger, from_zero);
                 self.last_pitch = Some(back.note as f32);
                 return;
             }
@@ -483,32 +636,73 @@ impl Engine {
         }
     }
 
-    fn render_sub_block(&mut self, off: usize) {
+    /// Oversampling for this sub-block: the Quality factor, when an enabled
+    /// oscillator uses a warp that benefits.
+    fn pick_os(&self) -> usize {
+        let pr = &self.params;
+        let factor = [1, 2, 4][(pr.plain(p::GLOBAL_QUALITY) as usize).min(2)];
+        if factor == 1 {
+            return 1;
+        }
+        let needs = (0..OSC_COUNT).any(|o| {
+            pr.plain(p::OSC_ENABLE[o]) >= 0.5
+                && (osc::wants_oversampling(pr.plain(p::OSC_WARP1_MODE[o]) as u8, pr.plain(p::OSC_WARP1_AMOUNT[o]))
+                    || osc::wants_oversampling(pr.plain(p::OSC_WARP2_MODE[o]) as u8, pr.plain(p::OSC_WARP2_AMOUNT[o])))
+        });
+        if needs { factor } else { 1 }
+    }
+
+    fn render_sub_block(&mut self, off: usize, t0: u64) {
         self.params.step();
-        self.bend_prev = self.bend;
         self.bend += (self.bend_target - self.bend) * self.bend_coef;
         let bend_semis = if self.bend >= 0.0 { self.bend * self.params.plain(p::VOICE_BEND_UP) } else { self.bend * self.params.plain(p::VOICE_BEND_DOWN) };
         let active = self.voices.iter().filter(|v| v.active && !v.killing()).count() as f32;
+        let bpm = self.params.plain(p::GLOBAL_BPM);
+        let lfo_rate = self.params.plain(p::GLOBAL_LFO_RATE);
+        let dt = N as f32 / self.sr;
+        let beat = t0 as f64 / self.sr as f64 * bpm as f64 / 60.0;
+
+        // shared LFOs
+        for i in 0..LFOS {
+            let set = voice::lfo_settings_from(|id| self.params.plain(id), i, bpm, lfo_rate);
+            self.lfo_out[i] = self.lfo_global[i].advance(&set, &self.lfo_shapes[i], &self.lfo_paths[i], dt, beat);
+        }
+
+        let os = self.pick_os();
+        if os != self.os {
+            self.os = os;
+            for d in self.dec.iter_mut().flatten() {
+                d.reset();
+            }
+        }
+        self.buses.clear(N * os);
         let cx = VoiceCtx {
             sr: self.sr,
+            os,
             params: &self.params,
             matrix: &self.matrix,
             tables: &self.tables,
-            env: [
-                EnvTimes::from_params(&self.params, 0, self.sr),
-                EnvTimes::from_params(&self.params, 1, self.sr),
-                EnvTimes::from_params(&self.params, 2, self.sr),
-                EnvTimes::from_params(&self.params, 3, self.sr),
-            ],
+            samples: &self.samples,
+            saw: self.tables.saw(),
+            triangle: &self.triangle,
+            lfo_shapes: &self.lfo_shapes,
+            lfo_paths: &self.lfo_paths,
+            lfo_global: self.lfo_out,
+            dt,
+            beat,
             bend: bend_semis,
             bend_raw: self.bend,
             modwheel: self.modwheel,
             aftertouch: self.aftertouch,
             active_voices: active,
             scalar: self.scalar,
+            bpm_scale: 120.0 / bpm.max(1.0),
+            env_rate: self.params.plain(p::GLOBAL_ENV_RATE),
+            lfo_rate,
+            bpm,
+            serial: self.params.plain(p::MIX_FILTER_ROUTING) < 0.5,
         };
 
-        self.mix = [[0.0; N]; 2];
         let focus = self.focus;
         let mut focus_rendered = false;
         for (i, v) in self.voices.iter_mut().enumerate() {
@@ -517,44 +711,73 @@ impl Engine {
             }
             if focus == Some(i) {
                 self.vtaps = VoiceTaps::default();
-                v.render(&cx, &mut self.mix, Some(&mut self.vtaps));
+                v.render(&cx, &mut self.buses, &mut self.scratch, Some(&mut self.vtaps));
                 focus_rendered = true;
             } else {
-                v.render(&cx, &mut self.mix, None);
+                v.render(&cx, &mut self.buses, &mut self.scratch, None);
             }
         }
         if !focus_rendered {
             self.vtaps = VoiceTaps::default();
         }
 
-        let g1 = math::db_to_gain(self.params.plain(p::MASTER_VOLUME));
+        // back to the output rate; until the FX racks exist every bus goes to the master
+        let mut mix = [[0.0f32; N]; 2];
+        let b = &*self.buses;
+        let chans: [&[f32; MAX_N]; DEC_CH] = [&b.main[0], &b.main[1], &b.direct[0], &b.direct[1], &b.bus1[0], &b.bus1[1], &b.bus2[0], &b.bus2[1]];
+        for (c, src) in chans.iter().enumerate() {
+            let mut out = [0.0f32; N];
+            match os {
+                1 => out.copy_from_slice(&src[..N]),
+                2 => self.dec[c][0].process(&self.hb, &src[..2 * N], &mut out),
+                _ => {
+                    let mut half = [0.0f32; 2 * N];
+                    self.dec[c][0].process(&self.hb, &src[..4 * N], &mut half);
+                    self.dec[c][1].process(&self.hb, &half, &mut out);
+                }
+            }
+            for (m, x) in mix[c % 2].iter_mut().zip(out) {
+                *m += x;
+            }
+        }
+
+        // global destinations follow the focused voice (and hold after it ends)
+        if let Some(i) = self.focus {
+            for d in 0..self.matrix.dests {
+                self.global_off[d] = self.voices[i].mod_offset(d);
+            }
+        }
+        let g1 = match self.matrix.dest_of[p::MASTER_VOLUME as usize] {
+            NONE => math::db_to_gain(self.params.plain(p::MASTER_VOLUME)),
+            d => math::db_to_gain(self.params.modded(p::MASTER_VOLUME, self.global_off[d as usize])),
+        };
         let g0 = self.master_prev;
         self.master_prev = g1;
         let dg = (g1 - g0) / N as f32;
         for i in 0..N {
             let g = g0 + dg * (i + 1) as f32;
-            self.out[0][off + i] = self.mix[0][i] * g;
-            self.out[1][off + i] = self.mix[1][i] * g;
+            self.out[0][off + i] = mix[0][i] * g;
+            self.out[1][off + i] = mix[1][i] * g;
         }
 
         let m = self.tap_mask;
-        let copy = |dst: &mut Vec<f32>, src: &[f32]| dst[off..off + N].copy_from_slice(src);
-        if m & (1 << tap::MASTER_L) != 0 {
-            let src: [f32; N] = self.out[0][off..off + N].try_into().unwrap();
-            copy(&mut self.taps[tap::MASTER_L], &src);
-        }
-        if m & (1 << tap::MASTER_R) != 0 {
-            let src: [f32; N] = self.out[1][off..off + N].try_into().unwrap();
-            copy(&mut self.taps[tap::MASTER_R], &src);
+        for (t, ch) in [(tap::MASTER_L, 0), (tap::MASTER_R, 1)] {
+            if m & (1 << t) != 0 {
+                let src: [f32; N] = self.out[ch][off..off + N].try_into().unwrap();
+                self.taps[t][off..off + N].copy_from_slice(&src);
+            }
         }
         let vt = &self.vtaps;
-        let voice_taps: [(usize, &[f32; N]); 6] = [
+        let voice_taps: [(usize, &[f32; N]); 9] = [
             (tap::FOCUS_OSC, &vt.sum),
             (tap::FOCUS_OUT, &vt.out),
             (tap::FOCUS_OSC_A, &vt.osc[0]),
             (tap::FOCUS_OSC_B, &vt.osc[1]),
             (tap::FOCUS_OSC_C, &vt.osc[2]),
             (tap::FOCUS_FILTER, &vt.filter),
+            (tap::FOCUS_FILTER2, &vt.filter2),
+            (tap::FOCUS_SUB, &vt.sub),
+            (tap::FOCUS_NOISE, &vt.noise),
         ];
         for (t, src) in voice_taps {
             if m & (1 << t) != 0 {
@@ -607,22 +830,53 @@ impl Engine {
         }
         t[tel::TABLE_ERRORS] = self.table_errors as f32;
         t[tel::MOD_SLOTS] = self.matrix.live() as f32;
-        if let Some(i) = self.focus {
-            let v = &self.voices[i];
-            for o in 0..OSC_COUNT {
-                t[tel::OSC_WT_POS + o] = v.tel_wt_pos[o];
+        t[tel::OVERSAMPLE] = self.os as f32;
+        let dests = self.matrix.dests;
+        for d in 0..MAX_MOD_SLOTS {
+            t[tel::MOD_DEST + d] = if d < dests { self.matrix.dest_param[d] as f32 } else { -1.0 };
+        }
+        let focus = self.focus.map(|i| &self.voices[i]);
+        for i in 0..LFOS {
+            let (x, y, ph) = match focus {
+                Some(v) => v.tel_lfo[i],
+                None => (self.lfo_out[i].0, self.lfo_out[i].1, -1.0),
+            };
+            t[tel::LFO_VALUE + i] = x;
+            t[tel::LFO_Y + i] = y;
+            t[tel::LFO_PHASE + i] = if ph >= 0.0 { ph } else { self.lfo_global[i].phase() };
+        }
+        match focus {
+            Some(v) => {
+                t[tel::OSC_WT_POS..tel::OSC_WT_POS + OSC_COUNT].copy_from_slice(&v.tel_wt_pos);
+                t[tel::FOCUS_PITCH] = v.pitch();
+                for e in 0..4 {
+                    t[tel::FOCUS_ENV + e] = v.env[e].level;
+                }
+                t[tel::FOCUS_CUTOFF] = v.tel_cutoff;
+                t[tel::MACRO_VALUE..tel::MACRO_VALUE + MACROS].copy_from_slice(&v.tel_macro);
+                for d in 0..MAX_MOD_SLOTS {
+                    t[tel::MOD_VALUE + d] = if d < dests { v.tel_mod.0[d] } else { 0.0 };
+                }
             }
-            t[tel::FOCUS_PITCH] = v.pitch();
-            for e in 0..4 {
-                t[tel::FOCUS_ENV + e] = v.env[e].level;
-            }
-            t[tel::FOCUS_CUTOFF] = v.tel_cutoff;
-        } else {
-            for o in 0..OSC_COUNT {
-                t[tel::OSC_WT_POS + o] = self.params.plain(p::OSC_WT_POS[o]);
-            }
-            for e in 0..4 {
-                t[tel::FOCUS_ENV + e] = 0.0;
+            None => {
+                for o in 0..OSC_COUNT {
+                    t[tel::OSC_WT_POS + o] = self.params.plain(p::OSC_WT_POS[o]);
+                }
+                for e in 0..4 {
+                    t[tel::FOCUS_ENV + e] = 0.0;
+                }
+                for i in 0..MACROS {
+                    t[tel::MACRO_VALUE + i] = self.params.norm(p::MACRO_VALUE[i]);
+                }
+                for d in 0..MAX_MOD_SLOTS {
+                    t[tel::MOD_VALUE + d] = if d < dests {
+                        let id = self.matrix.dest_param[d];
+                        let held = if is_global(id) { self.global_off[d] } else { 0.0 };
+                        (self.params.norm(id) + held).clamp(0.0, 1.0)
+                    } else {
+                        0.0
+                    };
+                }
             }
         }
     }

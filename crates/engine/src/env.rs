@@ -3,14 +3,6 @@
 //! `advance(n)` moves the envelope n samples forward and returns the level
 //! at the end; the voice ramps linearly between those control points.
 
-use crate::spec::params as p;
-use crate::params::ParamStore;
-
-/// Shape of the decay and release segments: level follows (1 - x)^k, which
-/// falls fast and then eases in, like an analogue envelope. (P2 exposes curves.)
-const DECAY_CURVE: f32 = 3.0;
-const RELEASE_CURVE: f32 = 3.0;
-
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum Stage {
     #[default]
@@ -22,28 +14,28 @@ pub enum Stage {
     Release,
 }
 
-/// Segment times in samples, and the sustain level.
-#[derive(Clone, Copy, Debug)]
+/// Segment times in samples, the sustain level, and the segment curves
+/// (-1..1; 0 is linear, positive moves fast first).
+#[derive(Clone, Copy, Debug, Default)]
 pub struct EnvTimes {
     pub attack: f32,
     pub hold: f32,
     pub decay: f32,
     pub sustain: f32,
     pub release: f32,
+    pub attack_curve: f32,
+    pub decay_curve: f32,
+    pub release_curve: f32,
 }
 
-impl EnvTimes {
-    /// Read envelope `index` (0 = Env 1) from the parameters.
-    pub fn from_params(params: &ParamStore, index: usize, sr: f32) -> Self {
-        let ms = sr * 0.001;
-        EnvTimes {
-            attack: params.plain(p::ENV_ATTACK[index]) * ms,
-            hold: params.plain(p::ENV_HOLD[index]) * ms,
-            decay: params.plain(p::ENV_DECAY[index]) * ms,
-            sustain: params.plain(p::ENV_SUSTAIN[index]),
-            release: params.plain(p::ENV_RELEASE[index]) * ms,
-        }
+/// Bend a segment's progress t (0..1): an exponential with strength 12·c.
+#[inline]
+pub fn curve(t: f32, c: f32) -> f32 {
+    if c.abs() < 1e-4 {
+        return t;
     }
+    let s = c * 12.0;
+    (1.0 - (-s * t).exp()) / (1.0 - (-s).exp())
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -57,11 +49,16 @@ pub struct Env {
 }
 
 impl Env {
-    /// Start the attack from the current level (0 for a fresh voice).
+    /// Start the attack from the current level (0 for a fresh voice), or from zero.
     pub fn trigger(&mut self) {
         self.stage = Stage::Attack;
         self.t = 0.0;
         self.from = self.level;
+    }
+
+    pub fn trigger_from_zero(&mut self) {
+        self.level = 0.0;
+        self.trigger();
     }
 
     pub fn release(&mut self) {
@@ -83,7 +80,7 @@ impl Env {
                 Stage::Attack => {
                     if self.t + n < e.attack {
                         self.t += n;
-                        self.level = self.from + (1.0 - self.from) * (self.t / e.attack);
+                        self.level = self.from + (1.0 - self.from) * curve(self.t / e.attack, e.attack_curve);
                         return self.level;
                     }
                     n -= (e.attack - self.t).max(0.0);
@@ -103,8 +100,7 @@ impl Env {
                 Stage::Decay => {
                     if self.t + n < e.decay {
                         self.t += n;
-                        let x = 1.0 - self.t / e.decay;
-                        self.level = e.sustain + (1.0 - e.sustain) * x.powf(DECAY_CURVE);
+                        self.level = 1.0 + (e.sustain - 1.0) * curve(self.t / e.decay, e.decay_curve);
                         return self.level;
                     }
                     n -= (e.decay - self.t).max(0.0);
@@ -118,8 +114,7 @@ impl Env {
                 Stage::Release => {
                     if self.t + n < e.release {
                         self.t += n;
-                        let x = 1.0 - self.t / e.release;
-                        self.level = self.from * x.powf(RELEASE_CURVE);
+                        self.level = self.from * (1.0 - curve(self.t / e.release, e.release_curve));
                         return self.level;
                     }
                     self.stage = Stage::Idle;
@@ -137,7 +132,7 @@ mod tests {
     use super::*;
 
     fn times(a: f32, h: f32, d: f32, s: f32, r: f32) -> EnvTimes {
-        EnvTimes { attack: a, hold: h, decay: d, sustain: s, release: r }
+        EnvTimes { attack: a, hold: h, decay: d, sustain: s, release: r, attack_curve: 0.0, decay_curve: 0.45, release_curve: 0.45 }
     }
 
     #[test]
@@ -186,5 +181,15 @@ mod tests {
         env.release();
         let l = env.advance(1.0, &e);
         assert!(l < 0.5 && l > 0.45, "{l}");
+    }
+
+    #[test]
+    fn curves_bend_but_keep_their_ends() {
+        for c in [-1.0f32, -0.3, 0.0, 0.45, 1.0] {
+            assert!(curve(0.0, c).abs() < 1e-6);
+            assert!((curve(1.0, c) - 1.0).abs() < 1e-5);
+        }
+        assert!(curve(0.2, 0.45) > 0.2, "positive moves fast first");
+        assert!(curve(0.2, -0.45) < 0.2);
     }
 }

@@ -2,58 +2,110 @@
 
 use crate::params::{Curve, ParamInfo};
 
-pub const COUNT: usize = 126;
+pub const COUNT: usize = 328;
 
-pub const ENV_ATTACK: [u16; 4] = [0, 5, 10, 15];
-pub const ENV_HOLD: [u16; 4] = [1, 6, 11, 16];
-pub const ENV_DECAY: [u16; 4] = [2, 7, 12, 17];
-pub const ENV_SUSTAIN: [u16; 4] = [3, 8, 13, 18];
-pub const ENV_RELEASE: [u16; 4] = [4, 9, 14, 19];
-pub const FILTER_ENABLE: [u16; 2] = [20, 27];
-pub const FILTER_TYPE: [u16; 2] = [21, 28];
-pub const FILTER_CUTOFF: [u16; 2] = [22, 29];
-pub const FILTER_RES: [u16; 2] = [23, 30];
-pub const FILTER_DRIVE: [u16; 2] = [24, 31];
-pub const FILTER_MIX: [u16; 2] = [25, 32];
-pub const FILTER_KEYTRACK: [u16; 2] = [26, 33];
-pub const MASTER_VOLUME: u16 = 34;
-pub const OSC_ENABLE: [u16; 3] = [35, 62, 89];
-pub const OSC_LEVEL: [u16; 3] = [36, 63, 90];
-pub const OSC_PAN: [u16; 3] = [37, 64, 91];
-pub const OSC_OCTAVE: [u16; 3] = [38, 65, 92];
-pub const OSC_SEMI: [u16; 3] = [39, 66, 93];
-pub const OSC_FINE: [u16; 3] = [40, 67, 94];
-pub const OSC_COARSE: [u16; 3] = [41, 68, 95];
-pub const OSC_PITCH_MODE: [u16; 3] = [42, 69, 96];
-pub const OSC_WT_POS: [u16; 3] = [43, 70, 97];
-pub const OSC_WT_SMOOTH: [u16; 3] = [44, 71, 98];
-pub const OSC_PHASE: [u16; 3] = [45, 72, 99];
-pub const OSC_RAND_PHASE: [u16; 3] = [46, 73, 100];
-pub const OSC_PHASE_MEM: [u16; 3] = [47, 74, 101];
-pub const OSC_UNISON: [u16; 3] = [48, 75, 102];
-pub const OSC_DETUNE: [u16; 3] = [49, 76, 103];
-pub const OSC_BLEND: [u16; 3] = [50, 77, 104];
-pub const OSC_WIDTH: [u16; 3] = [51, 78, 105];
-pub const OSC_UNI_RANGE: [u16; 3] = [52, 79, 106];
-pub const OSC_UNI_MODE: [u16; 3] = [53, 80, 107];
-pub const OSC_UNI_STACK: [u16; 3] = [54, 81, 108];
-pub const OSC_WT_SPREAD: [u16; 3] = [55, 82, 109];
-pub const OSC_WARP_SPREAD: [u16; 3] = [56, 83, 110];
-pub const OSC_WARP1_MODE: [u16; 3] = [57, 84, 111];
-pub const OSC_WARP1_AMOUNT: [u16; 3] = [58, 85, 112];
-pub const OSC_WARP2_MODE: [u16; 3] = [59, 86, 113];
-pub const OSC_WARP2_AMOUNT: [u16; 3] = [60, 87, 114];
-pub const OSC_FILTER: [u16; 3] = [61, 88, 115];
-pub const VOICE_POLYPHONY: u16 = 116;
-pub const VOICE_MONO: u16 = 117;
-pub const VOICE_LEGATO: u16 = 118;
-pub const VOICE_GLIDE: u16 = 119;
-pub const VOICE_GLIDE_ALWAYS: u16 = 120;
-pub const VOICE_GLIDE_SCALED: u16 = 121;
-pub const VOICE_GLIDE_CURVE: u16 = 122;
-pub const VOICE_STEAL: u16 = 123;
-pub const VOICE_BEND_UP: u16 = 124;
-pub const VOICE_BEND_DOWN: u16 = 125;
+pub const ENV_ATTACK: [u16; 4] = [0, 11, 22, 33];
+pub const ENV_HOLD: [u16; 4] = [1, 12, 23, 34];
+pub const ENV_DECAY: [u16; 4] = [2, 13, 24, 35];
+pub const ENV_SUSTAIN: [u16; 4] = [3, 14, 25, 36];
+pub const ENV_RELEASE: [u16; 4] = [4, 15, 26, 37];
+pub const ENV_ATTACK_CURVE: [u16; 4] = [5, 16, 27, 38];
+pub const ENV_DECAY_CURVE: [u16; 4] = [6, 17, 28, 39];
+pub const ENV_RELEASE_CURVE: [u16; 4] = [7, 18, 29, 40];
+pub const ENV_BPM: [u16; 4] = [8, 19, 30, 41];
+pub const ENV_LEGATO_INVERT: [u16; 4] = [9, 20, 31, 42];
+pub const ENV_RETRIG: [u16; 4] = [10, 21, 32, 43];
+pub const FILTER_ENABLE: [u16; 2] = [44, 53];
+pub const FILTER_TYPE: [u16; 2] = [45, 54];
+pub const FILTER_CUTOFF: [u16; 2] = [46, 55];
+pub const FILTER_RES: [u16; 2] = [47, 56];
+pub const FILTER_DRIVE: [u16; 2] = [48, 57];
+pub const FILTER_MIX: [u16; 2] = [49, 58];
+pub const FILTER_KEYTRACK: [u16; 2] = [50, 59];
+pub const FILTER_LEVEL: [u16; 2] = [51, 60];
+pub const FILTER_PAN: [u16; 2] = [52, 61];
+pub const GLOBAL_QUALITY: u16 = 62;
+pub const GLOBAL_BPM: u16 = 63;
+pub const GLOBAL_ENV_RATE: u16 = 64;
+pub const GLOBAL_LFO_RATE: u16 = 65;
+pub const LFO_TYPE: [u16; 10] = [66, 79, 92, 105, 118, 131, 144, 157, 170, 183];
+pub const LFO_MODE: [u16; 10] = [67, 80, 93, 106, 119, 132, 145, 158, 171, 184];
+pub const LFO_RATE: [u16; 10] = [68, 81, 94, 107, 120, 133, 146, 159, 172, 185];
+pub const LFO_BPM: [u16; 10] = [69, 82, 95, 108, 121, 134, 147, 160, 173, 186];
+pub const LFO_SYNC_RATE: [u16; 10] = [70, 83, 96, 109, 122, 135, 148, 161, 174, 187];
+pub const LFO_SYNC_MOD: [u16; 10] = [71, 84, 97, 110, 123, 136, 149, 162, 175, 188];
+pub const LFO_X10: [u16; 10] = [72, 85, 98, 111, 124, 137, 150, 163, 176, 189];
+pub const LFO_RISE: [u16; 10] = [73, 86, 99, 112, 125, 138, 151, 164, 177, 190];
+pub const LFO_DELAY: [u16; 10] = [74, 87, 100, 113, 126, 139, 152, 165, 178, 191];
+pub const LFO_SMOOTH: [u16; 10] = [75, 88, 101, 114, 127, 140, 153, 166, 179, 192];
+pub const LFO_PHASE: [u16; 10] = [76, 89, 102, 115, 128, 141, 154, 167, 180, 193];
+pub const LFO_DIRECTION: [u16; 10] = [77, 90, 103, 116, 129, 142, 155, 168, 181, 194];
+pub const LFO_POLY: [u16; 10] = [78, 91, 104, 117, 130, 143, 156, 169, 182, 195];
+pub const MACRO_VALUE: [u16; 8] = [196, 197, 198, 199, 200, 201, 202, 203];
+pub const MASTER_VOLUME: u16 = 204;
+pub const MIX_FILTER_ROUTING: u16 = 205;
+pub const NOISE_ENABLE: u16 = 206;
+pub const NOISE_TYPE: u16 = 207;
+pub const NOISE_LEVEL: u16 = 208;
+pub const NOISE_PAN: u16 = 209;
+pub const NOISE_PITCH: u16 = 210;
+pub const NOISE_KEYTRACK: u16 = 211;
+pub const NOISE_ONESHOT: u16 = 212;
+pub const NOISE_PHASE: u16 = 213;
+pub const NOISE_RAND: u16 = 214;
+pub const NOISE_ROUTE: u16 = 215;
+pub const NOISE_BALANCE: u16 = 216;
+pub const NOISE_SEND1: u16 = 217;
+pub const NOISE_SEND2: u16 = 218;
+pub const OSC_ENABLE: [u16; 3] = [219, 249, 279];
+pub const OSC_LEVEL: [u16; 3] = [220, 250, 280];
+pub const OSC_PAN: [u16; 3] = [221, 251, 281];
+pub const OSC_OCTAVE: [u16; 3] = [222, 252, 282];
+pub const OSC_SEMI: [u16; 3] = [223, 253, 283];
+pub const OSC_FINE: [u16; 3] = [224, 254, 284];
+pub const OSC_COARSE: [u16; 3] = [225, 255, 285];
+pub const OSC_PITCH_MODE: [u16; 3] = [226, 256, 286];
+pub const OSC_WT_POS: [u16; 3] = [227, 257, 287];
+pub const OSC_WT_SMOOTH: [u16; 3] = [228, 258, 288];
+pub const OSC_PHASE: [u16; 3] = [229, 259, 289];
+pub const OSC_RAND_PHASE: [u16; 3] = [230, 260, 290];
+pub const OSC_PHASE_MEM: [u16; 3] = [231, 261, 291];
+pub const OSC_UNISON: [u16; 3] = [232, 262, 292];
+pub const OSC_DETUNE: [u16; 3] = [233, 263, 293];
+pub const OSC_BLEND: [u16; 3] = [234, 264, 294];
+pub const OSC_WIDTH: [u16; 3] = [235, 265, 295];
+pub const OSC_UNI_RANGE: [u16; 3] = [236, 266, 296];
+pub const OSC_UNI_MODE: [u16; 3] = [237, 267, 297];
+pub const OSC_UNI_STACK: [u16; 3] = [238, 268, 298];
+pub const OSC_WT_SPREAD: [u16; 3] = [239, 269, 299];
+pub const OSC_WARP_SPREAD: [u16; 3] = [240, 270, 300];
+pub const OSC_WARP1_MODE: [u16; 3] = [241, 271, 301];
+pub const OSC_WARP1_AMOUNT: [u16; 3] = [242, 272, 302];
+pub const OSC_WARP2_MODE: [u16; 3] = [243, 273, 303];
+pub const OSC_WARP2_AMOUNT: [u16; 3] = [244, 274, 304];
+pub const OSC_ROUTE: [u16; 3] = [245, 275, 305];
+pub const OSC_BALANCE: [u16; 3] = [246, 276, 306];
+pub const OSC_SEND1: [u16; 3] = [247, 277, 307];
+pub const OSC_SEND2: [u16; 3] = [248, 278, 308];
+pub const SUB_ENABLE: u16 = 309;
+pub const SUB_SHAPE: u16 = 310;
+pub const SUB_OCTAVE: u16 = 311;
+pub const SUB_LEVEL: u16 = 312;
+pub const SUB_PAN: u16 = 313;
+pub const SUB_ROUTE: u16 = 314;
+pub const SUB_BALANCE: u16 = 315;
+pub const SUB_SEND1: u16 = 316;
+pub const SUB_SEND2: u16 = 317;
+pub const VOICE_POLYPHONY: u16 = 318;
+pub const VOICE_MONO: u16 = 319;
+pub const VOICE_LEGATO: u16 = 320;
+pub const VOICE_GLIDE: u16 = 321;
+pub const VOICE_GLIDE_ALWAYS: u16 = 322;
+pub const VOICE_GLIDE_SCALED: u16 = 323;
+pub const VOICE_GLIDE_CURVE: u16 = 324;
+pub const VOICE_STEAL: u16 = 325;
+pub const VOICE_BEND_UP: u16 = 326;
+pub const VOICE_BEND_DOWN: u16 = 327;
 
 pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "env.1.attack", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.025, flags: 1 },
@@ -61,21 +113,45 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "env.1.decay", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.31498027, flags: 1 },
     ParamInfo { key: "env.1.sustain", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 1 },
     ParamInfo { key: "env.1.release", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.07768081, flags: 1 },
+    ParamInfo { key: "env.1.attack_curve", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "env.1.decay_curve", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.725, flags: 1 },
+    ParamInfo { key: "env.1.release_curve", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.725, flags: 1 },
+    ParamInfo { key: "env.1.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "env.1.legato_invert", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "env.1.retrig", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "env.2.attack", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.025, flags: 1 },
     ParamInfo { key: "env.2.hold", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.0, flags: 1 },
     ParamInfo { key: "env.2.decay", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.31498027, flags: 1 },
     ParamInfo { key: "env.2.sustain", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 1 },
     ParamInfo { key: "env.2.release", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.07768081, flags: 1 },
+    ParamInfo { key: "env.2.attack_curve", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "env.2.decay_curve", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.725, flags: 1 },
+    ParamInfo { key: "env.2.release_curve", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.725, flags: 1 },
+    ParamInfo { key: "env.2.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "env.2.legato_invert", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "env.2.retrig", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "env.3.attack", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.025, flags: 1 },
     ParamInfo { key: "env.3.hold", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.0, flags: 1 },
     ParamInfo { key: "env.3.decay", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.31498027, flags: 1 },
     ParamInfo { key: "env.3.sustain", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 1 },
     ParamInfo { key: "env.3.release", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.07768081, flags: 1 },
+    ParamInfo { key: "env.3.attack_curve", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "env.3.decay_curve", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.725, flags: 1 },
+    ParamInfo { key: "env.3.release_curve", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.725, flags: 1 },
+    ParamInfo { key: "env.3.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "env.3.legato_invert", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "env.3.retrig", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "env.4.attack", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.025, flags: 1 },
     ParamInfo { key: "env.4.hold", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.0, flags: 1 },
     ParamInfo { key: "env.4.decay", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.31498027, flags: 1 },
     ParamInfo { key: "env.4.sustain", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 1 },
     ParamInfo { key: "env.4.release", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.07768081, flags: 1 },
+    ParamInfo { key: "env.4.attack_curve", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "env.4.decay_curve", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.725, flags: 1 },
+    ParamInfo { key: "env.4.release_curve", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.725, flags: 1 },
+    ParamInfo { key: "env.4.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "env.4.legato_invert", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "env.4.retrig", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "filter.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "filter.1.type", curve: Curve::Enum(12), min: 0.0, max: 11.0, default: 0.0, flags: 0 },
     ParamInfo { key: "filter.1.cutoff", curve: Curve::Exp, min: 20.0, max: 22000.0, default: 0.4364313, flags: 3 },
@@ -83,6 +159,8 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "filter.1.drive", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "filter.1.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
     ParamInfo { key: "filter.1.keytrack", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "filter.1.level", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "filter.1.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
     ParamInfo { key: "filter.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "filter.2.type", curve: Curve::Enum(12), min: 0.0, max: 11.0, default: 0.0, flags: 0 },
     ParamInfo { key: "filter.2.cutoff", curve: Curve::Exp, min: 20.0, max: 22000.0, default: 0.4364313, flags: 3 },
@@ -90,7 +168,165 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "filter.2.drive", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "filter.2.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
     ParamInfo { key: "filter.2.keytrack", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "filter.2.level", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "filter.2.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "global.quality", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.5, flags: 0 },
+    ParamInfo { key: "global.bpm", curve: Curve::Lin, min: 20.0, max: 300.0, default: 0.35714287, flags: 0 },
+    ParamInfo { key: "global.env_rate", curve: Curve::Exp, min: 0.1, max: 10.0, default: 0.5, flags: 0 },
+    ParamInfo { key: "global.lfo_rate", curve: Curve::Exp, min: 0.1, max: 10.0, default: 0.5, flags: 0 },
+    ParamInfo { key: "lfo.1.type", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.1.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.1.rate", curve: Curve::Exp, min: 0.01, max: 100.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "lfo.1.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.1.sync_rate", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "lfo.1.sync_mod", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.1.x10", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.1.rise", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.1.delay", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.1.smooth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.1.phase", curve: Curve::Lin, min: 0.0, max: 360.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "lfo.1.direction", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.1.poly", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "lfo.2.type", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.2.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.2.rate", curve: Curve::Exp, min: 0.01, max: 100.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "lfo.2.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.2.sync_rate", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "lfo.2.sync_mod", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.2.x10", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.2.rise", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.2.delay", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.2.smooth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.2.phase", curve: Curve::Lin, min: 0.0, max: 360.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "lfo.2.direction", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.2.poly", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "lfo.3.type", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.3.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.3.rate", curve: Curve::Exp, min: 0.01, max: 100.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "lfo.3.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.3.sync_rate", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "lfo.3.sync_mod", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.3.x10", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.3.rise", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.3.delay", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.3.smooth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.3.phase", curve: Curve::Lin, min: 0.0, max: 360.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "lfo.3.direction", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.3.poly", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "lfo.4.type", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.4.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.4.rate", curve: Curve::Exp, min: 0.01, max: 100.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "lfo.4.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.4.sync_rate", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "lfo.4.sync_mod", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.4.x10", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.4.rise", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.4.delay", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.4.smooth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.4.phase", curve: Curve::Lin, min: 0.0, max: 360.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "lfo.4.direction", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.4.poly", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "lfo.5.type", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.5.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.5.rate", curve: Curve::Exp, min: 0.01, max: 100.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "lfo.5.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.5.sync_rate", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "lfo.5.sync_mod", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.5.x10", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.5.rise", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.5.delay", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.5.smooth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.5.phase", curve: Curve::Lin, min: 0.0, max: 360.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "lfo.5.direction", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.5.poly", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "lfo.6.type", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.6.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.6.rate", curve: Curve::Exp, min: 0.01, max: 100.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "lfo.6.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.6.sync_rate", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "lfo.6.sync_mod", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.6.x10", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.6.rise", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.6.delay", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.6.smooth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.6.phase", curve: Curve::Lin, min: 0.0, max: 360.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "lfo.6.direction", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.6.poly", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "lfo.7.type", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.7.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.7.rate", curve: Curve::Exp, min: 0.01, max: 100.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "lfo.7.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.7.sync_rate", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "lfo.7.sync_mod", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.7.x10", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.7.rise", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.7.delay", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.7.smooth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.7.phase", curve: Curve::Lin, min: 0.0, max: 360.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "lfo.7.direction", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.7.poly", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "lfo.8.type", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.8.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.8.rate", curve: Curve::Exp, min: 0.01, max: 100.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "lfo.8.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.8.sync_rate", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "lfo.8.sync_mod", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.8.x10", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.8.rise", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.8.delay", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.8.smooth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.8.phase", curve: Curve::Lin, min: 0.0, max: 360.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "lfo.8.direction", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.8.poly", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "lfo.9.type", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.9.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.9.rate", curve: Curve::Exp, min: 0.01, max: 100.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "lfo.9.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.9.sync_rate", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "lfo.9.sync_mod", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.9.x10", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.9.rise", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.9.delay", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.9.smooth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.9.phase", curve: Curve::Lin, min: 0.0, max: 360.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "lfo.9.direction", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.9.poly", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "lfo.10.type", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.10.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.10.rate", curve: Curve::Exp, min: 0.01, max: 100.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "lfo.10.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.10.sync_rate", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "lfo.10.sync_mod", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.10.x10", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.10.rise", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.10.delay", curve: Curve::Pow(3.0), min: 0.0, max: 10000.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.10.smooth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.10.phase", curve: Curve::Lin, min: 0.0, max: 360.0, default: 0.0, flags: 1 },
+    ParamInfo { key: "lfo.10.direction", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "lfo.10.poly", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "macro.1.value", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "macro.2.value", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "macro.3.value", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "macro.4.value", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "macro.5.value", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "macro.6.value", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "macro.7.value", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "macro.8.value", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "master.volume", curve: Curve::Db, min: -60.0, max: 6.0, default: 0.8181818, flags: 2 },
+    ParamInfo { key: "mix.filter_routing", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "noise.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "noise.type", curve: Curve::Enum(12), min: 0.0, max: 11.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "noise.level", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "noise.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "noise.pitch", curve: Curve::Lin, min: -48.0, max: 48.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "noise.keytrack", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "noise.oneshot", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "noise.phase", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "noise.rand", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "noise.route", curve: Curve::Enum(4), min: 0.0, max: 3.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "noise.balance", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "noise.send1", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "noise.send2", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "osc.a.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
     ParamInfo { key: "osc.a.level", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.75, flags: 3 },
     ParamInfo { key: "osc.a.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
@@ -117,7 +353,10 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "osc.a.warp1_amount", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "osc.a.warp2_mode", curve: Curve::Enum(62), min: 0.0, max: 61.0, default: 0.0, flags: 0 },
     ParamInfo { key: "osc.a.warp2_amount", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
-    ParamInfo { key: "osc.a.filter", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "osc.a.route", curve: Curve::Enum(4), min: 0.0, max: 3.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.a.balance", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "osc.a.send1", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "osc.a.send2", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "osc.b.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "osc.b.level", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.75, flags: 3 },
     ParamInfo { key: "osc.b.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
@@ -144,7 +383,10 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "osc.b.warp1_amount", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "osc.b.warp2_mode", curve: Curve::Enum(62), min: 0.0, max: 61.0, default: 0.0, flags: 0 },
     ParamInfo { key: "osc.b.warp2_amount", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
-    ParamInfo { key: "osc.b.filter", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "osc.b.route", curve: Curve::Enum(4), min: 0.0, max: 3.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.b.balance", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "osc.b.send1", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "osc.b.send2", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "osc.c.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "osc.c.level", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.75, flags: 3 },
     ParamInfo { key: "osc.c.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
@@ -171,7 +413,19 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "osc.c.warp1_amount", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "osc.c.warp2_mode", curve: Curve::Enum(62), min: 0.0, max: 61.0, default: 0.0, flags: 0 },
     ParamInfo { key: "osc.c.warp2_amount", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
-    ParamInfo { key: "osc.c.filter", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "osc.c.route", curve: Curve::Enum(4), min: 0.0, max: 3.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.c.balance", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "osc.c.send1", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "osc.c.send2", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "sub.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "sub.shape", curve: Curve::Enum(6), min: 0.0, max: 5.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "sub.octave", curve: Curve::Int, min: -4.0, max: 2.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "sub.level", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.75, flags: 3 },
+    ParamInfo { key: "sub.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "sub.route", curve: Curve::Enum(4), min: 0.0, max: 3.0, default: 0.6666667, flags: 0 },
+    ParamInfo { key: "sub.balance", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "sub.send1", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "sub.send2", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "voice.polyphony", curve: Curve::Int, min: 1.0, max: 32.0, default: 0.22580644, flags: 0 },
     ParamInfo { key: "voice.mono", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "voice.legato", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },

@@ -2,8 +2,8 @@
 
 A Serum 2-style wavetable synth. The Rust engine is compiled to wasm and runs in
 an AudioWorklet; the UI is Svelte 5 + TS. The roadmap and each phase's gates
-are in `docs/plan.md`. P0 and P1 are done; P2 (full voice and modulation)
-comes next.
+are in `docs/plan.md`. P0–P2 are done; P3 (FX racks, the rest of the
+filter and warp types) comes next.
 
 ## Commands
 - The shell may lack `~/.cargo/bin`; use `. "$HOME/.cargo/env"` or `node tools/cargo.mjs …`.
@@ -13,7 +13,11 @@ comes next.
 
 ## Layout notes
 - `crates/dsp`: mip layout (`mip.rs`), warps (`warp.rs`, shared by the engine and previews), phase/math/rng, the built-in saw.
-- `crates/engine`: `engine.rs` (commands, allocation, render loop), `voice.rs`, `osc/` (kernel with scalar + SIMD, unison), `filter/`, `modmatrix.rs`, `tables.rs` (host-filled assets), `params.rs` (smoothing), `tests.rs` (the P1 gates).
+- `crates/engine`: `engine.rs` (commands, allocation, oversampling, the global-modulation policy), `voice.rs` (sources → routing → filters → buses, the fused cross-mod loop), `osc/` (kernel with scalar + SIMD + the per-sample `step`, unison, sub), `filter/` (block and per-sample `tick`), `lfo.rs`, `env.rs`, `modmatrix.rs`, `samples.rs` (noise slot), `tables.rs` (host-filled assets), `params.rs` (smoothing), `tests/` (`mod.rs` P1 gates, `p2.rs` P2 gates).
+- Voices share one `Scratch` (engine-owned) and clear only what they use; per-sample routing exists only for filter-sourced cross-mod, otherwise routing is per source block (`route_block`), same arithmetic.
+- Web state: `state/matrix.ts` (slots + `evaluate`, the reference model the engine is tested against), `state/lfo.ts` (shapes, mirroring `lfo.rs`), `state/noise.ts` (noise sample via the tools worker → worklet 'sample' upload → LoadSample).
+- Taps: at most 8 per block. Displays call `synth.useTap(name)` while shown; `__synth.tap(name)` keeps what it reads.
+- Drag-to-modulate uses pointer events (`ui/mod/drag.ts`); knobs with `data-mod="1"` are drop targets. Alt-drag on a modulated knob changes the first routing's amount.
 - `crates/tools` + `tools-wasm`: mip builder, factory tables, resampling, previews; runs in `web/src/tools/worker.ts`.
 - Commands carry wasm32 pointers (u32): native Rust tests must not pass real pointers through commands (load tables with `tables_mut()` instead).
 - Enum option lists in params/*.toml only grow at the end (patches will store option names).
@@ -28,7 +32,9 @@ comes next.
 
 ## Verifying in the Browser pane
 - In the pane the AudioContext runs without a gesture, and MIDI is denied: use `__synth.midiIn([...])`.
-- `__synth.telemetry()`, `__synth.tap('master.l', n)` and `__synth.stats()` (with `underrunEvents`) are the proof points. Find knobs by their ARIA name, e.g. `find("Osc A Level")`.
+- `__synth.telemetry()`, `__synth.telemetryAll()`, `__synth.tap('master.l', n)`, `__synth.matrix()` and `__synth.stats()` (with `underrunEvents`) are the proof points. `__synth.setPlain(key, value)` sets a parameter in its own unit. Find knobs by their ARIA name, e.g. `find("Osc A Level")`.
+- Pane coordinates: the screenshot frame is smaller than the CSS viewport (e.g. 800 × 758 for 1101 × 1044); convert with the ratio before `left_click_drag`. Viewport emulation (`resize_window`) skews drag coordinates further, so test drags at the pane's own size.
+- Smoothed parameters glide for about 0.2 s (12 ms time constant) before they snap to the target; tests that compare against exact values render ~0.5 s first.
 - Measure pitch with a least-squares fit through all rising zero crossings of `master.l` (as `pitch()` in `tests/engine/harness.ts` does). First/last crossings alone scatter ±0.01 Hz on 8192 frames.
 
 ## Deploy

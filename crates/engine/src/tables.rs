@@ -92,6 +92,11 @@ impl Tables {
         }
     }
 
+    /// The built-in band-limited saw (one frame block).
+    pub fn saw(&self) -> &[f32] {
+        &self.saw
+    }
+
     pub fn frames(&self, osc: usize) -> usize {
         self.get(osc).1
     }

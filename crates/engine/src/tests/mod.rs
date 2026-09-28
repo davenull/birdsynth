@@ -311,7 +311,7 @@ fn matrix_moves_parameters_per_voice() {
     set(&mut e, p::FILTER_ENABLE[0], 1.0);
     set(&mut e, p::FILTER_CUTOFF[0], 200.0);
     set(&mut e, p::ENV_SUSTAIN[1], 1.0);
-    e.command(Command::SetModSlot { slot: 0, source: source::ENV_2, aux: 0, flags: 0, dest: p::FILTER_CUTOFF[0], amount: 0.5 }, 0.0);
+    e.command(Command::SetModSlot { slot: 0, source: source::ENV_2, aux: 0, flags: 0, dest: p::FILTER_CUTOFF[0], amount: 0.5, curve: 0.0, output: 1.0 }, 0.0);
     on(&mut e, 60, 1);
     render(&mut e, 4800);
     let t = e.telemetry();
@@ -319,7 +319,7 @@ fn matrix_moves_parameters_per_voice() {
     let want = INFO[p::FILTER_CUTOFF[0] as usize].to_plain(norm(p::FILTER_CUTOFF[0], 200.0) + 0.5);
     assert!((t[tel::FOCUS_CUTOFF] - want).abs() / want < 1e-3, "{} vs {want}", t[tel::FOCUS_CUTOFF]);
     // the mod wheel on WT position
-    e.command(Command::SetModSlot { slot: 1, source: source::MOD_WHEEL, aux: 0, flags: 0, dest: p::OSC_WT_POS[0], amount: 1.0 }, 0.0);
+    e.command(Command::SetModSlot { slot: 1, source: source::MOD_WHEEL, aux: 0, flags: 0, dest: p::OSC_WT_POS[0], amount: 1.0, curve: 0.0, output: 1.0 }, 0.0);
     e.command(Command::Controller { channel: 0, cc: 1, value: 0.4 }, 0.0);
     render(&mut e, 64);
     assert!((e.telemetry()[tel::OSC_WT_POS] - 0.4).abs() < 1e-6);
@@ -442,3 +442,5 @@ fn unison_detunes_symmetrically() {
     assert!((lo / hi - 1.0).abs() < 0.05, "{lo} vs {hi}");
     assert!(mid < lo * 0.05, "no energy left at the undetuned pitch");
 }
+
+mod p2;

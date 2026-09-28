@@ -10,11 +10,15 @@
   import Knob from './ui/primitives/Knob.svelte';
   import Keyboard from './ui/primitives/Keyboard.svelte';
   import Meter from './ui/primitives/Meter.svelte';
-  import Scope from './ui/primitives/Scope.svelte';
-  import OscPanel from './ui/panels/OscPanel.svelte';
-  import FilterPanel from './ui/panels/FilterPanel.svelte';
   import EnvPanel from './ui/panels/EnvPanel.svelte';
+  import LfoPanel from './ui/panels/LfoPanel.svelte';
+  import MacroPanel from './ui/panels/MacroPanel.svelte';
   import VoicingPanel from './ui/panels/VoicingPanel.svelte';
+  import SourceChips from './ui/mod/SourceChips.svelte';
+  import OscPage from './ui/pages/OscPage.svelte';
+  import MixPage from './ui/pages/MixPage.svelte';
+  import MatrixPage from './ui/pages/MatrixPage.svelte';
+  import GlobalPage from './ui/pages/GlobalPage.svelte';
   import { onFrame } from './ui/frame';
 
   const synth = getContext<Synth>('synth');
@@ -27,13 +31,14 @@
   let cpu = $state(0);
   let scale = $state(1);
   let page = $state('osc');
+  let routings = $state(0);
 
   const PAGES = [
     { id: 'osc', name: 'OSC' },
-    { id: 'mix', name: 'MIX', later: 'P2' },
+    { id: 'mix', name: 'MIX' },
     { id: 'fx', name: 'FX', later: 'P3' },
-    { id: 'matrix', name: 'MATRIX', later: 'P2' },
-    { id: 'global', name: 'GLOBAL', later: 'P4' },
+    { id: 'matrix', name: 'MATRIX' },
+    { id: 'global', name: 'GLOBAL' },
   ];
 
   onMount(() => {
@@ -41,6 +46,7 @@
     fit();
     window.addEventListener('resize', fit);
     const offStatus = synth.onStatus((s) => (status = s));
+    const offMatrix = synth.matrix.subscribe(() => (routings = synth.matrix.used));
     const offKeys = installQwerty({ noteOn: (n, v) => synth.noteOn(n, v), noteOff: (n) => synth.noteOff(n) }, (s) => (qwerty = s));
     let t = 0;
     const offFrame = onFrame((now) => {
@@ -56,6 +62,7 @@
     return () => {
       window.removeEventListener('resize', fit);
       offStatus();
+      offMatrix();
       offKeys();
       offFrame();
       window.removeEventListener('pointerdown', unlock);
@@ -70,7 +77,9 @@
       <div class="brand">birdsynth</div>
       <nav class="tabs" aria-label="Pages">
         {#each PAGES as p (p.id)}
-          <button class:on={page === p.id} disabled={!!p.later} title={p.later ? `Arrives in ${p.later}` : ''} onclick={() => (page = p.id)}>{p.name}</button>
+          <button class:on={page === p.id} disabled={!!p.later} title={p.later ? `Arrives in ${p.later}` : ''} aria-current={page === p.id ? 'page' : undefined} onclick={() => (page = p.id)}
+            >{p.name}{#if p.id === 'matrix' && routings}<span class="badge">{routings}</span>{/if}</button
+          >
         {/each}
       </nav>
       <div class="readout" aria-live="polite">
@@ -85,21 +94,30 @@
     </header>
 
     <main class="page">
-      <OscPanel osc={0} />
-      <OscPanel osc={1} />
-      <OscPanel osc={2} />
-      <FilterPanel n={1} />
+      {#if page === 'osc'}
+        <OscPage />
+      {:else if page === 'mix'}
+        <MixPage />
+      {:else if page === 'matrix'}
+        <MatrixPage />
+      {:else if page === 'global'}
+        <GlobalPage />
+      {/if}
     </main>
 
     <section class="strip" aria-label="Modulation and voicing">
       <EnvPanel />
+      <LfoPanel />
+      <MacroPanel />
       <VoicingPanel />
-      <div class="panel scope"><Scope {synth} tap="focus.out" label="Newest voice" color="var(--osc-a)" /></div>
     </section>
 
     <footer class="keys">
-      <div class="hint">
-        Play with <kbd>A</kbd>–<kbd>'</kbd> (black keys <kbd>W</kbd> <kbd>E</kbd> <kbd>T</kbd> <kbd>Y</kbd> <kbd>U</kbd> <kbd>O</kbd> <kbd>P</kbd>) · octave <kbd>Z</kbd>/<kbd>X</kbd> (A = C{qwerty.octave}) · velocity <kbd>C</kbd>/<kbd>V</kbd> ({Math.round(qwerty.velocity * 100)}%) · drop a wavetable WAV on an oscillator
+      <div class="hint-row">
+        <SourceChips />
+        <div class="hint">
+          Keys <kbd>A</kbd>–<kbd>'</kbd> · octave <kbd>Z</kbd>/<kbd>X</kbd> (A = C{qwerty.octave}) · velocity <kbd>C</kbd>/<kbd>V</kbd> ({Math.round(qwerty.velocity * 100)}%) · drag a handle onto a knob to modulate it
+        </div>
       </div>
       <Keyboard {synth} low={36} high={96} />
     </footer>
@@ -124,7 +142,7 @@
     flex: none;
     transform-origin: top center;
     display: grid;
-    grid-template-rows: 44px 1fr 188px auto;
+    grid-template-rows: 44px 1fr 200px auto;
     gap: 8px;
     padding: 10px 12px 12px;
     box-sizing: border-box;
@@ -184,19 +202,27 @@
     gap: 10px;
   }
   .page {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 250px;
-    gap: 8px;
     min-height: 0;
   }
   .strip {
     display: grid;
-    grid-template-columns: 1.35fr 1fr 0.8fr;
+    grid-template-columns: 318px 1fr 236px 236px;
     gap: 8px;
     min-height: 0;
   }
-  .scope {
-    display: grid;
+  .badge {
+    margin-left: 5px;
+    padding: 0 5px;
+    border-radius: 7px;
+    font: 600 9px var(--font-num);
+    color: #111;
+    background: var(--lfo);
+  }
+  .hint-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
   }
   .keys {
     display: grid;
@@ -205,6 +231,7 @@
   .hint {
     font-size: 10.5px;
     color: var(--text-dim);
+    white-space: nowrap;
   }
   kbd {
     font: 10px var(--font-num);

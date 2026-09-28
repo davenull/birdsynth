@@ -3,26 +3,81 @@
   Drag up/down (Shift: fine), scroll, or use the arrow keys; double-click
   resets to the default; Ctrl/Cmd-click types a value. The element is an
   ARIA slider named after the parameter's full name, e.g. "Osc A Level".
+
+  Modulation shows as rings in each source's colour (the range the source
+  can move the value through) and a dot where the newest voice has it now.
+  Alt-drag changes the first routing's amount. Knobs are drop targets for
+  the source handles (see ui/mod/drag.ts).
 -->
 <script lang="ts">
   import { getContext } from 'svelte';
-  import { PARAMS, PARAM_ID, type ParamKey } from '../../gen/params';
+  import { FLAG, PARAMS, PARAM_ID, type ParamKey } from '../../gen/params';
+  import { SOURCES, TEL, TEL_COUNT } from '../../gen/protocol';
   import { format, parse, snap, steps } from '../../state/param-math';
   import type { ParamBank } from '../../state/bank';
+  import type { Synth } from '../../synth';
+  import { sourceColor } from '../mod/sources';
+  import { onFrame } from '../frame';
 
   let {
     param,
     label,
     size = 44,
     color = 'var(--accent)',
-  }: { param: ParamKey; label?: string; size?: number; color?: string } = $props();
+    compact = false,
+  }: { param: ParamKey; label?: string; size?: number; color?: string; compact?: boolean } = $props();
 
   const bank = getContext<ParamBank>('bank');
+  const synth = getContext<Synth | undefined>('synth');
   const info = $derived(PARAMS[PARAM_ID[param]]);
+  const modulatable = $derived(!!(info.flags & FLAG.mod));
   let value = $state(0);
   $effect(() => {
     value = bank.get(info.id);
     return bank.subscribe(info.id, (v) => (value = v));
+  });
+
+  // --- modulation aimed at this parameter
+  interface Mod {
+    slot: number;
+    amount: number;
+    bipolar: boolean;
+    color: string;
+    name: string;
+  }
+  let mods = $state<Mod[]>([]);
+  let live = $state<number | null>(null);
+  $effect(() => {
+    const m = synth?.matrix;
+    if (!m) return;
+    const id = info.id;
+    const read = () =>
+      (mods = m.forDest(id).map((slot) => {
+        const s = m.slots[slot]!;
+        return { slot, amount: s.bypass ? 0 : s.amount * s.output, bipolar: s.bipolar, color: sourceColor(s.source), name: SOURCES[s.source] as string };
+      }));
+    read();
+    return m.subscribeDest(id, read);
+  });
+  $effect(() => {
+    if (!mods.length || !synth) {
+      live = null;
+      return;
+    }
+    const id = info.id;
+    return onFrame(() => {
+      const t = synth.host?.tel;
+      let v: number | null = null;
+      if (t && t[TEL.voicesActive] > 0) {
+        for (let d = 0; d < TEL_COUNT.modDest; d++) {
+          if (t[TEL.modDest + d] === id) {
+            v = t[TEL.modValue + d];
+            break;
+          }
+        }
+      }
+      if (v !== live) live = v;
+    });
   });
 
   const A0 = -135;
@@ -32,6 +87,15 @@
   const angle = $derived(A0 + (A1 - A0) * value);
   const text = $derived(format(info, value));
   const stepCount = $derived(steps(info));
+
+  const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+  /** The ring for one routing: the range the source moves the value through. */
+  function ring(m: Mod): [number, number] {
+    const lo = m.bipolar ? value - Math.abs(m.amount) : Math.min(value, value + m.amount);
+    const hi = m.bipolar ? value + Math.abs(m.amount) : Math.max(value, value + m.amount);
+    return [A0 + (A1 - A0) * clamp01(lo), A0 + (A1 - A0) * clamp01(hi)];
+  }
+  const modText = $derived(mods.map((m) => `${m.name} ${m.amount >= 0 ? '+' : ''}${Math.round(m.amount * 100)}%`).join(', '));
 
   function polar(deg: number, r: number): [number, number] {
     const a = ((deg - 90) * Math.PI) / 180;
@@ -51,6 +115,8 @@
 
   let dragFrom = 0;
   let dragValue = 0;
+  /** Slot whose amount an Alt-drag is changing, or -1. */
+  let dragSlot = -1;
   function onpointerdown(e: PointerEvent): void {
     if (e.button !== 0) return;
     const el = e.currentTarget as HTMLElement;
@@ -62,14 +128,17 @@
     }
     el.setPointerCapture(e.pointerId);
     dragFrom = e.clientY;
-    dragValue = value;
+    dragSlot = e.altKey && mods.length ? mods[0].slot : -1;
+    dragValue = dragSlot >= 0 ? (synth!.matrix.slots[dragSlot]?.amount ?? 0) : value;
     e.preventDefault();
   }
   function onpointermove(e: PointerEvent): void {
     const el = e.currentTarget as HTMLElement;
     if (!el.hasPointerCapture(e.pointerId)) return;
     const px = e.shiftKey ? 1200 : 200; // pixels for the whole range
-    set(dragValue + (dragFrom - e.clientY) / px);
+    const v = dragValue + (dragFrom - e.clientY) / px;
+    if (dragSlot >= 0) synth!.matrix.update(dragSlot, { amount: Math.fround(Math.max(-1, Math.min(1, v))) });
+    else set(v);
   }
   function onwheel(e: WheelEvent): void {
     e.preventDefault();
@@ -136,12 +205,13 @@
   aria-valuemin={0}
   aria-valuemax={100}
   aria-valuenow={Math.round(value * 100)}
-  aria-valuetext={text}
-  title={info.explain}
+  aria-valuetext={mods.length ? `${text}, modulated by ${modText}` : text}
+  title={mods.length ? `${info.explain}\nModulated by ${modText} (Alt-drag to change)` : info.explain}
   data-param={param}
   data-explain={param}
+  data-mod={modulatable ? '1' : '0'}
   style:--knob-color={color}
-  style:--knob-w={`${Math.max(44, size + 18)}px`}
+  style:--knob-w={`${Math.max(compact ? 38 : 44, size + 18)}px`}
   {onpointerdown}
   {onpointermove}
   {onwheel}
@@ -153,6 +223,14 @@
     <path class="track" d={arc(A0, A1)} />
     <path class="fill" d={bipolar ? arc(A0 + (A1 - A0) * zero, angle) : arc(A0, angle)} />
     <line class="pointer" x1="0" y1="-12" x2="0" y2="-28" transform={`rotate(${angle})`} />
+    {#each mods.slice(0, 2) as m, i (m.slot)}
+      {@const [a, b] = ring(m)}
+      <path class="ring" d={arc(a, b, 46 + i * 5)} style:stroke={m.color} />
+    {/each}
+    {#if live !== null && mods.length}
+      {@const [x, y] = polar(A0 + (A1 - A0) * live, 46)}
+      <circle class="dot" cx={x} cy={y} r="4.5" style:fill={mods[0].color} />
+    {/if}
   </svg>
   <div class="label">{label ?? info.short}</div>
   {#if editing}
@@ -213,6 +291,16 @@
     stroke: var(--text);
     stroke-width: 4;
     stroke-linecap: round;
+  }
+  .ring {
+    fill: none;
+    stroke-width: 3.5;
+    stroke-linecap: round;
+    opacity: 0.9;
+  }
+  .dot {
+    stroke: var(--panel);
+    stroke-width: 1.5;
   }
   .label {
     font-size: 10px;

@@ -1,0 +1,102 @@
+# The sub oscillator: a simple band-limited shape, usually an octave down.
+
+[group]
+key = "sub"
+name = "Sub"
+
+[[param]]
+key = "enable"
+name = "Sub On"
+short = "On"
+curve = "bool"
+default = 0
+explain = "Switches the sub oscillator on."
+
+[[param]]
+key = "shape"
+name = "Sub Shape"
+short = "Shape"
+curve = "enum"
+options = ["Sine", "Round Rect", "Triangle", "Saw", "Square", "Pulse"]
+default = 0
+explain = "The sub's waveform. Sine adds pure weight; the brighter shapes add body you can hear on small speakers."
+
+[[param]]
+key = "octave"
+name = "Sub Octave"
+short = "Octave"
+curve = "int"
+min = -4
+max = 2
+default = -1
+unit = "oct"
+flags = ["mod"]
+explain = "The sub's pitch in octaves from the note."
+
+[[param]]
+key = "level"
+name = "Sub Level"
+short = "Level"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.75
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How loud the sub is."
+
+[[param]]
+key = "pan"
+name = "Sub Pan"
+short = "Pan"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+unit = "pan"
+flags = ["mod", "smooth"]
+explain = "Stereo position of the sub. Bass usually stays centred."
+
+[[param]]
+key = "route"
+name = "Route"
+curve = "enum"
+options = ["Filters", "Main", "Direct", "None"]
+default = 2
+explain = "Where it goes: through the filters (split by Balance), straight to the main FX, direct to the output, or nowhere (still a modulation source)."
+
+[[param]]
+key = "balance"
+name = "Filter Balance"
+short = "F1<>F2"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Split between Filter 1 (left) and Filter 2 (right)."
+
+[[param]]
+key = "send1"
+name = "Bus 1 Send"
+short = "Bus 1"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How much also goes to FX Bus 1."
+
+[[param]]
+key = "send2"
+name = "Bus 2 Send"
+short = "Bus 2"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How much also goes to FX Bus 2."

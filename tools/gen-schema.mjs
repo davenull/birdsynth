@@ -158,7 +158,9 @@ const commands = (proto.command ?? []).map((c) => {
     off += size;
     return out;
   });
-  return { name: c.name, op: c.op, doc: c.doc ?? '', fields, bytes: align(off, 8) };
+  const tail = c.tail ? { type: c.tail.type, size: SIZES[c.tail.type] } : null;
+  if (c.tail && !tail.size) fail(`command ${c.name}: unknown tail type ${c.tail.type}`);
+  return { name: c.name, op: c.op, doc: c.doc ?? '', fields, bytes: align(off, 8), tail };
 });
 {
   const ops = new Set();
@@ -182,7 +184,7 @@ const sources = proto.sources?.names ?? ['None'];
 const canon = JSON.stringify({
   params: params.map((p) => [p.key, p.curve.kind, p.curve.k ?? null, p.curve.options ?? null, f32(p.min), f32(p.max), f32(p.def), p.flags]),
   constants,
-  commands: commands.map((c) => [c.name, c.op, c.bytes, c.fields.map((f) => [f.name, f.type, f.offset])]),
+  commands: commands.map((c) => [c.name, c.op, c.bytes, c.fields.map((f) => [f.name, f.type, f.offset]), c.tail?.type ?? null]),
   telemetry: telemetry.map((t) => [t.name, t.offset, t.count]),
   taps: taps.map((t) => t.name),
   debug,
@@ -242,7 +244,9 @@ function rustProtocol() {
   for (const c of commands) L.push(`    pub const ${screaming(c.name)}: u16 = ${c.op};`);
   L.push('}', '', 'pub mod bytes {');
   for (const c of commands) L.push(`    pub const ${screaming(c.name)}: usize = ${c.bytes};`);
-  L.push('}', '', '#[derive(Clone, Copy, Debug, PartialEq)]', 'pub enum Command {');
+  L.push('}', '', '/// Where the variable-length tail starts in the payload, for commands that have one.', 'pub fn tail_offset(op: u16) -> Option<usize> {', '    match op {');
+  for (const c of commands) if (c.tail) L.push(`        op::${screaming(c.name)} => Some(${c.bytes}),`);
+  L.push('        _ => None,', '    }', '}', '', '#[derive(Clone, Copy, Debug, PartialEq)]', 'pub enum Command {');
   for (const c of commands) {
     if (c.doc) L.push(`    /// ${c.doc}`);
     if (!c.fields.length) L.push(`    ${c.name},`);
@@ -256,7 +260,7 @@ function rustProtocol() {
     }
     const need = c.fields.at(-1).offset + c.fields.at(-1).size;
     const init = c.fields.map((f) => `${snake(f.name)}: rd_${f.type}(p, ${f.offset})`).join(', ');
-    L.push(`        op::${screaming(c.name)} if p.len() >= ${need} => Some(Command::${c.name} { ${init} }),`);
+    L.push(`        op::${screaming(c.name)} if ${need === 1 ? '!p.is_empty()' : `p.len() >= ${need}`} => Some(Command::${c.name} { ${init} }),`);
   }
   L.push('        _ => None,', '    }', '}', '');
   const used = new Set(commands.flatMap((c) => c.fields.map((f) => f.type)));
@@ -423,17 +427,24 @@ function tsProtocol() {
     '    return out;',
     '  }',
   );
+  const TA = { f32: 'Float32Array', u8: 'Uint8Array', u16: 'Uint16Array', u32: 'Uint32Array', i32: 'Int32Array', f64: 'Float64Array' };
   for (const c of commands) {
-    const args = ['frame: number', ...c.fields.map((f) => `${camel(f.name)}: number`)].join(', ');
+    const args = ['frame: number', ...c.fields.map((f) => `${camel(f.name)}: number`), ...(c.tail ? [`tail: ArrayLike<number>`] : [])].join(', ');
     L.push('', `  /** ${c.doc || c.name} */`, `  ${camel(c.name)}(${args}): void {`);
-    if (c.fields.length) L.push(`    const o = this.head(${c.op}, ${c.bytes}, frame);`);
-    else L.push(`    this.head(${c.op}, ${c.bytes}, frame);`);
+    const size = c.tail ? `${c.bytes} + Math.ceil((tail.length * ${c.tail.size}) / 8) * 8` : `${c.bytes}`;
+    if (c.fields.length || c.tail) L.push(`    const o = this.head(${c.op}, ${size}, frame);`);
+    else L.push(`    this.head(${c.op}, ${size}, frame);`);
     for (const f of c.fields) {
       const le = f.size > 1 ? ', true' : '';
       L.push(`    this.dv.set${DV[f.type]}(o + ${f.offset}, ${camel(f.name)}${le});`);
     }
+    if (c.tail) {
+      const le = c.tail.size > 1 ? ', true' : '';
+      L.push(`    for (let i = 0; i < tail.length; i++) this.dv.set${DV[c.tail.type]}(o + ${c.bytes} + i * ${c.tail.size}, tail[i]${le});`);
+    }
     L.push('  }');
   }
+  void TA;
   L.push('}', '', '/** Telemetry slot offsets into the engine\'s f32 telemetry array. */', 'export const TEL = {');
   for (const t of telemetry) L.push(`  ${t.name}: ${t.offset},`);
   L.push(`  LEN: ${telLen},`, '} as const;', '', 'export const TEL_COUNT = {');

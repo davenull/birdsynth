@@ -5,7 +5,8 @@ export type ToolsReq =
   | { op: 'factoryList' }
   | { op: 'factory'; index: number }
   | { op: 'resample'; cycle: Float32Array }
-  | { op: 'preview'; frame: Float32Array; w1: [number, number]; w2: [number, number]; points: number };
+  | { op: 'preview'; frame: Float32Array; w1: [number, number]; w2: [number, number]; points: number }
+  | { op: 'noise'; index: number };
 
 export interface ToolsResults {
   mips: Float32Array;
@@ -13,6 +14,7 @@ export interface ToolsResults {
   factory: { frames: Float32Array; count: number };
   resample: Float32Array;
   preview: Float32Array;
+  noise: { data: Float32Array; rate: number };
 }
 
 export type ToolsRes = { id: number; ok: true; result: unknown } | { id: number; ok: false; error: string };

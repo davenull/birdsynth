@@ -1,0 +1,18 @@
+# Macros: eight knobs you route anywhere in the matrix.
+
+[group]
+key = "macro"
+name = "Macro"
+instances = ["1", "2", "3", "4", "5", "6", "7", "8"]
+instance_names = ["Macro 1", "Macro 2", "Macro 3", "Macro 4", "Macro 5", "Macro 6", "Macro 7", "Macro 8"]
+
+[[param]]
+key = "value"
+name = "Value"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "A knob of your own: route it to any number of destinations in the matrix to change several things at once."

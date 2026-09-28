@@ -51,7 +51,9 @@ export type ToWorklet =
   /** A whole mip-mapped table for an oscillator (frames × frameStride floats). */
   | { t: 'table'; osc: number; frames: number; data: ArrayBuffer }
   /** One mip-mapped frame to overwrite in an oscillator's table. */
-  | { t: 'frame'; osc: number; index: number; data: ArrayBuffer };
+  | { t: 'frame'; osc: number; index: number; data: ArrayBuffer }
+  /** Mono f32 audio for a sample slot (0: the noise oscillator). */
+  | { t: 'sample'; slot: number; frames: number; rate: number; data: ArrayBuffer };
 
 /** Largest slice of an upload copied into wasm memory per render quantum. */
 export const UPLOAD_CHUNK = 512 * 1024;

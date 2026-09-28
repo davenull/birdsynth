@@ -1,8 +1,12 @@
-<!-- The four envelopes, one at a time. Env 1 always shapes the amp. -->
+<!-- The four envelopes, one at a time. Env 1 always shapes the amp; any of them can be dragged onto a knob. -->
 <script lang="ts">
   import type { ParamKey } from '../../gen/params';
+  import { SOURCE, type SourceName } from '../../state/matrix';
   import Knob from '../primitives/Knob.svelte';
+  import Select from '../primitives/Select.svelte';
+  import Toggle from '../primitives/Toggle.svelte';
   import EnvGraph from '../graphs/EnvGraph.svelte';
+  import SourceHandle from '../mod/SourceHandle.svelte';
 
   let n = $state(1);
   const color = 'var(--env)';
@@ -10,21 +14,32 @@
 </script>
 
 <section class="panel env" data-explain="env" aria-label="Envelopes">
-  <div class="tabs" role="tablist" aria-label="Envelope">
-    {#each [1, 2, 3, 4] as i (i)}
-      <button role="tab" aria-selected={n === i} class:on={n === i} onclick={() => (n = i)}>ENV {i}{i === 1 ? ' · AMP' : ''}</button>
-    {/each}
+  <div class="top">
+    <div class="tabs" role="tablist" aria-label="Envelope">
+      {#each [1, 2, 3, 4] as i (i)}
+        <button role="tab" aria-selected={n === i} class:on={n === i} onclick={() => (n = i)}>ENV {i}{i === 1 ? ' · AMP' : ''}</button>
+      {/each}
+    </div>
+    <SourceHandle source={SOURCE[`Env ${n}` as SourceName]} label={`ENV ${n}`} />
   </div>
   {#key n}
     <div class="body">
       <div class="graph"><EnvGraph {n} {color} /></div>
       <div class="knobs">
-        <Knob param={k('attack')} size={30} {color} />
-        <Knob param={k('hold')} size={30} {color} />
-        <Knob param={k('decay')} size={30} {color} />
-        <Knob param={k('sustain')} size={30} {color} />
-        <Knob param={k('release')} size={30} {color} />
+        <Knob param={k('attack')} size={24} {color} compact />
+        <Knob param={k('hold')} size={24} {color} compact />
+        <Knob param={k('decay')} size={24} {color} compact />
+        <Knob param={k('sustain')} size={24} {color} compact />
+        <Knob param={k('release')} size={24} {color} compact />
+        <Knob param={k('attack_curve')} label="A Crv" size={20} {color} compact />
+        <Knob param={k('decay_curve')} label="D Crv" size={20} {color} compact />
+        <Knob param={k('release_curve')} label="R Crv" size={20} {color} compact />
       </div>
+    </div>
+    <div class="opts">
+      <Toggle param={k('bpm')} {color} />
+      <Toggle param={k('legato_invert')} {color} />
+      <Select param={k('retrig')} />
     </div>
   {/key}
 </section>
@@ -32,21 +47,28 @@
 <style>
   .env {
     display: grid;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto 1fr auto;
+    gap: 5px;
+    min-height: 0;
+  }
+  .top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 6px;
   }
   .tabs {
     display: flex;
-    gap: 4px;
+    gap: 3px;
   }
   .tabs button {
-    font: 600 10px var(--font-ui);
-    letter-spacing: 0.05em;
+    font: 600 9.5px var(--font-ui);
+    letter-spacing: 0.04em;
     color: var(--text-dim);
     background: transparent;
     border: 1px solid var(--line);
     border-radius: 4px;
-    padding: 2px 8px;
+    padding: 2px 6px;
     cursor: pointer;
   }
   .tabs button.on {
@@ -56,14 +78,25 @@
   .body {
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 8px;
+    gap: 6px;
     min-height: 0;
   }
   .graph {
     min-height: 0;
   }
   .knobs {
+    display: grid;
+    grid-template-columns: repeat(4, auto);
+    align-content: center;
+  }
+  .opts {
     display: flex;
+    align-items: end;
+    gap: 6px;
+  }
+  .opts :global(.select) {
+    grid-auto-flow: column;
     align-items: center;
+    gap: 4px;
   }
 </style>

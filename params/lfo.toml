@@ -1,0 +1,125 @@
+# The ten LFOs. Each can be a drawn shape, a path in XY, a chaotic
+# attractor, or sample-and-hold.
+
+[group]
+key = "lfo"
+name = "LFO"
+instances = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+instance_names = ["LFO 1", "LFO 2", "LFO 3", "LFO 4", "LFO 5", "LFO 6", "LFO 7", "LFO 8", "LFO 9", "LFO 10"]
+
+[[param]]
+key = "type"
+name = "Type"
+curve = "enum"
+options = ["Normal", "Path", "Lorenz", "Rossler", "S&H"]
+default = 0
+explain = "Normal: follows the drawn shape. Path: traces a drawn path in two dimensions (X and Y outputs). Lorenz and Rossler: chaotic attractors that never quite repeat. S&H: a new random value on each step."
+
+[[param]]
+key = "mode"
+name = "Trigger"
+curve = "enum"
+options = ["Free", "Retrig", "Env"]
+default = 0
+explain = "Free: runs continuously. Retrig: restarts with every note. Env: plays once per note and holds its last value, like an envelope."
+
+[[param]]
+key = "rate"
+name = "Rate"
+curve = "exp"
+min = 0.01
+max = 100.0
+default = 1.0
+unit = "Hz"
+flags = ["mod"]
+explain = "Cycles per second (when BPM sync is off)."
+
+[[param]]
+key = "bpm"
+name = "BPM Sync"
+short = "BPM"
+curve = "bool"
+default = 0
+explain = "Locks the rate to the tempo, in musical note lengths."
+
+[[param]]
+key = "sync_rate"
+name = "Sync Rate"
+short = "Length"
+curve = "enum"
+options = ["8 bars", "4 bars", "2 bars", "1 bar", "1/2", "1/4", "1/8", "1/16", "1/32", "1/64"]
+default = 5
+explain = "How long one cycle lasts when synced to the tempo."
+
+[[param]]
+key = "sync_mod"
+name = "Sync Modifier"
+short = "Feel"
+curve = "enum"
+options = ["Straight", "Dotted", "Triplet"]
+default = 0
+explain = "Dotted lengths are 1.5 times as long; triplets fit three into the time of two."
+
+[[param]]
+key = "x10"
+name = "Rate x10"
+short = "x10"
+curve = "bool"
+default = 0
+explain = "Multiplies the rate by ten, up to 1 kHz, for growls and FM-like effects."
+
+[[param]]
+key = "rise"
+name = "Rise"
+curve = "pow:3"
+min = 0.0
+max = 10000.0
+default = 0.0
+unit = "ms"
+explain = "Fades the LFO in after each note."
+
+[[param]]
+key = "delay"
+name = "Delay"
+curve = "pow:3"
+min = 0.0
+max = 10000.0
+default = 0.0
+unit = "ms"
+explain = "Waits this long after each note before the LFO starts."
+
+[[param]]
+key = "smooth"
+name = "Smooth"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+explain = "Softens the LFO's corners, so steps become slides."
+
+[[param]]
+key = "phase"
+name = "Phase"
+curve = "lin"
+min = 0.0
+max = 360.0
+default = 0.0
+unit = "deg"
+flags = ["mod"]
+explain = "Where in its cycle the LFO starts (or, when free-running, its offset)."
+
+[[param]]
+key = "direction"
+name = "Direction"
+curve = "enum"
+options = ["Forward", "Reverse"]
+default = 0
+explain = "Plays the shape forwards or backwards."
+
+[[param]]
+key = "poly"
+name = "Poly"
+curve = "bool"
+default = 1
+explain = "On: every voice has its own copy of the LFO. Off: one LFO shared by all voices, which is also what drives global destinations."

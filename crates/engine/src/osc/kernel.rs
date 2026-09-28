@@ -13,13 +13,15 @@ use wt_dsp::mip::{FRAME_STRIDE, LEVEL_BITS, LEVEL_OFFSET, Pick, level_len, read_
 use wt_dsp::warp;
 
 use super::unison::MAX_LANES;
-use crate::spec::protocol::SUB_BLOCK as N;
+use crate::filter::MAX_N;
 
 const INV_2_24: f32 = 1.0 / 16_777_216.0;
 /// Lane increments are capped just under Nyquist (cycles per sample).
 const MAX_INC: f32 = 0.4999;
 
 pub struct Kernel<'a> {
+    /// Samples in this block (16 × the oversampling factor).
+    pub len: usize,
     /// frames × FRAME_STRIDE floats.
     pub table: &'a [f32],
     pub frames: usize,
@@ -72,14 +74,14 @@ fn pick_read_f(frame: &[f32], p: Pick, q: f32) -> f32 {
 }
 
 /// Reference kernel: adds this oscillator into `out_l`/`out_r` from sample `start`.
-pub fn render_scalar(k: &Kernel, phase: &mut [u32; MAX_LANES], start: usize, out_l: &mut [f32; N], out_r: &mut [f32; N]) {
+pub fn render_scalar(k: &Kernel, phase: &mut [u32; MAX_LANES], start: usize, out_l: &mut [f32; MAX_N], out_r: &mut [f32; MAX_N]) {
     let last = (k.frames - 1) as f32;
     let single = k.frames == 1;
     let mut inc_base = k.inc0;
     for _ in 0..start {
         inc_base *= k.inc_step;
     }
-    for i in start..N {
+    for i in start..k.len {
         let fi = i as f32;
         for l in 0..k.lanes {
             let inc_c = (inc_base * k.ratio[l]).min(MAX_INC);
@@ -116,6 +118,61 @@ pub fn render_scalar(k: &Kernel, phase: &mut [u32; MAX_LANES], start: usize, out
         }
         inc_base *= k.inc_step;
     }
+}
+
+// --------------------------------------------------------- cross-mod step
+
+/// Per-lane cross-modulation inputs for one sample.
+#[derive(Clone, Copy, Debug)]
+pub struct XIn {
+    /// Added to 1 and multiplied into the increment (through-zero FM).
+    pub fm: [f32; MAX_LANES],
+    /// Added to the read phase, in cycles (phase distortion).
+    pub pd: [f32; MAX_LANES],
+    /// Output gain (AM and RM).
+    pub gain: [f32; MAX_LANES],
+}
+
+impl Default for XIn {
+    fn default() -> Self {
+        XIn { fm: [0.0; MAX_LANES], pd: [0.0; MAX_LANES], gain: [1.0; MAX_LANES] }
+    }
+}
+
+/// One sample of every lane with cross-modulation. `inc_base` is this
+/// sample's base increment; each lane's raw output goes to `lane_out`.
+/// Returns the stereo sum.
+pub fn step(k: &Kernel, phase: &mut [u32; MAX_LANES], i: usize, inc_base: f32, x: &XIn, lane_out: &mut [f32; MAX_LANES]) -> (f32, f32) {
+    let last = (k.frames - 1) as f32;
+    let single = k.frames == 1;
+    let fi = i as f32;
+    let (mut l_sum, mut r_sum) = (0.0f32, 0.0f32);
+    for l in 0..k.lanes {
+        let inc_c = (inc_base * k.ratio[l] * (1.0 + x.fm[l])).clamp(-MAX_INC, MAX_INC);
+        let inc = (inc_c * 4_294_967_296.0) as i32 as u32;
+        let ph = phase[l];
+        phase[l] = ph.wrapping_add(inc);
+        let f = (k.fpos0[l] + k.fpos_step[l] * fi).clamp(0.0, last);
+        let (fr0, t) = if k.smooth {
+            let i0 = f as i32;
+            (i0, f - i0 as f32)
+        } else {
+            ((f + 0.5) as i32, 0.0)
+        };
+        let i0 = (fr0 as usize).min(k.frames - 1);
+        let i1 = (i0 + 1).min(k.frames - 1);
+        let p = warp::wrap01((ph >> 8) as i32 as f32 * INV_2_24 + x.pd[l]);
+        let (p1, g1) = warp::apply(k.w1_mode, p, k.w1_amt[l]);
+        let (p2, g2) = warp::apply(k.w2_mode, warp::wrap01(p1), k.w2_amt[l]);
+        let q = warp::wrap01(p2);
+        let a = pick_read_f(k.frame(i0), k.pick, q);
+        let s = if single { a } else { a + (pick_read_f(k.frame(i1), k.pick, q) - a) * t };
+        let y = s * g1 * g2 * x.gain[l];
+        lane_out[l] = y;
+        l_sum += y * k.gl[l];
+        r_sum += y * k.gr[l];
+    }
+    (l_sum, r_sum)
 }
 
 // -------------------------------------------------------------------- simd
@@ -253,7 +310,7 @@ fn gather_frames<F: Fn(&[f32], usize) -> f32>(k: &Kernel, fr: [i32; 4], read: F,
 }
 
 /// SIMD kernel: same results as `render_scalar`, four lanes per vector.
-pub fn render_simd(k: &Kernel, phase: &mut [u32; MAX_LANES], start: usize, out_l: &mut [f32; N], out_r: &mut [f32; N]) {
+pub fn render_simd(k: &Kernel, phase: &mut [u32; MAX_LANES], start: usize, out_l: &mut [f32; MAX_N], out_r: &mut [f32; MAX_N]) {
     let groups = k.lanes.div_ceil(4);
     let last = f32x4::splat((k.frames - 1) as f32);
     let last_i = i32x4::splat((k.frames - 1) as i32);
@@ -281,7 +338,7 @@ pub fn render_simd(k: &Kernel, phase: &mut [u32; MAX_LANES], start: usize, out_l
     for _ in 0..start {
         inc_base *= k.inc_step;
     }
-    for i in start..N {
+    for i in start..k.len {
         let fi = f32x4::splat(i as f32);
         let ib = f32x4::splat(inc_base);
         for g in 0..groups {
@@ -373,6 +430,7 @@ fn pick_read_f4(frame: &[f32], p: Pick, q: f32x4) -> f32x4 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::spec::protocol::SUB_BLOCK as N;
     use wt_dsp::mip;
     use wt_dsp::rng::Rng;
 
@@ -384,6 +442,7 @@ mod tests {
     fn random_kernel<'a>(t: &'a [f32], frames: usize, rng: &mut Rng) -> Kernel<'a> {
         let lanes = 1 + (rng.next_u32() % 16) as usize;
         let mut k = Kernel {
+            len: N,
             table: t,
             frames,
             pick: mip::pick(0.001 + rng.next_f32() * 0.05, 48_000.0),
@@ -428,8 +487,8 @@ mod tests {
                 }
                 let mut ph_b = ph_a;
                 let start = if rng.next_f32() < 0.3 { (rng.next_u32() % N as u32) as usize } else { 0 };
-                let (mut la, mut ra) = ([0.0; N], [0.0; N]);
-                let (mut lb, mut rb) = ([0.0; N], [0.0; N]);
+                let (mut la, mut ra) = ([0.0; MAX_N], [0.0; MAX_N]);
+                let (mut lb, mut rb) = ([0.0; MAX_N], [0.0; MAX_N]);
                 render_scalar(&k, &mut ph_a, start, &mut la, &mut ra);
                 render_simd(&k, &mut ph_b, start, &mut lb, &mut rb);
                 for i in 0..N {
