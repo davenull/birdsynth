@@ -196,10 +196,10 @@ export function installTestApi(synth: Synth): void {
         return editorView.editor(synth.tables).importAudio(audio, sr, mode, arg ?? sr / hz);
       },
       /**
-       * Pen stroke to sound: hold a note, flip the current frame (a rising saw
-       * becomes a falling one) as one stroke, and time how long until Osc A's
-       * tap shows it. Returns ms to the rendered change, and that plus the
-       * output latency (what you'd hear).
+       * Pen stroke to sound: hold a note on a rising ramp, then flip it to a
+       * falling one as a stroke, and time how long until Osc A's tap shows
+       * it. Returns ms to the rendered change, and that plus the output
+       * latency (what you'd hear). The frame is put back afterwards.
        */
       latency: async () => {
         const e = editorView.editor(synth.tables);
@@ -207,6 +207,11 @@ export function installTestApi(synth: Synth): void {
         if (!h) return null;
         const tap = TAP['focus.osc.a'];
         synth.useTap('focus.osc.a');
+        const ramp = Float32Array.from({ length: 2048 }, (_, i) => (2 * i) / 2048 - 1);
+        e.beginStroke();
+        e.writeFrame(ramp);
+        e.endStroke();
+        await e.settled();
         synth.noteOn(57, 0.8);
         await new Promise((r) => setTimeout(r, 400));
         const buf = new Float32Array(512);
@@ -217,21 +222,47 @@ export function installTestApi(synth: Synth): void {
           for (let i = 1; i < buf.length; i++) d += Math.sign(buf[i] - buf[i - 1]);
           return d;
         };
-        const was = Math.sign(slope(h.taps.latest(tap)));
         const before = h.taps.latest(tap);
         const t0 = performance.now();
+        // the frame the context is rendering as the stroke lands
+        const at = Math.round(h.ctx.currentTime * h.ctx.sampleRate);
         e.beginStroke();
-        e.writeFrame(e.frame().map((v) => -v));
+        e.writeFrame(ramp.map((v) => -v));
         e.endStroke();
         let ms = -1;
+        let end = before;
         for (let tries = 0; tries < 500 && ms < 0; tries++) {
           await new Promise((r) => setTimeout(r, 1));
-          const end = h.taps.latest(tap);
-          if (end > before && Math.sign(slope(end)) === -was && Math.abs(slope(end)) > 100) ms = performance.now() - t0;
+          end = h.taps.latest(tap);
+          if (end > before && slope(end) < -100) ms = performance.now() - t0;
         }
         synth.noteOff(57);
         e.undo();
-        return ms < 0 ? null : { rendered: Math.round(ms * 10) / 10, heard: Math.round((ms + (h.ctx.outputLatency || 0) * 1000) * 10) / 10 };
+        e.undo();
+        if (ms < 0) return null;
+        // where in the audio the falling ramp starts: the first 128-frame window that falls
+        let change = end;
+        const w = new Float32Array(128);
+        for (let f = before - 128; f < end; f += 32) {
+          if (!h.taps.read(tap, f + 128, w)) continue;
+          let d = 0;
+          for (let i = 1; i < w.length; i++) d += Math.sign(w[i] - w[i - 1]);
+          if (d < -64) {
+            change = f;
+            break;
+          }
+        }
+        const out = (h.ctx.outputLatency || 0) * 1000;
+        // (the page's currentTime trails the render by up to a quantum, so this can read a hair early)
+        const toSound = Math.max(0, ((change - at) / h.ctx.sampleRate) * 1000);
+        return {
+          /** until the tap block showing it arrived (taps come 1024 frames at a time) */
+          detected: Math.round(ms * 10) / 10,
+          /** until the engine played the new frame, from the stroke */
+          rendered: Math.round(toSound * 10) / 10,
+          /** and until it leaves the speakers */
+          heard: Math.round((toSound + out) * 10) / 10,
+        };
       },
     },
     tour: {
