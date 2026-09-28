@@ -415,6 +415,7 @@ fn fused_fm_matches_the_reference() {
                 w1: (pr.plain(p::OSC_WARP1_MODE[o]) as u8, pr.plain(p::OSC_WARP1_AMOUNT[o])),
                 w2: (pr.plain(p::OSC_WARP2_MODE[o]) as u8, pr.plain(p::OSC_WARP2_AMOUNT[o])),
                 xstretch: fm[o].map_or(1.0, |a| osc::xstretch(&osc::XMod { kind: osc::XKind::Fm, src: 1 - o as u8, amount: a })),
+                bandlimit: true,
             }
         };
         let s = [settings(0), settings(1)];
@@ -573,4 +574,65 @@ fn bus_racks_route_to_main_or_master() {
     let (via_main, direct) = (level(false), level(true));
     assert!(direct > 0.05, "bus 1 reaches the master: {direct}");
     assert!(via_main < 0.03 * direct, "routed into Main, the muting utility applies: {via_main} vs {direct}");
+}
+
+// ------------------------------------------------------------ tuning (P4)
+
+#[test]
+fn tuning_tables_master_tune_and_velocity_curve() {
+    // quarter-tone tuning: every note half a semitone flat of 12-TET
+    let mut e = engine(SR);
+    let table: Vec<f32> = (0..128).map(|n| n as f32 - 0.5).collect();
+    let mut payload = vec![128u8, 0, 0, 0, 0, 0, 0, 0];
+    for v in &table {
+        payload.extend_from_slice(&v.to_le_bytes());
+    }
+    let mut cmd = Vec::new();
+    cmd.extend_from_slice(&proto::op::SET_TUNING.to_le_bytes());
+    cmd.extend_from_slice(&[0, 0]);
+    cmd.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+    cmd.extend_from_slice(&0f64.to_le_bytes());
+    cmd.extend_from_slice(&payload);
+    assert_eq!(e.apply(&cmd), 1);
+    on(&mut e, 69, 1);
+    render(&mut e, 4800);
+    let x = render(&mut e, 48_000);
+    let want = 440.0 * 2f64.powf(-0.5 / 12.0);
+    assert!((pitch(&x, SR) - want).abs() < 0.05, "tuned A4: {} Hz, want {want:.3}", pitch(&x, SR));
+    assert_eq!(e.telemetry()[tel::FOCUS_PITCH], 68.5);
+
+    // master tune at 432 Hz
+    let mut e = engine(SR);
+    set(&mut e, p::GLOBAL_TUNE, 432.0);
+    render(&mut e, 480);
+    on(&mut e, 69, 1);
+    render(&mut e, 4800);
+    let x = render(&mut e, 48_000);
+    let want = e.params().plain(p::GLOBAL_TUNE) as f64;
+    assert!((pitch(&x, SR) - want).abs() < 0.05, "A4 at master tune {want}: {}", pitch(&x, SR));
+
+    // the velocity curve bends what the matrix (and everything else) sees
+    let mut e = engine(SR);
+    set(&mut e, p::VOICE_VEL_CURVE, 0.5);
+    e.command(Command::SetModSlot { slot: 0, source: source::VELOCITY, aux: 0, flags: 0, dest: p::OSC_WT_POS[0], amount: 1.0, curve: 0.0, output: 1.0 }, 0.0);
+    render(&mut e, 480);
+    e.command(Command::NoteOn { note: 60, channel: 0, velocity: 0.25, note_id: 1 }, 0.0);
+    render(&mut e, 480);
+    let want = 0.25f32.powf(4f32.powf(-e.params().plain(p::VOICE_VEL_CURVE)));
+    assert!((e.telemetry()[tel::MOD_VALUE] - want).abs() < 1e-5, "curved velocity {} vs {want}", e.telemetry()[tel::MOD_VALUE]);
+}
+
+#[test]
+fn band_limiting_can_be_switched_off_for_the_demo() {
+    let alias = |off: bool| {
+        let mut e = engine(SR);
+        if off {
+            e.command(Command::Debug { code: proto::debug::NO_BANDLIMIT, arg: 1.0 }, 0.0);
+        }
+        on(&mut e, 96, 1); // C7: most of a full-detail saw's partials are above Nyquist
+        render(&mut e, 4800);
+        worst_alias(&mut e, math::note_to_hz(96.0) as f32)
+    };
+    let (on_, off_) = (alias(false), alias(true));
+    assert!(on_ < -55.0 && off_ > -30.0, "band-limited {on_:.1} dBc, full detail {off_:.1} dBc");
 }

@@ -84,6 +84,9 @@ pub struct Engine {
     focus: Option<usize>,
     tables: Tables,
     remaps: [Remap; OSC_COUNT],
+    /// Pitch of each MIDI note (fractional note number).
+    tuning: [f32; 128],
+    bandlimit: bool,
     samples: Samples,
     triangle: Vec<f32>,
     matrix: Matrix,
@@ -138,6 +141,8 @@ impl Engine {
             focus: None,
             tables: Tables::default(),
             remaps: [Remap::default(); OSC_COUNT],
+            tuning: std::array::from_fn(|n| n as f32),
+            bandlimit: true,
             samples: Samples::default(),
             triangle: saw::triangle_frame(),
             matrix: Matrix::default(),
@@ -288,6 +293,17 @@ impl Engine {
                     self.unknown_cmds += 1;
                 }
             }
+            Command::SetTuning { count } => {
+                let n = (count as usize).min(128).min(tail.len() / 4);
+                for i in 0..128 {
+                    self.tuning[i] = if i < n {
+                        let v = rd(i * 4);
+                        if v.is_finite() { v.clamp(-24.0, 160.0) } else { i as f32 }
+                    } else {
+                        i as f32
+                    };
+                }
+            }
             Command::SetOscCurve { osc, count } => {
                 let n = (count as usize).min(REMAP_POINTS).min(tail.len() / 4);
                 let mut v = [0.0f32; REMAP_POINTS];
@@ -311,6 +327,7 @@ impl Engine {
             Command::Debug { code, arg } => match code {
                 proto::debug::TRAP => panic!("debug trap requested by the host"),
                 proto::debug::SCALAR => self.scalar = arg >= 0.5,
+                proto::debug::NO_BANDLIMIT => self.bandlimit = arg < 0.5,
                 _ => {}
             },
             Command::LoadTable { osc, frames, ptr, bytes } => {
@@ -357,7 +374,7 @@ impl Engine {
                     self.table_errors += 1;
                 }
             }
-            Command::SetLfoShape { .. } | Command::SetOscCurve { .. } | Command::SetChain { .. } => {} // need their tails: see `apply`
+            Command::SetLfoShape { .. } | Command::SetOscCurve { .. } | Command::SetChain { .. } | Command::SetTuning { .. } => {} // need their tails: see `apply`
             _ => {
                 let frame = if frame > 0.0 { frame as u64 } else { 0 };
                 self.queue.push(Event { frame, cmd });
@@ -520,10 +537,18 @@ impl Engine {
         [0, 1, 2, 3].map(|e| base != (self.params.plain(p::ENV_LEGATO_INVERT[e]) >= 0.5))
     }
 
+    /// Velocity through the Velocity Curve.
+    fn curve_velocity(&self, v: f32) -> f32 {
+        let c = self.params.plain(p::VOICE_VEL_CURVE);
+        if c == 0.0 { v } else { v.clamp(0.0, 1.0).powf(4f32.powf(-c)) }
+    }
+
     fn note_on(&mut self, note: u8, channel: u8, velocity: f32, note_id: u32, offset: usize) {
         if velocity <= 0.0 {
             return self.note_off(note, channel, 0.0, note_id);
         }
+        let velocity = self.curve_velocity(velocity);
+        let pitch = self.tuning[(note as usize).min(127)];
         let mono = self.params.plain(p::VOICE_MONO) >= 0.5;
         let legato = self.params.plain(p::VOICE_LEGATO) >= 0.5;
         let glide_on = self.params.plain(p::VOICE_GLIDE) > 0.0;
@@ -533,7 +558,7 @@ impl Engine {
             self.held.push(Held { note, channel, velocity, note_id });
         }
         let glide_from = if glide_on && (always || overlapping) { self.last_pitch } else { None };
-        self.last_pitch = Some(note as f32);
+        self.last_pitch = Some(pitch);
 
         // shared LFOs in Retrig/Env mode restart with every note
         let shared = self.note_lfos(false);
@@ -551,10 +576,10 @@ impl Engine {
             if let Some(i) = current {
                 let from = self.voices[i].pitch();
                 let held_down = !self.voices[i].released;
-                let glide = if glide_from.is_some() { self.glide_len(from, note as f32) } else { 0.0 };
+                let glide = if glide_from.is_some() { self.glide_len(from, pitch) } else { 0.0 };
                 let base = !(legato && held_down);
                 let retrigger = self.mono_retrigger(base);
-                self.voices[i].retarget(note, note_id, velocity, glide, retrigger, from_zero);
+                self.voices[i].retarget(note, pitch, note_id, velocity, glide, retrigger, from_zero);
                 if base {
                     let lfos = self.note_lfos(true);
                     self.voices[i].retrigger_lfos(&lfos, &mut self.rng);
@@ -584,7 +609,7 @@ impl Engine {
             // every slot is still fading: reuse the oldest outright
             None => (0..VOICE_SLOTS).min_by_key(|&i| self.voices[i].age).unwrap_or(0),
         };
-        let glide_len = glide_from.map_or(0.0, |f| self.glide_len(f, note as f32));
+        let glide_len = glide_from.map_or(0.0, |f| self.glide_len(f, pitch));
         let mut phase = [0.0f32; OSC_COUNT];
         let mut rand_phase = [0.0f32; OSC_COUNT];
         let mut memory = [false; OSC_COUNT];
@@ -600,6 +625,7 @@ impl Engine {
         let noise_frames = self.samples.get(samples::NOISE).map_or(1, |s| s.frames);
         let start = Start {
             note,
+            pitch,
             channel,
             velocity,
             note_id,
@@ -652,11 +678,12 @@ impl Engine {
                 let legato = self.params.plain(p::VOICE_LEGATO) >= 0.5;
                 let glide_on = self.params.plain(p::VOICE_GLIDE) > 0.0;
                 let from = self.voices[i].pitch();
-                let glide = if glide_on { self.glide_len(from, back.note as f32) } else { 0.0 };
+                let to = self.tuning[(back.note as usize).min(127)];
+                let glide = if glide_on { self.glide_len(from, to) } else { 0.0 };
                 let retrigger = self.mono_retrigger(!legato);
                 let from_zero = self.env_from_zero();
-                self.voices[i].retarget(back.note, back.note_id, back.velocity, glide, retrigger, from_zero);
-                self.last_pitch = Some(back.note as f32);
+                self.voices[i].retarget(back.note, to, back.note_id, back.velocity, glide, retrigger, from_zero);
+                self.last_pitch = Some(to);
                 return;
             }
             if self.sustain {
@@ -742,6 +769,8 @@ impl Engine {
             lfo_rate,
             bpm,
             serial: self.params.plain(p::MIX_FILTER_ROUTING) < 0.5,
+            tune: 12.0 * (self.params.plain(p::GLOBAL_TUNE) / 440.0).log2(),
+            bandlimit: self.bandlimit,
         };
 
         let focus = self.focus;

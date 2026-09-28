@@ -2,7 +2,7 @@
 
 use crate::params::{Curve, ParamInfo};
 
-pub const COUNT: usize = 882;
+pub const COUNT: usize = 884;
 
 pub const ENV_ATTACK: [u16; 4] = [0, 11, 22, 33];
 pub const ENV_HOLD: [u16; 4] = [1, 12, 23, 34];
@@ -169,84 +169,86 @@ pub const GLOBAL_QUALITY: u16 = 616;
 pub const GLOBAL_BPM: u16 = 617;
 pub const GLOBAL_ENV_RATE: u16 = 618;
 pub const GLOBAL_LFO_RATE: u16 = 619;
-pub const LFO_TYPE: [u16; 10] = [620, 633, 646, 659, 672, 685, 698, 711, 724, 737];
-pub const LFO_MODE: [u16; 10] = [621, 634, 647, 660, 673, 686, 699, 712, 725, 738];
-pub const LFO_RATE: [u16; 10] = [622, 635, 648, 661, 674, 687, 700, 713, 726, 739];
-pub const LFO_BPM: [u16; 10] = [623, 636, 649, 662, 675, 688, 701, 714, 727, 740];
-pub const LFO_SYNC_RATE: [u16; 10] = [624, 637, 650, 663, 676, 689, 702, 715, 728, 741];
-pub const LFO_SYNC_MOD: [u16; 10] = [625, 638, 651, 664, 677, 690, 703, 716, 729, 742];
-pub const LFO_X10: [u16; 10] = [626, 639, 652, 665, 678, 691, 704, 717, 730, 743];
-pub const LFO_RISE: [u16; 10] = [627, 640, 653, 666, 679, 692, 705, 718, 731, 744];
-pub const LFO_DELAY: [u16; 10] = [628, 641, 654, 667, 680, 693, 706, 719, 732, 745];
-pub const LFO_SMOOTH: [u16; 10] = [629, 642, 655, 668, 681, 694, 707, 720, 733, 746];
-pub const LFO_PHASE: [u16; 10] = [630, 643, 656, 669, 682, 695, 708, 721, 734, 747];
-pub const LFO_DIRECTION: [u16; 10] = [631, 644, 657, 670, 683, 696, 709, 722, 735, 748];
-pub const LFO_POLY: [u16; 10] = [632, 645, 658, 671, 684, 697, 710, 723, 736, 749];
-pub const MACRO_VALUE: [u16; 8] = [750, 751, 752, 753, 754, 755, 756, 757];
-pub const MASTER_VOLUME: u16 = 758;
-pub const MIX_FILTER_ROUTING: u16 = 759;
-pub const NOISE_ENABLE: u16 = 760;
-pub const NOISE_TYPE: u16 = 761;
-pub const NOISE_LEVEL: u16 = 762;
-pub const NOISE_PAN: u16 = 763;
-pub const NOISE_PITCH: u16 = 764;
-pub const NOISE_KEYTRACK: u16 = 765;
-pub const NOISE_ONESHOT: u16 = 766;
-pub const NOISE_PHASE: u16 = 767;
-pub const NOISE_RAND: u16 = 768;
-pub const NOISE_ROUTE: u16 = 769;
-pub const NOISE_BALANCE: u16 = 770;
-pub const NOISE_SEND1: u16 = 771;
-pub const NOISE_SEND2: u16 = 772;
-pub const OSC_ENABLE: [u16; 3] = [773, 803, 833];
-pub const OSC_LEVEL: [u16; 3] = [774, 804, 834];
-pub const OSC_PAN: [u16; 3] = [775, 805, 835];
-pub const OSC_OCTAVE: [u16; 3] = [776, 806, 836];
-pub const OSC_SEMI: [u16; 3] = [777, 807, 837];
-pub const OSC_FINE: [u16; 3] = [778, 808, 838];
-pub const OSC_COARSE: [u16; 3] = [779, 809, 839];
-pub const OSC_PITCH_MODE: [u16; 3] = [780, 810, 840];
-pub const OSC_WT_POS: [u16; 3] = [781, 811, 841];
-pub const OSC_WT_SMOOTH: [u16; 3] = [782, 812, 842];
-pub const OSC_PHASE: [u16; 3] = [783, 813, 843];
-pub const OSC_RAND_PHASE: [u16; 3] = [784, 814, 844];
-pub const OSC_PHASE_MEM: [u16; 3] = [785, 815, 845];
-pub const OSC_UNISON: [u16; 3] = [786, 816, 846];
-pub const OSC_DETUNE: [u16; 3] = [787, 817, 847];
-pub const OSC_BLEND: [u16; 3] = [788, 818, 848];
-pub const OSC_WIDTH: [u16; 3] = [789, 819, 849];
-pub const OSC_UNI_RANGE: [u16; 3] = [790, 820, 850];
-pub const OSC_UNI_MODE: [u16; 3] = [791, 821, 851];
-pub const OSC_UNI_STACK: [u16; 3] = [792, 822, 852];
-pub const OSC_WT_SPREAD: [u16; 3] = [793, 823, 853];
-pub const OSC_WARP_SPREAD: [u16; 3] = [794, 824, 854];
-pub const OSC_WARP1_MODE: [u16; 3] = [795, 825, 855];
-pub const OSC_WARP1_AMOUNT: [u16; 3] = [796, 826, 856];
-pub const OSC_WARP2_MODE: [u16; 3] = [797, 827, 857];
-pub const OSC_WARP2_AMOUNT: [u16; 3] = [798, 828, 858];
-pub const OSC_ROUTE: [u16; 3] = [799, 829, 859];
-pub const OSC_BALANCE: [u16; 3] = [800, 830, 860];
-pub const OSC_SEND1: [u16; 3] = [801, 831, 861];
-pub const OSC_SEND2: [u16; 3] = [802, 832, 862];
-pub const SUB_ENABLE: u16 = 863;
-pub const SUB_SHAPE: u16 = 864;
-pub const SUB_OCTAVE: u16 = 865;
-pub const SUB_LEVEL: u16 = 866;
-pub const SUB_PAN: u16 = 867;
-pub const SUB_ROUTE: u16 = 868;
-pub const SUB_BALANCE: u16 = 869;
-pub const SUB_SEND1: u16 = 870;
-pub const SUB_SEND2: u16 = 871;
-pub const VOICE_POLYPHONY: u16 = 872;
-pub const VOICE_MONO: u16 = 873;
-pub const VOICE_LEGATO: u16 = 874;
-pub const VOICE_GLIDE: u16 = 875;
-pub const VOICE_GLIDE_ALWAYS: u16 = 876;
-pub const VOICE_GLIDE_SCALED: u16 = 877;
-pub const VOICE_GLIDE_CURVE: u16 = 878;
-pub const VOICE_STEAL: u16 = 879;
-pub const VOICE_BEND_UP: u16 = 880;
-pub const VOICE_BEND_DOWN: u16 = 881;
+pub const GLOBAL_TUNE: u16 = 620;
+pub const LFO_TYPE: [u16; 10] = [621, 634, 647, 660, 673, 686, 699, 712, 725, 738];
+pub const LFO_MODE: [u16; 10] = [622, 635, 648, 661, 674, 687, 700, 713, 726, 739];
+pub const LFO_RATE: [u16; 10] = [623, 636, 649, 662, 675, 688, 701, 714, 727, 740];
+pub const LFO_BPM: [u16; 10] = [624, 637, 650, 663, 676, 689, 702, 715, 728, 741];
+pub const LFO_SYNC_RATE: [u16; 10] = [625, 638, 651, 664, 677, 690, 703, 716, 729, 742];
+pub const LFO_SYNC_MOD: [u16; 10] = [626, 639, 652, 665, 678, 691, 704, 717, 730, 743];
+pub const LFO_X10: [u16; 10] = [627, 640, 653, 666, 679, 692, 705, 718, 731, 744];
+pub const LFO_RISE: [u16; 10] = [628, 641, 654, 667, 680, 693, 706, 719, 732, 745];
+pub const LFO_DELAY: [u16; 10] = [629, 642, 655, 668, 681, 694, 707, 720, 733, 746];
+pub const LFO_SMOOTH: [u16; 10] = [630, 643, 656, 669, 682, 695, 708, 721, 734, 747];
+pub const LFO_PHASE: [u16; 10] = [631, 644, 657, 670, 683, 696, 709, 722, 735, 748];
+pub const LFO_DIRECTION: [u16; 10] = [632, 645, 658, 671, 684, 697, 710, 723, 736, 749];
+pub const LFO_POLY: [u16; 10] = [633, 646, 659, 672, 685, 698, 711, 724, 737, 750];
+pub const MACRO_VALUE: [u16; 8] = [751, 752, 753, 754, 755, 756, 757, 758];
+pub const MASTER_VOLUME: u16 = 759;
+pub const MIX_FILTER_ROUTING: u16 = 760;
+pub const NOISE_ENABLE: u16 = 761;
+pub const NOISE_TYPE: u16 = 762;
+pub const NOISE_LEVEL: u16 = 763;
+pub const NOISE_PAN: u16 = 764;
+pub const NOISE_PITCH: u16 = 765;
+pub const NOISE_KEYTRACK: u16 = 766;
+pub const NOISE_ONESHOT: u16 = 767;
+pub const NOISE_PHASE: u16 = 768;
+pub const NOISE_RAND: u16 = 769;
+pub const NOISE_ROUTE: u16 = 770;
+pub const NOISE_BALANCE: u16 = 771;
+pub const NOISE_SEND1: u16 = 772;
+pub const NOISE_SEND2: u16 = 773;
+pub const OSC_ENABLE: [u16; 3] = [774, 804, 834];
+pub const OSC_LEVEL: [u16; 3] = [775, 805, 835];
+pub const OSC_PAN: [u16; 3] = [776, 806, 836];
+pub const OSC_OCTAVE: [u16; 3] = [777, 807, 837];
+pub const OSC_SEMI: [u16; 3] = [778, 808, 838];
+pub const OSC_FINE: [u16; 3] = [779, 809, 839];
+pub const OSC_COARSE: [u16; 3] = [780, 810, 840];
+pub const OSC_PITCH_MODE: [u16; 3] = [781, 811, 841];
+pub const OSC_WT_POS: [u16; 3] = [782, 812, 842];
+pub const OSC_WT_SMOOTH: [u16; 3] = [783, 813, 843];
+pub const OSC_PHASE: [u16; 3] = [784, 814, 844];
+pub const OSC_RAND_PHASE: [u16; 3] = [785, 815, 845];
+pub const OSC_PHASE_MEM: [u16; 3] = [786, 816, 846];
+pub const OSC_UNISON: [u16; 3] = [787, 817, 847];
+pub const OSC_DETUNE: [u16; 3] = [788, 818, 848];
+pub const OSC_BLEND: [u16; 3] = [789, 819, 849];
+pub const OSC_WIDTH: [u16; 3] = [790, 820, 850];
+pub const OSC_UNI_RANGE: [u16; 3] = [791, 821, 851];
+pub const OSC_UNI_MODE: [u16; 3] = [792, 822, 852];
+pub const OSC_UNI_STACK: [u16; 3] = [793, 823, 853];
+pub const OSC_WT_SPREAD: [u16; 3] = [794, 824, 854];
+pub const OSC_WARP_SPREAD: [u16; 3] = [795, 825, 855];
+pub const OSC_WARP1_MODE: [u16; 3] = [796, 826, 856];
+pub const OSC_WARP1_AMOUNT: [u16; 3] = [797, 827, 857];
+pub const OSC_WARP2_MODE: [u16; 3] = [798, 828, 858];
+pub const OSC_WARP2_AMOUNT: [u16; 3] = [799, 829, 859];
+pub const OSC_ROUTE: [u16; 3] = [800, 830, 860];
+pub const OSC_BALANCE: [u16; 3] = [801, 831, 861];
+pub const OSC_SEND1: [u16; 3] = [802, 832, 862];
+pub const OSC_SEND2: [u16; 3] = [803, 833, 863];
+pub const SUB_ENABLE: u16 = 864;
+pub const SUB_SHAPE: u16 = 865;
+pub const SUB_OCTAVE: u16 = 866;
+pub const SUB_LEVEL: u16 = 867;
+pub const SUB_PAN: u16 = 868;
+pub const SUB_ROUTE: u16 = 869;
+pub const SUB_BALANCE: u16 = 870;
+pub const SUB_SEND1: u16 = 871;
+pub const SUB_SEND2: u16 = 872;
+pub const VOICE_POLYPHONY: u16 = 873;
+pub const VOICE_MONO: u16 = 874;
+pub const VOICE_LEGATO: u16 = 875;
+pub const VOICE_GLIDE: u16 = 876;
+pub const VOICE_GLIDE_ALWAYS: u16 = 877;
+pub const VOICE_GLIDE_SCALED: u16 = 878;
+pub const VOICE_GLIDE_CURVE: u16 = 879;
+pub const VOICE_STEAL: u16 = 880;
+pub const VOICE_BEND_UP: u16 = 881;
+pub const VOICE_BEND_DOWN: u16 = 882;
+pub const VOICE_VEL_CURVE: u16 = 883;
 
 pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "env.1.attack", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.025, flags: 1 },
@@ -869,6 +871,7 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "global.bpm", curve: Curve::Lin, min: 20.0, max: 300.0, default: 0.35714287, flags: 0 },
     ParamInfo { key: "global.env_rate", curve: Curve::Exp, min: 0.1, max: 10.0, default: 0.5, flags: 0 },
     ParamInfo { key: "global.lfo_rate", curve: Curve::Exp, min: 0.1, max: 10.0, default: 0.5, flags: 0 },
+    ParamInfo { key: "global.tune", curve: Curve::Lin, min: 415.0, max: 466.0, default: 0.49019608, flags: 0 },
     ParamInfo { key: "lfo.1.type", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
     ParamInfo { key: "lfo.1.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
     ParamInfo { key: "lfo.1.rate", curve: Curve::Exp, min: 0.01, max: 100.0, default: 0.5, flags: 1 },
@@ -1007,7 +1010,7 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "macro.6.value", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "macro.7.value", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "macro.8.value", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
-    ParamInfo { key: "master.volume", curve: Curve::Db, min: -60.0, max: 6.0, default: 0.8181818, flags: 2 },
+    ParamInfo { key: "master.volume", curve: Curve::Db, min: -60.0, max: 6.0, default: 0.72727275, flags: 2 },
     ParamInfo { key: "mix.filter_routing", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "noise.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "noise.type", curve: Curve::Enum(12), min: 0.0, max: 11.0, default: 0.0, flags: 0 },
@@ -1131,4 +1134,5 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "voice.steal", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
     ParamInfo { key: "voice.bend_up", curve: Curve::Int, min: 0.0, max: 48.0, default: 0.041666668, flags: 0 },
     ParamInfo { key: "voice.bend_down", curve: Curve::Int, min: 0.0, max: 48.0, default: 0.041666668, flags: 0 },
+    ParamInfo { key: "voice.vel_curve", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 0 },
 ];

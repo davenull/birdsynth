@@ -1,0 +1,16 @@
+{
+  "version": 0,
+  "name": "Early Lead",
+  "params": {
+    "osc.a.filter": 1,
+    "osc.b.enable": 1,
+    "osc.b.filter": 0,
+    "osc.a.unison": 0.2,
+    "filter.1.enable": 1,
+    "filter.1.cutoff": 0.55
+  },
+  "matrix": [
+    { "slot": 0, "source": "Env 2", "aux": "None", "dest": "filter.1.cutoff", "amount": 0.4, "curve": 0, "output": 1, "bipolar": false, "bypass": false }
+  ],
+  "tables": [null, { "name": "Basic Shapes", "source": "factory:Basic Shapes", "count": 64 }, null]
+}

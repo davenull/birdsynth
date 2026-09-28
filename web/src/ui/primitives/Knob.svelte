@@ -18,6 +18,7 @@
   import type { Synth } from '../../synth';
   import { sourceColor } from '../mod/sources';
   import { onFrame } from '../frame';
+  import { menu } from './menu.svelte';
 
   let {
     param,
@@ -79,6 +80,31 @@
       if (v !== live) live = v;
     });
   });
+
+  // --- MIDI learn
+  let learning = $state(false);
+  let cc = $state<number | null>(null);
+  $effect(() => {
+    const l = synth?.learn;
+    if (!l) return;
+    const key = param;
+    const read = () => {
+      learning = l.armed === key;
+      cc = l.mapping(key)?.cc ?? null;
+    };
+    read();
+    return l.subscribe(read);
+  });
+
+  function oncontextmenu(e: MouseEvent): void {
+    const l = synth?.learn;
+    menu.show(e, [
+      learning ? { label: 'Stop MIDI learn', action: () => l?.cancel() } : { label: 'MIDI learn', action: () => l?.arm(param), disabled: !l },
+      ...(cc !== null ? [{ label: `Forget CC ${cc}`, action: () => l?.clear(param) }] : []),
+      { label: 'Reset to default', action: () => set(info.def) },
+      ...(mods.length ? [{ label: mods.length > 1 ? `Remove ${mods.length} modulations` : 'Remove modulation', action: () => mods.forEach((m) => synth?.matrix.remove(m.slot)) }] : []),
+    ]);
+  }
 
   const A0 = -135;
   const A1 = 135;
@@ -206,7 +232,8 @@
   aria-valuemax={100}
   aria-valuenow={Math.round(value * 100)}
   aria-valuetext={mods.length ? `${text}, modulated by ${modText}` : text}
-  title={mods.length ? `${info.explain}\nModulated by ${modText} (Alt-drag to change)` : info.explain}
+  title={`${info.explain}${mods.length ? `\nModulated by ${modText} (Alt-drag to change)` : ''}${cc !== null ? `\nMIDI CC ${cc}` : ''}${learning ? '\nMove a MIDI control to tie it to this knob' : ''}`}
+  class:learning
   data-param={param}
   data-explain={param}
   data-mod={modulatable ? '1' : '0'}
@@ -216,6 +243,7 @@
   {onpointermove}
   {onwheel}
   {onkeydown}
+  {oncontextmenu}
   ondblclick={() => set(info.def)}
 >
   <svg width={size} height={size} viewBox="-50 -50 100 100" aria-hidden="true">
@@ -232,6 +260,7 @@
       <circle class="dot" cx={x} cy={y} r="4.5" style:fill={mods[0].color} />
     {/if}
   </svg>
+  {#if cc !== null || learning}<span class="cc" aria-hidden="true">{learning ? 'learn' : `CC${cc}`}</span>{/if}
   <div class="label">{label ?? info.short}</div>
   {#if editing}
     <input
@@ -266,6 +295,28 @@
   }
   .knob:focus-visible {
     box-shadow: 0 0 0 1px var(--knob-color);
+  }
+  .knob {
+    position: relative;
+  }
+  .knob.learning {
+    animation: learn 0.9s ease-in-out infinite alternate;
+  }
+  @keyframes learn {
+    from {
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--macro) 30%, transparent);
+    }
+    to {
+      box-shadow: 0 0 0 2px var(--macro);
+    }
+  }
+  .cc {
+    position: absolute;
+    top: 0;
+    right: 0;
+    font: 8px var(--font-num);
+    color: var(--macro);
+    pointer-events: none;
   }
   svg {
     overflow: visible;

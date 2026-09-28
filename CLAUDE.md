@@ -2,8 +2,8 @@
 
 A Serum 2-style wavetable synth. The Rust engine is compiled to wasm and runs in
 an AudioWorklet; the UI is Svelte 5 + TS. The roadmap and each phase's gates
-are in `docs/plan.md`. P0–P3 are done; P4 (presets, MIDI, GLOBAL, the
-explainer MVP, first public deploy) comes next.
+are in `docs/plan.md`. P0–P4 are done and the site is public; P5 (the
+wavetable editor) comes next.
 
 ## Commands
 - The shell may lack `~/.cargo/bin`; use `. "$HOME/.cargo/env"` or `node tools/cargo.mjs …`.
@@ -23,6 +23,11 @@ explainer MVP, first public deploy) comes next.
 - Web FX state: `state/fx.ts` (racks, instances, module presets), `state/ir.ts` (convolver responses: factory at the engine's rate, or dropped files).
 - Commands carry wasm32 pointers (u32): native Rust tests must not pass real pointers through commands (load tables with `tables_mut()` instead).
 - Enum option lists in params/*.toml only grow at the end (patches will store option names).
+- Patches (`state/patch.ts`): params by key, only where they differ from the default; matrix, LFO shapes, remap curves and FX chains by name; wavetables and IRs from files by SHA-256 hash. `migrate()` brings old versions forward. Bump `PATCH_VERSION` and add a migration (plus a fixture in `tests/fixtures/patches/`) for any format change.
+- Factory presets (`presets/factory.ts`) are written in plain units. Each sets its own `master.volume`, levelled by `tests/patch.test.ts` (it prints the value to use when a preset is off level).
+- The library (`state/library.ts`) keeps user presets, factory ratings and assets in IndexedDB (memory fallback); undo (`state/history.ts`) snapshots the five stores once a gesture settles (400 ms) and resets when a preset loads. MIDI learn (`input/learn.ts`) and tuning (`state/tuning.ts`, parsers in `tuning/tuning.ts`) belong to the setup, not the patch: both live in localStorage.
+- Explainer: `explain/content.ts` (notes per data-explain key; parameters use their spec text), `explain/Overlay.svelte` (explain mode, callouts, the tour card), `explain/tours.ts` (steps can load a teaching patch, switch band-limiting off, turn pages). `tests/explain.test.ts` fails if a key in the markup has no notes; add new `data-explain={...}` templates to its EXPANSIONS.
+- The faceplate's `.viewport` uses `overflow: clip`, not hidden: a hidden box still scrolls on focus() or scrollIntoView and slides the panel sideways.
 
 ## Invariants (all tested)
 - `engine.wasm` imports nothing. Keep `getrandom`/wasm-bindgen out of the dependency tree.
@@ -34,7 +39,7 @@ explainer MVP, first public deploy) comes next.
 
 ## Verifying in the Browser pane
 - In the pane the AudioContext runs without a gesture, and MIDI is denied: use `__synth.midiIn([...])`.
-- `__synth.telemetry()`, `__synth.telemetryAll()`, `__synth.tap('master.l', n)`, `__synth.matrix()` and `__synth.stats()` (with `underrunEvents`) are the proof points. `__synth.setPlain(key, value)` sets a parameter in its own unit. Find knobs by their ARIA name, e.g. `find("Osc A Level")`.
+- `__synth.telemetry()`, `__synth.telemetryAll()`, `__synth.tap('master.l', n)`, `__synth.matrix()` and `__synth.stats()` (with `underrunEvents`) are the proof points. Presets: `presets()`, `loadPreset(name)`, `savePatch()`/`loadPatch(text)`, `undo()`, `commit()`. MIDI: `learn(key)` then `midiIn([0xB0, cc, v])`, `learned()`. Explainer: `explain.missing()` per page (`page('fx')`), `explain.open(key)`, `explain.inharmonic()`; tours: `tour.start('aliasing')`, `tour.next()`, `tour.settled()`, `tour.state()` (each step's `expect`). `__synth.setPlain(key, value)` sets a parameter in its own unit. Find knobs by their ARIA name, e.g. `find("Osc A Level")`.
 - Pane coordinates: the screenshot frame is smaller than the CSS viewport (e.g. 800 × 758 for 1101 × 1044); convert with the ratio before `left_click_drag`. Viewport emulation (`resize_window`) skews drag coordinates further, so test drags at the pane's own size.
 - Smoothed parameters glide for about 0.2 s (12 ms time constant) before they snap to the target; tests that compare against exact values render ~0.5 s first.
 - Measure pitch with a least-squares fit through all rising zero crossings of `master.l` (as `pitch()` in `tests/engine/harness.ts` does). First/last crossings alone scatter ±0.01 Hz on 8192 frames.
@@ -43,7 +48,8 @@ explainer MVP, first public deploy) comes next.
 - `deploy/deploy.sh` streams the image to birdie@192.168.2.165 over SSH. It runs as compose project `birdsynth` in `~/birdsynth`, container `birdsynth`, on port **8001**. It only works from the 192.168.2.x network.
 - Public URL: **https://birdsynth.abusing.technology** (route added by the user 2026-09-28). It goes through the Cloudflare tunnel, which is managed in the dashboard (token-based cloudflared on the VM), so route changes are the user's step.
 - Through Cloudflare, hashed JS keeps our 1-year immutable cache-control (edge HIT), the wasm passes through uncached (`DYNAMIC`), and HTTP gets a 301 to HTTPS.
-- nginx serves `/assets/*` as immutable and `index.html` as no-cache, with `X-Robots-Tag: noindex` until the P4 public launch.
+- nginx serves `/assets/*` as immutable and `index.html` as no-cache. The site is public since P4 (no noindex; `robots.txt` allows all).
+- Checking a deploy: `node tools/smoke.mjs` (page, headers, wasm types and imports, http→https, robots), then load it in a fresh pane tab, play a preset and read the console.
 
 ## Conventions
 - Our own name, visuals and content: no Serum assets and no Vital (GPL) code.

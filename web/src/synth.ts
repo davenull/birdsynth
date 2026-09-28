@@ -14,7 +14,13 @@ import { NoiseStore } from './state/noise';
 import { RemapCurves } from './state/remap';
 import { FxRacks, CONVOLVE } from './state/fx';
 import { IrStore } from './state/ir';
-import type { MidiSink } from './input/midi';
+import { TuningStore } from './state/tuning';
+import { History } from './state/history';
+import { Library, type Entry } from './state/library';
+import { applyPatch, capture, emptyMeta, hashBytes, type Patch, type PatchMeta, type PatchTarget } from './state/patch';
+import { parseMidi, type MidiSink } from './input/midi';
+import { MidiLearn } from './input/learn';
+import { WebMidi } from './input/webmidi';
 
 export type SynthStatus = 'idle' | 'starting' | 'running' | 'suspended' | 'error';
 
@@ -49,6 +55,19 @@ export class Synth implements MidiSink {
   readonly remap = new RemapCurves();
   readonly fx = new FxRacks(this.bank);
   readonly ir = new IrStore(this.bank);
+  readonly tuning = new TuningStore();
+  readonly target: PatchTarget = { bank: this.bank, matrix: this.matrix, lfo: this.lfo, remap: this.remap, fx: this.fx };
+  readonly history = new History(this.target);
+  /** The current preset: its metadata and where it came from ("" for none). */
+  meta: PatchMeta = emptyMeta('Init');
+  presetId = 'factory:Init';
+  library: Library | null = null;
+  readonly learn = new MidiLearn(this.bank);
+  readonly midi = new WebMidi((bytes) => parseMidi(bytes, this));
+  /** Whether the oscillators band-limit (always, except in the aliasing tour). */
+  bandlimit = true;
+  /** The wheels as last moved (by MIDI or on screen): bend -1..1, mod 0..1. */
+  readonly wheels = { bend: 0, mod: 0 };
   host: EngineHost | null = null;
   status: SynthStatus = 'idle';
   error = '';
@@ -62,6 +81,9 @@ export class Synth implements MidiSink {
   private readonly byKey = new Map<string, number[]>();
   /** Taps something on screen is showing, with a count of users each. A block carries at most BLOCK_MAX_TAPS. */
   private readonly tapUse = new Map<TapName, number>();
+  private readonly patchSubs = new Set<() => void>();
+  private readonly wheelSubs = new Set<() => void>();
+  private opening: Promise<Library> | null = null;
 
   constructor() {
     this.bank.onAny((id, v) => this.host?.send((w) => w.setParam(0, id, v)));
@@ -106,6 +128,7 @@ export class Synth implements MidiSink {
         this.tables.attach(host);
         this.noise.attach(host);
         this.ir.attach(host, host.ctx.sampleRate);
+        this.tuning.attach({ setTuning: (t) => host.send((w) => w.setTuning(0, t.length, t)) });
         const follow = () => {
           if (this.status !== 'error') this.setStatus(host.ctx.state === 'running' ? 'running' : 'suspended');
         };
@@ -147,9 +170,11 @@ export class Synth implements MidiSink {
     this.remap.resync();
     this.fx.resync();
     this.ir.resync();
+    this.tuning.resync();
     this.tables.resync();
     this.noise.resync();
     host.send((w) => {
+      if (!this.bandlimit) w.debug(0, DEBUG.NoBandlimit, 1);
       for (const [noteId, n] of this.held) w.noteOn(0, n.note, n.channel, n.velocity, noteId);
     });
   }
@@ -157,6 +182,116 @@ export class Synth implements MidiSink {
   /** Route a matrix slot directly (the test API and presets; the UI uses `matrix`). */
   setModSlot(slot: number, source: number, dest: number, amount: number, flags = 0, aux = 0, curve = 0, output = 1): void {
     this.matrix.set(slot, source ? { source, aux, dest, amount, curve, output, bipolar: !!(flags & 1), bypass: !!(flags & 2) } : null);
+  }
+
+  // ----------------------------------------------------------- patches
+  /** Called when a different preset is loaded or the current one is renamed or saved. */
+  onPatch(fn: () => void): () => void {
+    this.patchSubs.add(fn);
+    return () => this.patchSubs.delete(fn);
+  }
+
+  private emitPatch(): void {
+    for (const fn of this.patchSubs) fn();
+  }
+
+  /** The current state as a patch, with the wavetables and impulse responses that came from files. */
+  async savePatch(meta: PatchMeta = this.meta): Promise<{ patch: Patch; assets: Map<string, ArrayBuffer> }> {
+    const patch = capture(this.target, meta);
+    const assets = new Map<string, ArrayBuffer>();
+    for (let o = 0; o < patch.tables.length; o++) {
+      const t = this.tables.osc[o];
+      if (!t) continue;
+      if (t.source.startsWith('factory:')) {
+        patch.tables[o] = { name: t.name, source: t.source, count: t.count };
+      } else {
+        const hash = await hashBytes(t.frames);
+        assets.set(hash, t.frames.slice().buffer);
+        patch.tables[o] = { name: t.name, source: t.source, count: t.count, hash };
+      }
+    }
+    for (let i = 0; i < patch.irs.length; i++) {
+      const u = this.ir.userIr(i);
+      if (!u) continue;
+      const data = new Float32Array(u.l.length + u.r.length);
+      data.set(u.l);
+      data.set(u.r, u.l.length);
+      const hash = await hashBytes(data);
+      assets.set(hash, data.buffer);
+      patch.irs[i] = { name: u.name, hash, rate: u.rate };
+    }
+    return { patch, assets };
+  }
+
+  /**
+   * Put the synth in a patch's state. `asset` finds a file's data by hash (the
+   * library, or a file's embedded assets). Returns what couldn't be restored.
+   */
+  async loadPatch(patch: Patch, asset: (hash: string) => Promise<ArrayBuffer | undefined> = async () => undefined, id = ''): Promise<string[]> {
+    this.allNotesOff();
+    const warnings = applyPatch(this.target, patch);
+    this.history.reset();
+    this.meta = { ...patch.meta, tags: [...patch.meta.tags] };
+    this.presetId = id;
+    this.emitPatch();
+    const tables = patch.tables.map(async (r, o) => {
+      const cur = this.tables.osc[o];
+      if (r?.hash) {
+        const data = await asset(r.hash);
+        if (data) return this.tables.set(o, { name: r.name, source: r.source, frames: new Float32Array(data), count: r.count });
+        warnings.push(`the wavetable "${r.name}" is missing`);
+      }
+      const name = r?.source.startsWith('factory:') ? r.source.slice(8) : 'Saw';
+      if (cur?.source === `factory:${name}`) return;
+      try {
+        await this.tables.loadFactory(o, name);
+      } catch {
+        warnings.push(`there's no factory wavetable "${name}"`);
+        if (cur?.source !== 'factory:Saw') await this.tables.loadFactory(o, 'Saw');
+      }
+    });
+    const irs = patch.irs.map(async (r, i) => {
+      if (!r) return;
+      const data = await asset(r.hash);
+      if (!data) return void warnings.push(`the impulse response "${r.name}" is missing`);
+      const f = new Float32Array(data);
+      const n = f.length / 2;
+      this.ir.setUser(i, r.name, [f.slice(0, n), f.slice(n)], r.rate);
+    });
+    await Promise.all([...tables, ...irs]);
+    return warnings;
+  }
+
+  /** The library, opened on first use. */
+  openLibrary(): Promise<Library> {
+    return (this.opening ??= Library.open().then((lib) => (this.library = lib)));
+  }
+
+  /** Load a library preset by id. */
+  async loadEntry(id: string): Promise<string[]> {
+    const lib = await this.openLibrary();
+    const e = lib.entry(id);
+    if (!e) return [`there's no preset ${id}`];
+    return this.loadPatch(e.patch, (h) => lib.asset(h), id);
+  }
+
+  /** Save the current state to the library: over the current user preset, or as a new one. */
+  async saveToLibrary(meta: PatchMeta = this.meta, asNew = false): Promise<Entry> {
+    const lib = await this.openLibrary();
+    const { patch, assets } = await this.savePatch(meta);
+    const e = await lib.save(patch, assets, asNew ? undefined : this.presetId);
+    this.meta = { ...e.patch.meta, tags: [...e.patch.meta.tags] };
+    this.presetId = e.id;
+    this.history.markClean();
+    this.emitPatch();
+    void lib.persist();
+    return e;
+  }
+
+  /** Change the current preset's name, tags and so on (not an undo step). */
+  setMeta(meta: Partial<PatchMeta>): void {
+    this.meta = { ...this.meta, ...meta };
+    this.emitPatch();
   }
 
   // ------------------------------------------------------------- taps
@@ -233,12 +368,29 @@ export class Synth implements MidiSink {
 
   // ---------------------------------------------- MidiSink (the rest)
   pitchBend(channel: number, value: number): void {
+    this.wheels.bend = value;
+    this.emitWheels();
     this.host?.send((w) => w.pitchBend(0, channel, value));
   }
 
   controller(channel: number, cc: number, value: number): void {
     if (cc === 123) return this.allNotesOff();
+    this.learn.controller(channel, cc, value);
+    if (cc === 1) {
+      this.wheels.mod = value;
+      this.emitWheels();
+    }
     this.host?.send((w) => w.controller(0, channel, cc, value));
+  }
+
+  /** Called when a wheel moves. */
+  onWheels(fn: () => void): () => void {
+    this.wheelSubs.add(fn);
+    return () => this.wheelSubs.delete(fn);
+  }
+
+  private emitWheels(): void {
+    for (const fn of this.wheelSubs) fn();
   }
 
   channelPressure(channel: number, value: number): void {
@@ -283,6 +435,12 @@ export class Synth implements MidiSink {
     const h = this.host;
     if (h) h.taps.read(TAP[name], h.taps.latest(TAP[name]), out);
     return out;
+  }
+
+  /** Switch the oscillators' band-limiting off to hear aliasing (a teaching switch). */
+  setBandlimit(on: boolean): void {
+    this.bandlimit = on;
+    this.host?.send((w) => w.debug(0, DEBUG.NoBandlimit, on ? 0 : 1));
   }
 
   /** Make the engine panic, to exercise trap recovery. */

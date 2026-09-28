@@ -20,6 +20,15 @@
   import MatrixPage from './ui/pages/MatrixPage.svelte';
   import GlobalPage from './ui/pages/GlobalPage.svelte';
   import FxPage from './ui/pages/FxPage.svelte';
+  import PresetBar from './ui/browser/PresetBar.svelte';
+  import Browser from './ui/browser/Browser.svelte';
+  import { browse } from './ui/browser/browse.svelte';
+  import ContextMenu from './ui/primitives/ContextMenu.svelte';
+  import Wheels from './ui/primitives/Wheels.svelte';
+  import MidiButton from './ui/primitives/MidiButton.svelte';
+  import Overlay from './explain/Overlay.svelte';
+  import { explainMode } from './explain/explain.svelte';
+  import { nav, type PageId } from './ui/nav.svelte';
   import { onFrame } from './ui/frame';
 
   const synth = getContext<Synth>('synth');
@@ -31,10 +40,9 @@
   let voices = $state(0);
   let cpu = $state(0);
   let scale = $state(1);
-  let page = $state('osc');
   let routings = $state(0);
 
-  const PAGES: { id: string; name: string; later?: string }[] = [
+  const PAGES: { id: PageId; name: string; later?: string }[] = [
     { id: 'osc', name: 'OSC' },
     { id: 'mix', name: 'MIX' },
     { id: 'fx', name: 'FX' },
@@ -76,13 +84,24 @@
   <div class="stage" style:width={`${W}px`} style:height={`${H}px`} style:transform={`scale(${scale})`}>
     <header class="topbar">
       <div class="brand">birdsynth</div>
+      <PresetBar />
       <nav class="tabs" aria-label="Pages">
         {#each PAGES as p (p.id)}
-          <button class:on={page === p.id} disabled={!!p.later} title={p.later ? `Arrives in ${p.later}` : ''} aria-current={page === p.id ? 'page' : undefined} onclick={() => (page = p.id)}
+          <button
+            class:on={nav.page === p.id && !browse.open}
+            disabled={!!p.later}
+            title={p.later ? `Arrives in ${p.later}` : ''}
+            aria-current={nav.page === p.id && !browse.open ? 'page' : undefined}
+            onclick={() => {
+              nav.page = p.id;
+              browse.open = false;
+            }}
             >{p.name}{#if p.id === 'matrix' && routings}<span class="badge">{routings}</span>{/if}</button
           >
         {/each}
       </nav>
+      <MidiButton {synth} />
+      <button class="help explain-ui" aria-pressed={explainMode.on} title="Explain mode (?): click any part of the synth to learn what it does" onclick={() => explainMode.toggle()}>?</button>
       <div class="readout" aria-live="polite">
         <span>{voices} voice{voices === 1 ? '' : 's'}</span>
         <span>CPU {cpu.toFixed(1)}%</span>
@@ -95,15 +114,17 @@
     </header>
 
     <main class="page">
-      {#if page === 'osc'}
+      {#if browse.open}
+        <Browser />
+      {:else if nav.page === 'osc'}
         <OscPage />
-      {:else if page === 'mix'}
+      {:else if nav.page === 'mix'}
         <MixPage />
-      {:else if page === 'fx'}
+      {:else if nav.page === 'fx'}
         <FxPage />
-      {:else if page === 'matrix'}
+      {:else if nav.page === 'matrix'}
         <MatrixPage />
-      {:else if page === 'global'}
+      {:else if nav.page === 'global'}
         <GlobalPage />
       {/if}
     </main>
@@ -122,9 +143,15 @@
           Keys <kbd>A</kbd>–<kbd>'</kbd> · octave <kbd>Z</kbd>/<kbd>X</kbd> (A = C{qwerty.octave}) · velocity <kbd>C</kbd>/<kbd>V</kbd> ({Math.round(qwerty.velocity * 100)}%) · drag a handle onto a knob to modulate it
         </div>
       </div>
-      <Keyboard {synth} low={36} high={96} />
+      <div class="play">
+        <Wheels {synth} />
+        <div class="kb"><Keyboard {synth} low={36} high={96} /></div>
+      </div>
     </footer>
   </div>
+
+  <ContextMenu />
+  <Overlay />
 
   {#if status === 'suspended' || status === 'idle'}
     <button class="unlock" onclick={() => synth.resume()}>Click or press a key to start audio</button>
@@ -139,7 +166,9 @@
     inset: 0;
     display: flex;
     justify-content: center;
-    overflow: hidden;
+    /* clip, not hidden: a hidden box can still be scrolled by focus() or
+       scrollIntoView, which would slide the faceplate sideways */
+    overflow: clip;
   }
   .stage {
     flex: none;
@@ -186,6 +215,22 @@
     color: var(--text-faint);
     cursor: default;
   }
+  .help {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    font: 600 12px var(--font-ui);
+    color: var(--text-dim);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .help[aria-pressed='true'] {
+    color: #111;
+    background: var(--accent);
+    border-color: var(--accent);
+  }
   .readout {
     display: flex;
     gap: 14px;
@@ -230,6 +275,15 @@
   .keys {
     display: grid;
     gap: 4px;
+  }
+  .play {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .kb {
+    flex: 1;
+    min-width: 0;
   }
   .hint {
     font-size: 10.5px;

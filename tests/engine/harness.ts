@@ -140,3 +140,54 @@ export function factoryIr(index: number, sr: number): [number, Float32Array] {
   t.tl_free(dst, len * 4);
   return [taps, data];
 }
+
+/** A factory wavetable, mip-mapped for the engine: [frames, mips]. */
+export function factoryTable(name: string): [number, Float32Array] {
+  const t = toolsWasm();
+  const buf = t.tl_alloc(64);
+  let index = -1;
+  for (let i = 0; i < t.tl_factory_count() && index < 0; i++) {
+    const len = t.tl_factory_name(i, buf, 64);
+    if (String.fromCharCode(...new Uint8Array(t.memory.buffer, buf, len)) === name) index = i;
+  }
+  t.tl_free(buf, 64);
+  if (index < 0) throw new Error(`no factory table ${name}`);
+  const frames = t.tl_factory_frames(index);
+  const raw = frames * t.tl_frame_len() * 4;
+  const out = frames * t.tl_frame_stride() * 4;
+  const src = t.tl_alloc(raw);
+  const dst = t.tl_alloc(out);
+  t.tl_factory_build(index, src);
+  t.tl_mips(src, frames, dst);
+  const mips = new Float32Array(t.memory.buffer, dst, out / 4).slice();
+  t.tl_free(src, raw);
+  t.tl_free(dst, out);
+  return [frames, mips];
+}
+
+/** A factory noise: [rate, audio]. */
+export function factoryNoise(index: number): [number, Float32Array] {
+  const t = toolsWasm();
+  const len = t.tl_noise_len();
+  const dst = t.tl_alloc(len * 4);
+  if (t.tl_noise_build(index, dst) !== 0) throw new Error(`no noise ${index}`);
+  const data = new Float32Array(t.memory.buffer, dst, len).slice();
+  t.tl_free(dst, len * 4);
+  return [t.tl_noise_rate(), data];
+}
+
+/** Hand an engine a table, noise or impulse response (what the app's stores do). */
+export function loadTable(e: Engine, osc: number, name: string): void {
+  const [frames, mips] = factoryTable(name);
+  e.w.loadTable(0, osc, frames, e.asset(mips), mips.byteLength);
+}
+
+export function loadNoise(e: Engine, index: number): void {
+  const [rate, data] = factoryNoise(index);
+  e.w.loadSample(0, 0, data.length, rate, e.asset(data), data.byteLength);
+}
+
+export function loadIr(e: Engine, inst: number, index: number): void {
+  const [taps, data] = factoryIr(index, e.sr);
+  e.w.loadIr(0, inst, taps, e.asset(data), data.byteLength);
+}

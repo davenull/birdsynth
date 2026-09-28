@@ -163,7 +163,7 @@ describe('worklet processor', () => {
     const master = last.subarray(TAPS_AT, TAPS_AT + BLOCK_FRAMES);
     const voice = last.subarray(TAPS_AT + BLOCK_FRAMES, TAPS_AT + 2 * BLOCK_FRAMES);
     const ratio = master[500] / voice[500];
-    expect(Math.abs(ratio - 10 ** (-6 / 20))).toBeLessThan(1e-3);
+    expect(Math.abs(ratio - 10 ** (-12 / 20))).toBeLessThan(1e-3);
     // with the pool empty, further quanta are counted as dropped, not allocated
     w.step();
     expect(w.posted.filter((m) => m instanceof ArrayBuffer).length).toBe(POOL_SIZE);
@@ -192,7 +192,7 @@ describe('worklet processor', () => {
       recycle();
     }
     expect(w.allocsInProcess()).toBe(0);
-    // the engine now reports the table and plays its DC level (0.25 * 0.75 level * -6 dB)
+    // the engine now reports the table and plays its DC level (0.25 * 0.75 level * -12 dB)
     const blk = w.posted.filter((m): m is ArrayBuffer => m instanceof ArrayBuffer);
     for (let i = 0; i < 16; i++) {
       w.step();
@@ -200,7 +200,7 @@ describe('worklet processor', () => {
     }
     const last = [...w.posted].reverse().find((m): m is ArrayBuffer => m instanceof ArrayBuffer) ?? blk.at(-1)!;
     void last;
-    expect(Math.abs(w.L[100] - 0.25 * 0.75 * 10 ** (-6 / 20))).toBeLessThan(1e-3);
+    expect(Math.abs(w.L[100] - 0.25 * 0.75 * 10 ** (-12 / 20))).toBeLessThan(1e-3);
   });
 
   it('uploads a sample into a slot and the noise oscillator plays it', () => {
@@ -228,7 +228,7 @@ describe('worklet processor', () => {
     }
     expect(w.allocsInProcess()).toBe(0);
     const level = PARAMS[id('noise.level')];
-    const want = 0.5 * (level.min + (level.max - level.min) * level.def) * 10 ** (-6 / 20);
+    const want = 0.5 * (level.min + (level.max - level.min) * level.def) * 10 ** (-12 / 20);
     expect(Math.abs(w.L[100] - want)).toBeLessThan(1e-3);
   });
 

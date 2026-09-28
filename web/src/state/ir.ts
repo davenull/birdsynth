@@ -16,7 +16,7 @@ export interface IrSink {
   loadIr(inst: number, taps: number, prepared: Float32Array): void;
 }
 
-interface UserIr {
+export interface UserIr {
   name: string;
   l: Float32Array;
   r: Float32Array;
@@ -77,6 +77,11 @@ export class IrStore {
   /** The response as loaded, for the waveform view. */
   response(inst: number): Float32Array | null {
     return this.user[inst] && this.choice(inst) === USER_IR ? this.user[inst]!.l : null;
+  }
+
+  /** The file convolver `inst` plays, if it plays one. */
+  userIr(inst: number): UserIr | null {
+    return this.choice(inst) === USER_IR ? this.user[inst] : null;
   }
 
   private choice(inst: number): number {

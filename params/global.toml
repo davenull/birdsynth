@@ -43,3 +43,14 @@ max = 10.0
 default = 1.0
 unit = "x"
 explain = "Speeds up or slows down every LFO at once."
+
+[[param]]
+key = "tune"
+name = "Master Tune"
+short = "Tune"
+curve = "lin"
+min = 415.0
+max = 466.0
+default = 440.0
+unit = "Hz"
+explain = "The frequency of A above middle C. Everything else follows."

@@ -108,6 +108,8 @@ pub struct OscSettings {
     pub w2: (u8, f32),
     /// Extra phase speed from cross-modulation (1 without).
     pub xstretch: f32,
+    /// Choose mip levels to keep partials under Nyquist (off only for the aliasing demo).
+    pub bandlimit: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -226,7 +228,7 @@ impl OscVoice {
         }
         // band-limit for the fastest the phase can move this sub-block
         let stretch = warp::stretch(s.w1.0, w1_max, remap) * warp::stretch(s.w2.0, w2_max, remap) * s.xstretch;
-        k.pick = mip::pick(inc0.max(inc1) * max_ratio * stretch, sr);
+        k.pick = if s.bandlimit { mip::pick(inc0.max(inc1) * max_ratio * stretch, sr) } else { mip::Pick { lo: 0, hi: 0, w: 0.0 } };
         k.read = warp::read_mode(s.w1.0, w1_max, s.w2.0, w2_max, k.pick);
         k
     }

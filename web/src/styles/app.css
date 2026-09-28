@@ -44,3 +44,13 @@ body.mod-dragging [data-mod='1'].mod-over {
   outline: 2px solid var(--mod-color);
   background: color-mix(in srgb, var(--mod-color) 14%, transparent);
 }
+
+/* explain mode: every part that has notes shows it can be clicked */
+body.explaining .stage [data-explain]:hover {
+  outline: 1px dashed var(--accent);
+  outline-offset: 1px;
+  cursor: help;
+}
+body.explaining .stage [data-explain]:hover * {
+  cursor: help;
+}

@@ -186,7 +186,7 @@ mod tests {
     #[test]
     fn defaults_round_trip() {
         let s = ParamStore::default();
-        assert!((s.plain(p::MASTER_VOLUME) + 6.0).abs() < 1e-4);
+        assert!((s.plain(p::MASTER_VOLUME) + 12.0).abs() < 1e-4);
         assert_eq!(s.plain(p::VOICE_POLYPHONY), 8.0);
         assert_eq!(s.plain(p::OSC_ENABLE[0]), 1.0);
         assert_eq!(s.plain(p::OSC_ENABLE[1]), 0.0);

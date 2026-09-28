@@ -73,6 +73,10 @@ pub struct VoiceCtx<'a> {
     pub lfo_rate: f32,
     pub bpm: f32,
     pub serial: bool,
+    /// Master tune, in semitones from A = 440 Hz.
+    pub tune: f32,
+    /// False for the aliasing demo: every table read at full detail.
+    pub bandlimit: bool,
 }
 
 /// The buses a voice mixes into, at the oversampled rate.
@@ -141,6 +145,8 @@ impl Default for VoiceTaps {
 /// How a note starts.
 pub struct Start<'a> {
     pub note: u8,
+    /// The note's pitch (fractional note number) under the current tuning.
+    pub pitch: f32,
     pub channel: u8,
     pub velocity: f32,
     pub note_id: u32,
@@ -290,7 +296,7 @@ impl Voice {
                 env.trigger();
             }
         }
-        let target = s.note as f32;
+        let target = s.pitch;
         v.pitch = s.glide_from.unwrap_or(target);
         v.glide_to = target;
         v.glide_from = v.pitch;
@@ -302,9 +308,10 @@ impl Voice {
 
     /// Move to a new note without restarting the voice (mono and legato).
     /// `retrigger[e]` restarts envelope e (from its level, or from zero).
-    pub fn retarget(&mut self, note: u8, note_id: u32, velocity: f32, glide_len: f32, retrigger: [bool; 4], from_zero: [bool; 4]) {
+    #[allow(clippy::too_many_arguments)]
+    pub fn retarget(&mut self, note: u8, pitch: f32, note_id: u32, velocity: f32, glide_len: f32, retrigger: [bool; 4], from_zero: [bool; 4]) {
         self.glide_from = self.pitch;
-        self.glide_to = note as f32;
+        self.glide_to = pitch;
         self.glide_len = glide_len;
         self.glide_pos = if glide_len > 0.0 { 0.0 } else { 1.0 };
         if glide_len <= 0.0 {
@@ -497,7 +504,7 @@ impl Voice {
             let t = env_times(cx, &res, e);
             *lv = self.env[e].advance(n as f32, &t);
         }
-        let pitch = self.advance_glide(n) + cx.bend;
+        let pitch = self.advance_glide(n) + cx.bend + cx.tune;
 
         // --- sub and noise (block)
         let sub_on = res(p::SUB_ENABLE) >= 0.5;
@@ -558,6 +565,7 @@ impl Voice {
                 w1,
                 w2,
                 xstretch: xs,
+                bandlimit: cx.bandlimit,
             });
             self.tel_wt_pos[o] = res(p::OSC_WT_POS[o]);
         }

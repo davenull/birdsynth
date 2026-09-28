@@ -60,7 +60,7 @@ describe('param math', () => {
 
   it('formats and parses what it shows', () => {
     const vol = PARAMS.find((p) => p.key === 'master.volume')!;
-    expect(format(vol, vol.def)).toBe('-6.0 dB');
+    expect(format(vol, vol.def)).toBe('-12.0 dB');
     expect(format(vol, 0)).toBe('-inf dB');
     const pan = PARAMS.find((p) => p.key === 'osc.a.pan')!;
     expect(format(pan, 0.5)).toBe('C');

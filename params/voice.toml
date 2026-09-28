@@ -92,3 +92,13 @@ max = 48
 default = 2
 unit = "st"
 explain = "How far the pitch wheel bends down at full travel."
+
+[[param]]
+key = "vel_curve"
+name = "Velocity Curve"
+short = "Vel Curve"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+explain = "Shapes how hard you play turns into velocity: positive values make soft playing count for more, negative values need a firmer touch."

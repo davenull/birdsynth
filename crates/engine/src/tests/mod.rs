@@ -294,10 +294,10 @@ fn tables_load_and_play() {
     let t = e.telemetry();
     assert_eq!(t[tel::OSC_FRAMES], 4.0);
     assert_eq!(t[tel::TABLE_ERRORS], 0.0);
-    // a DC table: frame 3 is 0.75 everywhere; after the -6 dB master that's
-    // 0.75 (frame) * 0.75 (level) * 0.5
+    // a DC table: frame 3 is 0.75 everywhere; after the -12 dB master that's
+    // 0.75 (frame) * 0.75 (level) * 0.25
     let x = render(&mut e, 256);
-    assert!((x[200] - 0.75 * 0.75 * 0.501_187).abs() < 1e-3, "{}", x[200]);
+    assert!((x[200] - 0.75 * 0.75 * 0.251_189).abs() < 1e-3, "{}", x[200]);
     // a null asset is rejected and counted, and the table stays
     e.command(Command::LoadTable { osc: 0, frames: 4, ptr: 0, bytes: 64 }, 0.0);
     render(&mut e, 16);

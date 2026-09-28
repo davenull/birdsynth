@@ -6,6 +6,12 @@ import { PARAMS, PARAM_ID, type ParamKey } from './gen/params';
 import { toNorm, toPlain } from './state/param-math';
 import { SOURCES, TEL, TEL_COUNT, type TapName } from './gen/protocol';
 import { parseMidi } from './input/midi';
+import { exportFile, importFile } from './state/patch';
+import { explain } from './explain/content';
+import { explainMode } from './explain/explain.svelte';
+import { inharmonicDbc } from './explain/measure';
+import { tours } from './explain/tour.svelte';
+import { nav, type PageId } from './ui/nav.svelte';
 import type { Synth } from './synth';
 
 interface PlaybackStats {
@@ -89,6 +95,83 @@ export function installTestApi(synth: Synth): void {
       };
     },
     debugTrap: () => synth.debugTrap(),
+    // ------------------------------------------------------------ presets
+    /** The current state as a single-file patch (JSON text, assets embedded). */
+    savePatch: async () => {
+      const { patch, assets } = await synth.savePatch();
+      return exportFile(patch, assets);
+    },
+    /** Load a single-file patch; returns what couldn't be restored. */
+    loadPatch: async (text: string) => {
+      const { patch, assets } = importFile(text);
+      return synth.loadPatch(patch, async (h) => assets.get(h));
+    },
+    /** Library preset names ("factory:Reese", "user:…"). */
+    presets: async () => (await synth.openLibrary()).entries.map((e) => ({ id: e.id, name: e.patch.meta.name, category: e.patch.meta.category })),
+    loadPreset: (idOrName: string) => synth.openLibrary().then((lib) => synth.loadEntry(lib.entry(idOrName)?.id ?? lib.entries.find((e) => e.patch.meta.name === idOrName)?.id ?? idOrName)),
+    preset: () => ({ id: synth.presetId, meta: synth.meta, dirty: synth.history.dirty }),
+    undo: () => synth.history.undo(),
+    redo: () => synth.history.redo(),
+    /** End the current gesture now, so it's an undo step without waiting. */
+    commit: () => synth.history.commit(),
+    // --------------------------------------------------------------- MIDI
+    /** Arm MIDI learn for a parameter; the next CC through midiIn (or Web MIDI) is tied to it. */
+    learn: (key: ParamKey) => synth.learn.arm(key),
+    learned: () => synth.learn.maps.map((m) => ({ ...m })),
+    forget: (key: ParamKey) => synth.learn.clear(key),
+    midi: () => ({ status: synth.midi.status, inputs: [...synth.midi.inputs] }),
+    wheels: () => ({ ...synth.wheels }),
+    /** Turn to a page: 'osc' | 'mix' | 'fx' | 'matrix' | 'global'. */
+    page: (id?: PageId) => {
+      if (id) nav.page = id;
+      return nav.page;
+    },
+    // ------------------------------------------------------------ explainer
+    explain: {
+      /** Every data-explain key on screen now, and whether it has notes. */
+      keys: () => [...new Set([...document.querySelectorAll('[data-explain]')].map((e) => e.getAttribute('data-explain')!))].map((key) => ({ key, ok: explain(key) !== null })),
+      missing: () => [...document.querySelectorAll('[data-explain]')].map((e) => e.getAttribute('data-explain')!).filter((k) => explain(k) === null),
+      text: (key: string) => explain(key),
+      mode: (on?: boolean) => {
+        if (on !== undefined && on !== explainMode.on) explainMode.toggle();
+        return explainMode.on;
+      },
+      open: (key: string) => {
+        const el = document.querySelector(`[data-explain="${key}"]`);
+        if (!el) return false;
+        if (!explainMode.on) explainMode.toggle();
+        explainMode.show(key, el);
+        return true;
+      },
+      /** The strongest partial that isn't a harmonic of the sounding note, in dB below the strongest harmonic. */
+      inharmonic: () => {
+        const h = synth.host;
+        if (!h) return null;
+        if (!kept.has('master.l')) {
+          kept.add('master.l');
+          synth.useTap('master.l');
+        }
+        const x = new Float32Array(8192);
+        const heard = Math.min(h.heardFrame(), h.taps.latest(0));
+        if (!h.taps.read(0, heard, x)) return null;
+        const note = h.tel[TEL.focusPitch];
+        return inharmonicDbc(x, h.ctx.sampleRate, 440 * 2 ** ((note - 69) / 12));
+      },
+    },
+    tour: {
+      start: (id: string) => tours.start(synth, id),
+      next: () => tours.next(),
+      back: () => tours.back(),
+      exit: () => tours.exit(),
+      settled: () => tours.settled(),
+      state: () => {
+        const s = tours.step;
+        const el = s?.target ? document.querySelector(`[data-explain="${s.target}"]`) : null;
+        return tours.tour
+          ? { id: tours.tour.id, index: tours.index, steps: tours.tour.steps.length, title: s?.title ?? '', target: s?.target ?? null, targetShown: !!el, page: nav.page, bandlimit: synth.bandlimit, expect: s?.expect ? { ...s.expect } : null }
+          : null;
+      },
+    },
   };
   (window as unknown as { __synth: typeof api }).__synth = api;
 }

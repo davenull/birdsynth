@@ -215,6 +215,15 @@ fields = [
 ]
 
 [[command]]
+name = "SetTuning"
+op = 32
+doc = "The pitch of every MIDI note, as a fractional note number (count values, 128 for all; 12-TET is n → n). Scala, KBM and TUN files are turned into this by the host."
+fields = [
+  { name = "count", type = "u16" },
+]
+tail = { type = "f32" }
+
+[[command]]
 name = "ClearMod"
 op = 25
 doc = "Clear every modulation slot."
@@ -232,6 +241,7 @@ fields = [
 [debug]
 Trap = 1            # panic inside the engine, to exercise trap recovery
 Scalar = 2          # arg 1: render oscillators with the scalar reference kernel instead of SIMD
+NoBandlimit = 3     # arg 1: read the full-detail wavetable at every pitch (the explainer's aliasing demo)
 
 # Modulation sources, in matrix order. Indices are stable: append only.
 [sources]
