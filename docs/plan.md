@@ -1,6 +1,6 @@
 # birdsynth: a Serum 2–style wavetable synth (browser app, Rust→WASM engine, explainer layer)
 
-**Status:** P0 finished 2026-09-28. Every P0 gate passes, and staging runs on the VM at :8001. Next is P1.
+**Status:** P0 finished 2026-09-28. Every P0 gate passes, and staging runs on the VM at :8001, reachable at https://birdsynth.abusing.technology (noindex until P4). Next is P1.
 
 ## Context
 You want a full wavetable synthesizer in the style of Serum. The choices so far:

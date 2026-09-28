@@ -7,7 +7,8 @@ shows how each stage works, with live signals tapped from the engine.
 
 **Status:** Phase 0 (tracer bullet) is complete. It plays a band-limited saw
 from 8 voices with an amp envelope, driven from the QWERTY or on-screen
-keyboard, and has the full engine ABI, tests, and a staging deploy.
+keyboard, and has the full engine ABI, tests, and a staging deploy at
+https://birdsynth.abusing.technology.
 [docs/plan.md](docs/plan.md) has the roadmap to Serum 2 parity.
 
 ## Requirements

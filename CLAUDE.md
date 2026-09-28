@@ -22,11 +22,12 @@ comes next.
 ## Verifying in the Browser pane
 - In the pane the AudioContext runs without a gesture, and MIDI is denied: use `__synth.midiIn([...])`.
 - `__synth.telemetry()`, `__synth.tap('master.l', n)` and `__synth.stats()` (with `underrunEvents`) are the proof points. Find knobs by their ARIA name, e.g. `find("Osc A Level")`.
-- Measure pitch from rising zero crossings of `master.l` over ≥ 8192 frames.
+- Measure pitch with a least-squares fit through all rising zero crossings of `master.l` (as `pitch()` in `tests/engine/harness.ts` does). First/last crossings alone scatter ±0.01 Hz on 8192 frames.
 
 ## Deploy
 - `deploy/deploy.sh` streams the image to birdie@192.168.2.165 over SSH. It runs as compose project `birdsynth` in `~/birdsynth`, container `birdsynth`, on port **8001**. It only works from the 192.168.2.x network.
-- The public hostname goes through the Cloudflare tunnel, which is managed in the dashboard (token-based cloudflared on the VM), so adding a route is the user's step.
+- Public URL: **https://birdsynth.abusing.technology** (route added by the user 2026-09-28). It goes through the Cloudflare tunnel, which is managed in the dashboard (token-based cloudflared on the VM), so route changes are the user's step.
+- Through Cloudflare, hashed JS keeps our 1-year immutable cache-control (edge HIT), the wasm passes through uncached (`DYNAMIC`), and HTTP gets a 301 to HTTPS.
 - nginx serves `/assets/*` as immutable and `index.html` as no-cache, with `X-Robots-Tag: noindex` until the P4 public launch.
 
 ## Conventions
