@@ -306,5 +306,7 @@ export function hashesOf(p: Patch): string[] {
   const out = new Set<string>();
   for (const t of p.tables) if (t?.hash) out.add(t.hash);
   for (const r of p.irs) if (r?.hash) out.add(r.hash);
+  for (const r of p.recordings ?? []) if (r?.hash) out.add(r.hash);
+  for (const m of p.multis ?? []) if (m?.hash) out.add(m.hash);
   return [...out];
 }

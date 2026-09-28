@@ -1,7 +1,11 @@
 //! Wavetable oscillators: per-voice state and the per-sub-block setup that
 //! turns resolved parameters into a kernel call.
 
+pub mod granular;
 pub mod kernel;
+pub mod multi;
+pub mod sample;
+pub mod spectral;
 pub mod sub;
 pub mod unison;
 
@@ -165,6 +169,16 @@ impl OscVoice {
         for r in self.random.iter_mut() {
             *r = rng.next_f32();
         }
+    }
+
+    /// The unison layout for these settings (cached until they change).
+    pub fn layout(&mut self, uni: &UniParams) -> &Layout {
+        let key = UniKey::from(uni);
+        if self.layout_for != Some(key) {
+            self.layout = unison::layout(uni, &self.random);
+            self.layout_for = Some(key);
+        }
+        &self.layout
     }
 
     /// Build the kernel for the next `len` samples at `sr` (and move the

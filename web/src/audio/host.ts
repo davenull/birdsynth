@@ -128,6 +128,30 @@ export class EngineHost {
     this.post({ t: 'sample', slot, frames: audio.length, rate, data }, [data]);
   }
 
+  /** Give an oscillator a packed recording (Sample and Granular types). The data is copied; null removes it. */
+  loadRecording(osc: number, r: { channels: number; levels: number; slices: number; frames: number; rate: number; data: Float32Array } | null): void {
+    if (!r) return this.send((w) => w.loadOscSample(0, osc, 0, 0, 0, 0, 0, 0, 0));
+    const data = r.data.slice().buffer;
+    this.flush();
+    this.post({ t: 'rec', osc, channels: r.channels, levels: r.levels, slices: r.slices, frames: r.frames, rate: r.rate, data }, [data]);
+  }
+
+  /** Give an oscillator a packed multisample. The data is copied; null removes it. */
+  loadMulti(osc: number, m: { zones: number; data: Float32Array } | null): void {
+    if (!m) return this.send((w) => w.loadMulti(0, osc, 0, 0, 0));
+    const data = m.data.slice().buffer;
+    this.flush();
+    this.post({ t: 'multi', osc, zones: m.zones, data }, [data]);
+  }
+
+  /** Give an oscillator a spectral analysis. The data is copied; null removes it. */
+  loadSpectral(osc: number, a: { frames: number; rate: number; data: Float32Array } | null): void {
+    if (!a) return this.send((w) => w.loadSpectral(0, osc, 0, 0, 0, 0));
+    const data = a.data.slice().buffer;
+    this.flush();
+    this.post({ t: 'spectral', osc, frames: a.frames, rate: a.rate, data }, [data]);
+  }
+
   /** Give convolver `inst` a prepared impulse response of `taps` taps. The data is copied. */
   loadIr(inst: number, taps: number, prepared: Float32Array): void {
     const data = prepared.slice().buffer;

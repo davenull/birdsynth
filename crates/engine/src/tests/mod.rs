@@ -444,3 +444,4 @@ fn unison_detunes_symmetrically() {
 }
 
 mod p2;
+mod p6;

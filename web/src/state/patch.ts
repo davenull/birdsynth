@@ -14,7 +14,7 @@ import type { ModMatrix, ModSlot } from './matrix';
 import { identityCurve, type RemapCurves } from './remap';
 
 export const PATCH_FORMAT = 'birdsynth-patch';
-export const PATCH_VERSION = 1;
+export const PATCH_VERSION = 2;
 
 export interface PatchMeta {
   name: string;
@@ -52,6 +52,19 @@ export interface IrRef {
   rate: number;
 }
 
+/** A recording an oscillator plays (its audio an asset: the channels one after the other), or a picture for Spectral. */
+export type RecordingRef =
+  | { kind: 'audio'; name: string; hash: string; rate: number; channels: number; frames: number; slices: number[] }
+  | { kind: 'picture'; name: string; hash: string; seconds: number };
+
+/** A multisample: a factory one by name, or an SFZ's packed zones as an asset. */
+export interface MultiRef {
+  name: string;
+  source: string;
+  hash?: string;
+  zones?: number;
+}
+
 export interface Patch {
   format: typeof PATCH_FORMAT;
   version: number;
@@ -66,6 +79,11 @@ export interface Patch {
   fx: { chains: { type: string; inst: number }[][] };
   tables: (TableRef | null)[];
   irs: (IrRef | null)[];
+  /** Per oscillator (version 2 on). */
+  recordings: (RecordingRef | null)[];
+  multis: (MultiRef | null)[];
+  /** The Spectral type's drawn filter, or null when flat. */
+  specFilter: (number[] | null)[];
 }
 
 /** The stores a patch is captured from and applied to (the Synth has them all). */
@@ -103,7 +121,21 @@ export function capture(t: PatchTarget, meta: PatchMeta = emptyMeta()): Patch {
   const id = identityCurve();
   const remap = t.remap.points.map((p) => (samePoints(p, id) ? null : p.map((q) => ({ ...q }))));
   const fx = { chains: t.fx.chains.map((c) => c.map((r) => ({ type: FX_TYPES[r.type].key as string, inst: r.inst }))) };
-  return { format: PATCH_FORMAT, version: PATCH_VERSION, meta: { ...meta, tags: [...meta.tags] }, params, matrix, lfo, remap, fx, tables: [null, null, null], irs: [null, null, null, null] };
+  return {
+    format: PATCH_FORMAT,
+    version: PATCH_VERSION,
+    meta: { ...meta, tags: [...meta.tags] },
+    params,
+    matrix,
+    lfo,
+    remap,
+    fx,
+    tables: [null, null, null],
+    irs: [null, null, null, null],
+    recordings: [null, null, null],
+    multis: [null, null, null],
+    specFilter: [null, null, null],
+  };
 }
 
 /** Put the stores in the patch's state (every parameter the patch doesn't set goes to its default). */
@@ -181,6 +213,11 @@ export function migrate(raw: unknown): Patch {
     };
     version = 1;
   }
+  if (version === 1) {
+    // version 2 added the oscillators' recordings, multisamples and spectral filters
+    cur = { ...cur, version: 2, recordings: [null, null, null], multis: [null, null, null], specFilter: [null, null, null] };
+    version = 2;
+  }
   if (version > PATCH_VERSION) throw new Error(`this patch is from a newer birdsynth (format ${version})`);
   const out = cur as unknown as Patch;
   if (out.format !== PATCH_FORMAT) throw new Error('not a birdsynth patch');
@@ -193,6 +230,9 @@ export function migrate(raw: unknown): Patch {
   out.fx ??= { chains: [] };
   out.tables ??= [null, null, null];
   out.irs ??= [null, null, null, null];
+  out.recordings ??= [null, null, null];
+  out.multis ??= [null, null, null];
+  out.specFilter ??= [null, null, null];
   return out;
 }
 

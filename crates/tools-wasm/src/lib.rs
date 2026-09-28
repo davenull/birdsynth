@@ -389,3 +389,99 @@ pub unsafe extern "C" fn tl_import(mode: u32, audio: *const f32, len: u32, sr: f
     unsafe { slice_mut(dst, n * FRAME_LEN) }.copy_from_slice(&out[..n * FRAME_LEN]);
     n as u32
 }
+
+// ------------------------------------------------------------- recordings
+
+use wt_tools::{multis, onsets, recording, spectral};
+
+/// Floats a recording of `frames` × `channels` with `slices` takes, packed for the engine.
+#[unsafe(no_mangle)]
+pub extern "C" fn tl_rec_floats(frames: u32, channels: u32, slices: u32) -> u32 {
+    recording::floats(frames as usize, channels as usize, slices as usize) as u32
+}
+
+/// Pack a recording (left, and right or null) and its slices for LoadOscSample.
+///
+/// # Safety
+/// `l` (and a non-null `r`) hold `frames` floats; `slices` holds `n` floats; `dst` holds tl_rec_floats.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_rec_prepare(l: *const f32, r: *const f32, frames: u32, slices: *const f32, n: u32, dst: *mut f32) -> u32 {
+    let f = frames as usize;
+    let left = unsafe { slice(l, f) };
+    let chans: Vec<&[f32]> = if r.is_null() { vec![left] } else { vec![left, unsafe { slice(r, f) }] };
+    let d = unsafe { slice_mut(dst, recording::floats(f, chans.len(), n as usize)) };
+    recording::prepare(&chans, unsafe { slice(slices, n as usize) }, d);
+    recording::LEVELS as u32
+}
+
+/// Transients of mono `x` (frame positions) into `dst`, at most `cap`; returns how many.
+///
+/// # Safety
+/// `x` holds `len` floats; `dst` holds `cap`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_onsets(x: *const f32, len: u32, rate: f32, dst: *mut f32, cap: u32) -> u32 {
+    let found = onsets::onsets(unsafe { slice(x, len as usize) }, rate);
+    let n = found.len().min(cap as usize);
+    unsafe { slice_mut(dst, n) }.copy_from_slice(&found[..n]);
+    n as u32
+}
+
+/// Frames the spectral analysis of `len` samples has.
+#[unsafe(no_mangle)]
+pub extern "C" fn tl_spec_frames(len: u32) -> u32 {
+    spectral::frames(len as usize) as u32
+}
+
+/// Floats per analysis frame.
+#[unsafe(no_mangle)]
+pub extern "C" fn tl_spec_frame_floats() -> u32 {
+    spectral::FRAME_FLOATS as u32
+}
+
+/// Analyse mono `x` for the Spectral type into `dst` (tl_spec_frames × tl_spec_frame_floats).
+///
+/// # Safety
+/// `x` holds `len` floats; `dst` holds the analysis.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_spec_analyze(x: *const f32, len: u32, rate: f32, dst: *mut f32) -> u32 {
+    let n = spectral::frames(len as usize);
+    let used = ((n - spectral::PRE - 1) * spectral::HOP).min(len as usize);
+    spectral::analyze(unsafe { slice(x, used) }, rate, unsafe { slice_mut(dst, n * spectral::FRAME_FLOATS) });
+    n as u32
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn tl_multi_count() -> u32 {
+    multis::NAMES.len() as u32
+}
+
+/// Write factory multisample `i`'s name into `out`; returns its length.
+///
+/// # Safety
+/// `out` holds `cap` bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_multi_name(i: u32, out: *mut u8, cap: u32) -> u32 {
+    let Some(name) = multis::NAMES.get(i as usize) else { return 0 };
+    let b = name.as_bytes();
+    let n = b.len().min(cap as usize);
+    unsafe { std::ptr::copy_nonoverlapping(b.as_ptr(), out, n) };
+    n as u32
+}
+
+/// Floats a factory multisample takes at `sr`.
+#[unsafe(no_mangle)]
+pub extern "C" fn tl_multi_floats(sr: f32) -> u32 {
+    multis::floats(sr) as u32
+}
+
+/// Build factory multisample `i` at `sr` into `dst` (tl_multi_floats); returns its zone count.
+///
+/// # Safety
+/// `dst` holds tl_multi_floats(sr) floats.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_multi_build(i: u32, sr: f32, dst: *mut f32) -> u32 {
+    if i as usize >= multis::NAMES.len() {
+        return 0;
+    }
+    multis::build(i as usize, sr, unsafe { slice_mut(dst, multis::floats(sr)) }) as u32
+}

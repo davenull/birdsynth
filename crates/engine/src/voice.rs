@@ -25,6 +25,7 @@ use crate::osc::unison::{MAX_LANES, UniParams};
 use crate::osc::{self, OscSettings, OscVoice, PITCH_HARMONICS, PITCH_RATIO, XKind, XMod, harmonic};
 use crate::params::ParamStore;
 use crate::samples::{self, Player, Samples};
+use crate::sources::{OscAssets, OscShared, SrcIn, SrcState, TYPE_WAVETABLE};
 use crate::spec::params as p;
 use crate::spec::protocol::{MAX_MOD_SLOTS, OSC_COUNT, SUB_BLOCK as N, source};
 use crate::tables::Tables;
@@ -51,6 +52,8 @@ pub struct VoiceCtx<'a> {
     /// Each oscillator's remap curve.
     pub remaps: &'a [Remap; OSC_COUNT],
     pub samples: &'a Samples,
+    /// Recordings, multisamples and spectral analyses for the oscillator types that play them.
+    pub assets: &'a OscAssets,
     pub saw: &'a [f32],
     pub triangle: &'a [f32],
     pub lfo_shapes: &'a [Shape; LFOS],
@@ -205,6 +208,8 @@ impl Default for Arr64 {
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Voice {
+    /// Which slot of the engine's voice list this is (fixed).
+    pub slot: u16,
     pub active: bool,
     pub note: u8,
     pub channel: u8,
@@ -219,6 +224,8 @@ pub struct Voice {
     pub sustained: bool,
     pub env: [Env; 4],
     pub osc: [OscVoice; OSC_COUNT],
+    /// The recording types' state, per oscillator.
+    src: [SrcState; OSC_COUNT],
     sub: SubOsc,
     noise: Player,
     lfo: [LfoState; LFOS],
@@ -267,6 +274,7 @@ impl Default for Arr64Pub {
 impl Voice {
     pub fn start(&mut self, s: Start) {
         let mut v = Voice {
+            slot: self.slot,
             active: true,
             note: s.note,
             channel: s.channel,
@@ -281,6 +289,7 @@ impl Voice {
         v.rand = [s.rng.next_f32(), s.rng.next_f32(), (s.rng.next_u32() % 8) as f32 / 7.0];
         for o in 0..OSC_COUNT {
             v.osc[o].start(s.phase[o], s.rand_phase[o], s.memory[o], s.rng);
+            v.src[o].fresh = true;
         }
         v.sub.start(0);
         v.noise.start(s.noise_frames.max(1), s.noise_start.0, s.noise_start.1, s.rng);
@@ -395,7 +404,12 @@ impl Voice {
     }
 
     /// Render one sub-block into `buses`. `taps` is filled for the focused voice.
-    pub fn render(&mut self, cx: &VoiceCtx, buses: &mut Buses, scratch: &mut Scratch, taps: Option<&mut VoiceTaps>) {
+    /// Where oscillator `o` is in its recording, 0..1 (-1: it isn't playing one).
+    pub fn play_pos(&self, o: usize) -> f32 {
+        self.src[o].play
+    }
+
+    pub fn render(&mut self, cx: &VoiceCtx, buses: &mut Buses, scratch: &mut Scratch, shared: &mut OscShared, taps: Option<&mut VoiceTaps>) {
         let Scratch { obuf, f_in, main, direct, b1, b2, fmono, sub: sub_buf, noise: noise_buf, sum_tap } = scratch;
         let os = cx.os;
         let start = self.start;
@@ -526,6 +540,9 @@ impl Voice {
         let filter_on = [res(p::FILTER_ENABLE[0]) >= 0.5, res(p::FILTER_ENABLE[1]) >= 0.5];
         let osc_a_semis = res(p::OSC_OCTAVE[0]) * 12.0 + res(p::OSC_FINE[0]) * 0.01 + res(p::OSC_COARSE[0]);
         let mut enabled = [false; OSC_COUNT];
+        let mut kinds = [TYPE_WAVETABLE; OSC_COUNT];
+        let mut tuning = [0.0f32; OSC_COUNT];
+        let mut uni = [UniParams::default(); OSC_COUNT];
         let mut settings: [Option<OscSettings>; OSC_COUNT] = [None; OSC_COUNT];
         let mut xm: [[Option<XMod>; 2]; OSC_COUNT] = [[None; 2]; OSC_COUNT];
         for o in 0..OSC_COUNT {
@@ -538,6 +555,22 @@ impl Voice {
             let mode = res(p::OSC_PITCH_MODE[o]) as u8;
             let semi = res(p::OSC_SEMI[o]);
             let base_st = res(p::OSC_OCTAVE[o]) * 12.0 + res(p::OSC_FINE[o]) * 0.01 + res(p::OSC_COARSE[o]);
+            kinds[o] = res(p::OSC_TYPE[o]) as u8;
+            if kinds[o] != TYPE_WAVETABLE {
+                // a recording: tuned in semitones; its warps and wavetable settings don't apply
+                tuning[o] = base_st + semi;
+                uni[o] = UniParams {
+                    voices: res(p::OSC_UNISON[o]) as usize,
+                    detune: res(p::OSC_DETUNE[o]),
+                    blend: res(p::OSC_BLEND[o]),
+                    width: res(p::OSC_WIDTH[o]),
+                    range: res(p::OSC_UNI_RANGE[o]),
+                    mode: res(p::OSC_UNI_MODE[o]) as u8,
+                    stack: res(p::OSC_UNI_STACK[o]) as u8,
+                };
+                self.osc[o].primed = false;
+                continue;
+            }
             let hz = match mode {
                 PITCH_HARMONICS => math::note_to_hz((pitch + base_st) as f64) as f32 * harmonic(semi),
                 PITCH_RATIO => math::note_to_hz((pitch + osc_a_semis) as f64) as f32 * harmonic(semi),
@@ -660,7 +693,7 @@ impl Voice {
         };
         if !fused {
             for o in 0..OSC_COUNT {
-                if enabled[o] {
+                if enabled[o] && kinds[o] == TYPE_WAVETABLE {
                     clear(&mut obuf[o]); // the block kernels add their lanes in
                 }
             }
@@ -683,6 +716,30 @@ impl Voice {
         }
         sum_tap[st..len].fill(0.0);
 
+        // the recording types render as a block, whichever way the wavetables go
+        for o in 0..OSC_COUNT {
+            if !enabled[o] || kinds[o] == TYPE_WAVETABLE {
+                self.src[o].play = -1.0;
+            }
+            if enabled[o] && kinds[o] != TYPE_WAVETABLE {
+                let x = SrcIn {
+                    kind: kinds[o],
+                    osc: o,
+                    slot: self.slot as usize,
+                    note: self.note,
+                    velocity: self.velocity,
+                    held: !self.released,
+                    pitch,
+                    tuning: tuning[o],
+                    bend: cx.bend,
+                    sr,
+                    layout: self.osc[o].layout(&uni[o]),
+                    res: &res,
+                };
+                self.src[o].render(&x, cx.assets, shared, st, len, &mut obuf[o]);
+                self.xm_lanes[o][0] = 0.5 * (obuf[o][0][len - 1] + obuf[o][1][len - 1]);
+            }
+        }
         if !fused {
             for o in 0..OSC_COUNT {
                 if let Some(s) = &settings[o] {
@@ -715,6 +772,13 @@ impl Voice {
             let mut cur = self.xm_lanes;
             for i in st..len {
                 done.fill(false);
+                // recordings are already rendered: this sample of theirs is the source value
+                for o in 0..OSC_COUNT {
+                    if enabled[o] && kinds[o] != TYPE_WAVETABLE {
+                        cur[o][0] = 0.5 * (obuf[o][0][i] + obuf[o][1][i]);
+                        done[o] = true;
+                    }
+                }
                 for &o in order.iter().take(OSC_COUNT) {
                     let Some(k) = &kernels[o] else { continue };
                     let mut x = XIn::default();
@@ -849,6 +913,9 @@ impl Voice {
         }
         if kill_end <= 0.0 || (self.env[0].stage == Stage::Idle && amp1 == 0.0) {
             self.active = false;
+            for o in 0..OSC_COUNT {
+                self.src[o].stop(self.slot as usize, o, shared);
+            }
         }
     }
 }

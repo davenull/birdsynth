@@ -31,6 +31,8 @@
   import { nav, type PageId } from './ui/nav.svelte';
   import EditorView from './editor/EditorView.svelte';
   import { editorView } from './editor/editor.svelte';
+  import SampleEditor from './sampler/SampleEditor.svelte';
+  import { sampleEditor } from './sampler/sampler.svelte';
   import { onFrame } from './ui/frame';
 
   const synth = getContext<Synth>('synth');
@@ -90,14 +92,15 @@
       <nav class="tabs" aria-label="Pages">
         {#each PAGES as p (p.id)}
           <button
-            class:on={nav.page === p.id && !browse.open && editorView.osc === null}
+            class:on={nav.page === p.id && !browse.open && editorView.osc === null && sampleEditor.osc === null}
             disabled={!!p.later}
             title={p.later ? `Arrives in ${p.later}` : ''}
-            aria-current={nav.page === p.id && !browse.open && editorView.osc === null ? 'page' : undefined}
+            aria-current={nav.page === p.id && !browse.open && editorView.osc === null && sampleEditor.osc === null ? 'page' : undefined}
             onclick={() => {
               nav.page = p.id;
               browse.open = false;
               editorView.close();
+              sampleEditor.close();
             }}
             >{p.name}{#if p.id === 'matrix' && routings}<span class="badge">{routings}</span>{/if}</button
           >
@@ -121,6 +124,8 @@
         <Browser />
       {:else if editorView.osc !== null}
         <EditorView />
+      {:else if sampleEditor.osc !== null}
+        <SampleEditor />
       {:else if nav.page === 'osc'}
         <OscPage />
       {:else if nav.page === 'mix'}

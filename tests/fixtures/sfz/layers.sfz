@@ -1,0 +1,19 @@
+// A small multisample: two velocity layers, a loop, defines and names.
+#define $VOL -6
+
+<control>
+default_path=Samples\Piano Soft/
+
+<global>
+volume=$VOL
+ampeg_release=0.4   /* not something this reader uses */
+
+<group> lovel=1 hivel=63
+<region> sample=C3 soft.wav lokey=c3 hikey=e3 pitch_keycenter=c3
+<region> sample=G3 soft.wav lokey=f3 hikey=b3 pitch_keycenter=g3 tune=-12
+
+<group> lovel=64 hivel=127 volume=0
+<region> sample=C3 hard.wav key=48
+<region> sample=Pad Loop.wav lokey=53 hikey=127 pitch_keycenter=A4 loop_mode=loop_sustain loop_start=1000 loop_end=47999 transpose=12 pan=-50
+<region> lokey=10 hikey=20
+<curve> v000=0

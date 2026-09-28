@@ -191,3 +191,55 @@ export function loadIr(e: Engine, inst: number, index: number): void {
   const [taps, data] = factoryIr(index, e.sr);
   e.w.loadIr(0, inst, taps, e.asset(data), data.byteLength);
 }
+
+/** Pack a recording with tools.wasm and hand it to an oscillator (Sample and Granular types). */
+export function loadRecording(e: Engine, osc: number, x: Float32Array, rate: number): void {
+  const t = toolsWasm();
+  const n = x.length;
+  const len = t.tl_rec_floats(n, 1, 0);
+  const src = t.tl_alloc(n * 4);
+  const dst = t.tl_alloc(len * 4);
+  new Float32Array(t.memory.buffer, src, n).set(x);
+  const levels = t.tl_rec_prepare(src, 0, n, src, 0, dst);
+  const data = new Float32Array(t.memory.buffer, dst, len).slice();
+  t.tl_free(src, n * 4);
+  t.tl_free(dst, len * 4);
+  e.w.loadOscSample(0, osc, 1, levels, 0, n, rate, e.asset(data), data.byteLength);
+}
+
+/** Analyse a recording with tools.wasm for an oscillator's Spectral type. */
+export function loadSpectral(e: Engine, osc: number, x: Float32Array, rate: number): void {
+  const t = toolsWasm();
+  const n = x.length;
+  const frames = t.tl_spec_frames(n);
+  const len = frames * t.tl_spec_frame_floats();
+  const src = t.tl_alloc(n * 4);
+  const dst = t.tl_alloc(len * 4);
+  new Float32Array(t.memory.buffer, src, n).set(x);
+  t.tl_spec_analyze(src, n, rate, dst);
+  const data = new Float32Array(t.memory.buffer, dst, len).slice();
+  t.tl_free(src, n * 4);
+  t.tl_free(dst, len * 4);
+  e.w.loadSpectral(0, osc, frames, rate, e.asset(data), data.byteLength);
+}
+
+/** A factory multisample from tools.wasm onto an oscillator. */
+export function loadMulti(e: Engine, osc: number, index: number): void {
+  const t = toolsWasm();
+  const len = t.tl_multi_floats(e.sr);
+  const dst = t.tl_alloc(len * 4);
+  const zones = t.tl_multi_build(index, e.sr, dst);
+  const data = new Float32Array(t.memory.buffer, dst, len).slice();
+  t.tl_free(dst, len * 4);
+  e.w.loadMulti(0, osc, zones, e.asset(data), data.byteLength);
+}
+
+/** A few seconds of a bright, moving test recording. */
+export function testRecording(rate: number, secs = 3): Float32Array {
+  return Float32Array.from({ length: Math.round(rate * secs) }, (_, i) => {
+    const t = i / rate;
+    let v = 0;
+    for (let h = 1; h <= 24; h++) v += Math.sin(2 * Math.PI * 110 * h * t * (1 + 0.001 * Math.sin(t))) / h;
+    return v * 0.3 * (0.6 + 0.4 * Math.sin(2 * Math.PI * 0.5 * t));
+  });
+}

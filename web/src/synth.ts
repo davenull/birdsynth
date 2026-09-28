@@ -15,6 +15,10 @@ import { RemapCurves } from './state/remap';
 import { FxRacks, CONVOLVE } from './state/fx';
 import { IrStore } from './state/ir';
 import { TuningStore } from './state/tuning';
+import { RecordingStore } from './state/recordings';
+import { MultiStore } from './state/multis';
+import { SpectralFilters, pictureToAnalysis } from './state/spectral';
+import { zoneInfo } from './state/multis';
 import { History } from './state/history';
 import { Library, type Entry } from './state/library';
 import { applyPatch, capture, emptyMeta, hashBytes, type Patch, type PatchMeta, type PatchTarget } from './state/patch';
@@ -56,6 +60,9 @@ export class Synth implements MidiSink {
   readonly fx = new FxRacks(this.bank);
   readonly ir = new IrStore(this.bank);
   readonly tuning = new TuningStore();
+  readonly recordings = new RecordingStore(this.bank);
+  readonly multis = new MultiStore();
+  readonly specFilters = new SpectralFilters();
   readonly target: PatchTarget = { bank: this.bank, matrix: this.matrix, lfo: this.lfo, remap: this.remap, fx: this.fx };
   readonly history = new History(this.target);
   /** The current preset: its metadata and where it came from ("" for none). */
@@ -129,6 +136,9 @@ export class Synth implements MidiSink {
         this.noise.attach(host);
         this.ir.attach(host, host.ctx.sampleRate);
         this.tuning.attach({ setTuning: (t) => host.send((w) => w.setTuning(0, t.length, t)) });
+        this.recordings.attach(host);
+        this.multis.attach(host, host.ctx.sampleRate);
+        this.specFilters.attach({ setSpectralFilter: (o, p) => host.send((w) => w.setSpectralFilter(0, o, p.length, p)) });
         const follow = () => {
           if (this.status !== 'error') this.setStatus(host.ctx.state === 'running' ? 'running' : 'suspended');
         };
@@ -171,6 +181,9 @@ export class Synth implements MidiSink {
     this.fx.resync();
     this.ir.resync();
     this.tuning.resync();
+    this.recordings.resync();
+    this.multis.resync();
+    this.specFilters.resync();
     this.tables.resync();
     this.noise.resync();
     host.send((w) => {
@@ -220,6 +233,30 @@ export class Synth implements MidiSink {
       assets.set(hash, data.buffer);
       patch.irs[i] = { name: u.name, hash, rate: u.rate };
     }
+    for (let o = 0; o < patch.recordings.length; o++) {
+      const pic = this.recordings.picture[o];
+      const r = this.recordings.osc[o];
+      if (pic) {
+        const hash = await hashBytes(pic.bytes);
+        assets.set(hash, pic.bytes.slice(0));
+        patch.recordings[o] = { kind: 'picture', name: pic.name, hash, seconds: pic.seconds };
+      } else if (r) {
+        const n = r.channels[0].length;
+        const data = new Float32Array(n * r.channels.length);
+        r.channels.forEach((c, i) => data.set(c, i * n));
+        const hash = await hashBytes(data);
+        assets.set(hash, data.buffer);
+        patch.recordings[o] = { kind: 'audio', name: r.name, hash, rate: r.rate, channels: r.channels.length, frames: n, slices: [...r.slices] };
+      }
+      const m = this.multis.osc[o];
+      if (m?.source.startsWith('factory:')) patch.multis[o] = { name: m.name, source: m.source };
+      else if (m) {
+        const hash = await hashBytes(m.data);
+        assets.set(hash, m.data.slice().buffer);
+        patch.multis[o] = { name: m.name, source: m.source, hash, zones: m.zones.length };
+      }
+      if (!this.specFilters.isFlat(o)) patch.specFilter[o] = Array.from(this.specFilters.points[o]);
+    }
     return { patch, assets };
   }
 
@@ -258,7 +295,45 @@ export class Synth implements MidiSink {
       const n = f.length / 2;
       this.ir.setUser(i, r.name, [f.slice(0, n), f.slice(n)], r.rate);
     });
-    await Promise.all([...tables, ...irs]);
+    const recs = patch.recordings.map(async (r, o) => {
+      if (!r) {
+        if (this.recordings.osc[o] || this.recordings.picture[o]) await this.recordings.set(o, null);
+        return;
+      }
+      const data = await asset(r.hash);
+      if (!data) return void warnings.push(`the recording "${r.name}" is missing`);
+      if (r.kind === 'picture') {
+        const bmp = await createImageBitmap(new Blob([data]));
+        const c = new OffscreenCanvas(Math.min(1024, bmp.width), Math.min(512, bmp.height));
+        const g = c.getContext('2d')!;
+        g.drawImage(bmp, 0, 0, c.width, c.height);
+        await this.recordings.setPicture(o, { name: r.name, bytes: data, seconds: r.seconds }, pictureToAnalysis(g.getImageData(0, 0, c.width, c.height), r.seconds, this.host?.ctx.sampleRate ?? 48_000));
+        return;
+      }
+      const f = new Float32Array(data);
+      const channels = Array.from({ length: r.channels }, (_, c) => f.slice(c * r.frames, (c + 1) * r.frames));
+      await this.recordings.set(o, { name: r.name, rate: r.rate, channels, slices: [...r.slices] }, false);
+    });
+    const multis = patch.multis.map(async (m, o) => {
+      if (!m) {
+        if (this.multis.osc[o]) this.multis.set(o, null);
+        return;
+      }
+      if (m.source.startsWith('factory:')) {
+        try {
+          await this.multis.loadFactory(o, m.source.slice(8));
+        } catch {
+          warnings.push(`there's no factory multisample "${m.name}"`);
+        }
+        return;
+      }
+      const data = m.hash ? await asset(m.hash) : undefined;
+      if (!data || !m.zones) return void warnings.push(`the multisample "${m.name}" is missing`);
+      const f = new Float32Array(data);
+      this.multis.set(o, { name: m.name, source: m.source, zones: zoneInfo(f, m.zones, m.name), data: f, warnings: [] });
+    });
+    patch.specFilter.forEach((pts, o) => (pts ? this.specFilters.set(o, pts) : this.specFilters.isFlat(o) || this.specFilters.reset(o)));
+    await Promise.all([...tables, ...irs, ...recs, ...multis]);
     return warnings;
   }
 

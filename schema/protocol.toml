@@ -22,6 +22,13 @@ maxFrames = 256     # frames per wavetable
 frameLen = 2048     # samples per frame (the Serum format)
 frameStride = 9227  # floats per mip-mapped frame: 9216 samples + 11 guards (see crates/dsp/src/mip.rs)
 oscCount = 3
+maxGrains = 512     # grains sounding at once across all voices (the oldest is stolen past this)
+maxZones = 128      # multisample zones per oscillator
+sampleLevels = 6    # the recording at full rate, then halved five times (for grains and samples pitched up)
+specSize = 2048     # spectral oscillator: analysis and synthesis FFT size
+specHop = 512       # and the hop between frames
+specPre = 2         # analysis frames before time 0, so the first output sample is right (zero latency)
+specFilterPoints = 64
 
 [[command]]
 name = "SetParam"
@@ -224,6 +231,54 @@ fields = [
 tail = { type = "f32" }
 
 [[command]]
+name = "LoadOscSample"
+op = 33
+doc = "Give an oscillator the recording its Sample and Granular types play: `levels` copies (full rate, then each half the length, low-passed), each `channels` planar runs of that level's frames, then `slices` f32 slice starts in frames. ptr from wt_asset_alloc (0 removes it); the engine takes ownership."
+fields = [
+  { name = "osc", type = "u8" },
+  { name = "channels", type = "u8" },
+  { name = "levels", type = "u8" },
+  { name = "slices", type = "u16" },
+  { name = "frames", type = "u32" },
+  { name = "rate", type = "f32" },
+  { name = "ptr", type = "u32" },
+  { name = "bytes", type = "u32" },
+]
+
+[[command]]
+name = "LoadMulti"
+op = 34
+doc = "Give an oscillator a multisample: `zones` zone headers of 16 f32 (see crates/engine/src/osc/multi.rs), then the zones' audio. ptr from wt_asset_alloc (0 removes it); the engine takes ownership."
+fields = [
+  { name = "osc", type = "u8" },
+  { name = "zones", type = "u16" },
+  { name = "ptr", type = "u32" },
+  { name = "bytes", type = "u32" },
+]
+
+[[command]]
+name = "LoadSpectral"
+op = 35
+doc = "Give an oscillator the spectral analysis its Spectral type plays: `frames` frames of specSize/2+1 magnitudes, as many phases and a transient flag, the first specPre of them before time 0; hop specHop at `rate`. ptr from wt_asset_alloc (0 removes it); the engine takes ownership."
+fields = [
+  { name = "osc", type = "u8" },
+  { name = "frames", type = "u32" },
+  { name = "rate", type = "f32" },
+  { name = "ptr", type = "u32" },
+  { name = "bytes", type = "u32" },
+]
+
+[[command]]
+name = "SetSpectralFilter"
+op = 36
+doc = "The drawn spectral filter of an oscillator: `count` gains (0..1) spread evenly over log frequency from 20 Hz to 20 kHz."
+fields = [
+  { name = "osc", type = "u8" },
+  { name = "count", type = "u16" },
+]
+tail = { type = "f32" }
+
+[[command]]
 name = "ClearMod"
 op = 25
 doc = "Clear every modulation slot."
@@ -319,6 +374,16 @@ count = 12
 [[telemetry]]
 name = "fxIr"         # convolver impulse response length in taps (0: none loaded)
 count = 4
+[[telemetry]]
+name = "oscPlay"      # per oscillator: where the focused voice is in its recording (0..1; -1: not playing one)
+count = 3
+[[telemetry]]
+name = "grains"       # grains sounding, across every voice
+[[telemetry]]
+name = "grainsStolen" # grains cut short because the pool was full (a running count)
+[[telemetry]]
+name = "oscAssets"    # per oscillator: frames of its recording, zones of its multisample, frames of its analysis (packed: see engine.rs)
+count = 9
 
 # Taps: signals the engine can record for scopes and the explainer.
 [[tap]]

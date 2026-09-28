@@ -29,7 +29,11 @@ use crate::lfo::{self, LfoSettings, LfoState, Point, Shape};
 use crate::modmatrix::{Matrix, NONE, Slot};
 use crate::osc::{self, unison::MAX_LANES};
 use crate::params::ParamStore;
+use crate::osc::multi::Multi;
+use crate::osc::sample::Recording;
+use crate::osc::spectral::{self, Analysis};
 use crate::samples::{self, Samples};
+use crate::sources::{OscAssets, OscShared};
 use crate::spec::params as p;
 use crate::spec::protocol::{self as proto, Command, HEADER_BYTES, MAX_BLOCK, MAX_MOD_SLOTS, MAX_VOICES, OSC_COUNT, SUB_BLOCK, VOICE_SLOTS, tap, tel};
 use crate::tables::{AssetBuf, Tables};
@@ -114,6 +118,9 @@ pub struct Engine {
     dec: [[Halfband; 2]; DEC_CH],
     buses: Box<Buses>,
     scratch: Box<Scratch>,
+    /// Recordings, multisamples and analyses for the oscillator types, and what their voices share.
+    assets: Box<OscAssets>,
+    shared: Box<OscShared>,
     fx: Box<Fx>,
     out: [Vec<f32>; 2],
     taps: Vec<Vec<f32>>,
@@ -167,6 +174,8 @@ impl Engine {
             dec: [[Halfband::default(); 2]; DEC_CH],
             buses: Box::default(),
             scratch: Box::default(),
+            assets: Box::default(),
+            shared: Box::default(),
             fx: Fx::new(sample_rate),
             out: [vec![0.0; MAX_BLOCK], vec![0.0; MAX_BLOCK]],
             taps: (0..tap::COUNT).map(|_| vec![0.0; MAX_BLOCK]).collect(),
@@ -177,6 +186,9 @@ impl Engine {
             table_errors: 0,
             vtaps: VoiceTaps::default(),
         });
+        for (i, v) in e.voices.iter_mut().enumerate() {
+            v.slot = i as u16;
+        }
         e.write_telemetry([0.0, 0.0]);
         e
     }
@@ -207,6 +219,12 @@ impl Engine {
 
     pub fn tables_mut(&mut self) -> &mut Tables {
         &mut self.tables
+    }
+
+    /// The recording types' assets (native tests load them here: commands carry wasm32 pointers).
+    #[cfg(test)]
+    pub fn assets_mut(&mut self) -> &mut OscAssets {
+        &mut self.assets
     }
 
     pub fn samples_mut(&mut self) -> &mut Samples {
@@ -304,6 +322,17 @@ impl Engine {
                     };
                 }
             }
+            Command::SetSpectralFilter { osc, count } => {
+                let n = (count as usize).min(proto::SPEC_FILTER_POINTS).min(tail.len() / 4);
+                let mut pts = [1.0f32; proto::SPEC_FILTER_POINTS];
+                for (i, x) in pts.iter_mut().enumerate().take(n) {
+                    let v = rd(i * 4);
+                    *x = if v.is_finite() { v.clamp(0.0, 1.0) } else { 1.0 };
+                }
+                if let Some(f) = self.assets.spec_filter.get_mut(osc as usize) {
+                    spectral::filter_table(&pts[..n.max(1)], self.sr, f);
+                }
+            }
             Command::SetOscCurve { osc, count } => {
                 let n = (count as usize).min(REMAP_POINTS).min(tail.len() / 4);
                 let mut v = [0.0f32; REMAP_POINTS];
@@ -362,6 +391,51 @@ impl Engine {
                     self.table_errors += 1;
                 }
             }
+            Command::LoadOscSample { osc, channels, levels, slices, frames, rate, ptr, bytes } => {
+                let Some(slot) = self.assets.recs.get_mut(osc as usize) else {
+                    self.table_errors += 1;
+                    return;
+                };
+                if ptr == 0 {
+                    *slot = None;
+                    return;
+                }
+                let asset = unsafe { AssetBuf::from_raw(ptr as usize as *mut u8, bytes as usize) };
+                match Recording::new(asset, frames as usize, channels as usize, levels as usize, rate, slices as usize) {
+                    Ok(r) => *slot = Some(r),
+                    Err(_) => self.table_errors += 1,
+                }
+            }
+            Command::LoadMulti { osc, zones, ptr, bytes } => {
+                let Some(slot) = self.assets.multis.get_mut(osc as usize) else {
+                    self.table_errors += 1;
+                    return;
+                };
+                if ptr == 0 {
+                    *slot = None;
+                    return;
+                }
+                let asset = unsafe { AssetBuf::from_raw(ptr as usize as *mut u8, bytes as usize) };
+                match Multi::new(asset, zones as usize) {
+                    Ok(m) => *slot = Some(m),
+                    Err(_) => self.table_errors += 1,
+                }
+            }
+            Command::LoadSpectral { osc, frames, rate, ptr, bytes } => {
+                let Some(slot) = self.assets.analyses.get_mut(osc as usize) else {
+                    self.table_errors += 1;
+                    return;
+                };
+                if ptr == 0 {
+                    *slot = None;
+                    return;
+                }
+                let asset = unsafe { AssetBuf::from_raw(ptr as usize as *mut u8, bytes as usize) };
+                match Analysis::new(asset, frames as usize, rate) {
+                    Ok(a) => *slot = Some(a),
+                    Err(_) => self.table_errors += 1,
+                }
+            }
             Command::SetModSlot { slot, source, aux, flags, dest, amount, curve, output } => {
                 if !self.matrix.set(slot as usize, Slot { source, aux, flags, dest, amount, curve, output }) {
                     self.unknown_cmds += 1;
@@ -374,7 +448,7 @@ impl Engine {
                     self.table_errors += 1;
                 }
             }
-            Command::SetLfoShape { .. } | Command::SetOscCurve { .. } | Command::SetChain { .. } | Command::SetTuning { .. } => {} // need their tails: see `apply`
+            Command::SetLfoShape { .. } | Command::SetOscCurve { .. } | Command::SetChain { .. } | Command::SetTuning { .. } | Command::SetSpectralFilter { .. } => {} // need their tails: see `apply`
             _ => {
                 let frame = if frame > 0.0 { frame as u64 } else { 0 };
                 self.queue.push(Event { frame, cmd });
@@ -751,6 +825,7 @@ impl Engine {
             tables: &self.tables,
             remaps: &self.remaps,
             samples: &self.samples,
+            assets: &self.assets,
             saw: self.tables.saw(),
             triangle: &self.triangle,
             lfo_shapes: &self.lfo_shapes,
@@ -781,10 +856,10 @@ impl Engine {
             }
             if focus == Some(i) {
                 self.vtaps = VoiceTaps::default();
-                v.render(&cx, &mut self.buses, &mut self.scratch, Some(&mut self.vtaps));
+                v.render(&cx, &mut self.buses, &mut self.scratch, &mut self.shared, Some(&mut self.vtaps));
                 focus_rendered = true;
             } else {
-                v.render(&cx, &mut self.buses, &mut self.scratch, None);
+                v.render(&cx, &mut self.buses, &mut self.scratch, &mut self.shared, None);
             }
         }
         if !focus_rendered {
@@ -895,6 +970,18 @@ impl Engine {
     fn write_telemetry(&mut self, peak: [f32; 2]) {
         let t = &mut self.tel;
         t[tel::VOICES_ACTIVE] = self.voices.iter().filter(|v| v.active && !v.killing()).count() as f32;
+        for o in 0..OSC_COUNT {
+            t[tel::OSC_PLAY + o] = match self.focus {
+                Some(i) if self.voices[i].active => self.voices[i].play_pos(o),
+                _ => -1.0,
+            };
+            let a = &self.assets;
+            t[tel::OSC_ASSETS + o * 3] = a.recs[o].as_ref().map_or(0, |r| r.frames) as f32;
+            t[tel::OSC_ASSETS + o * 3 + 1] = a.multis[o].as_ref().map_or(0, |m| m.count) as f32;
+            t[tel::OSC_ASSETS + o * 3 + 2] = a.analyses[o].as_ref().map_or(0, |x| x.frames) as f32;
+        }
+        t[tel::GRAINS] = self.shared.pool.active() as f32;
+        t[tel::GRAINS_STOLEN] = self.shared.pool.stolen as f32;
         t[tel::PEAK_L] = peak[0];
         t[tel::PEAK_R] = peak[1];
         t[tel::FOCUS_VOICE] = self.focus.map_or(-1.0, |i| i as f32);

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { PARAMS, PARAM_ID } from '../../web/src/gen/params';
 import { ABI_HASH, DEBUG, TEL } from '../../web/src/gen/protocol';
 import { toNorm, toPlain } from '../../web/src/state/param-math';
-import { Engine, module, pitch } from './harness';
+import { Engine, loadMulti, loadRecording, loadSpectral, module, pitch, testRecording } from './harness';
 
 describe('engine.wasm', () => {
   it('imports nothing and matches the spec hash', () => {
@@ -80,6 +80,54 @@ describe('engine.wasm', () => {
     }
     expect(e.ex.wt_alloc_count() - before).toBe(0);
     expect(e.tel()[TEL.queueDrops]).toBe(0);
+  });
+
+  it('never allocates playing recordings: sample, multisample, granular, spectral', () => {
+    const e = new Engine();
+    const set = (key: string, plain: number) => {
+      const p = PARAMS.find((q) => q.key === key)!;
+      e.w.setParam(0, p.id, toNorm(p, plain));
+    };
+    const rec = testRecording(48_000, 2);
+    loadRecording(e, 0, rec, 48_000);
+    loadMulti(e, 1, 1);
+    loadRecording(e, 2, rec, 48_000);
+    loadSpectral(e, 2, rec, 48_000);
+    set('osc.a.type', 1);
+    set('osc.b.enable', 1);
+    set('osc.b.type', 2);
+    set('osc.c.enable', 1);
+    set('osc.c.type', 3);
+    set('osc.a.unison', 4);
+    let seed = 3;
+    const rand = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32);
+    let id = 1;
+    const held: [number, number][] = [];
+    const step = (i: number) => {
+      if (held.length && rand() < 0.5) {
+        const [note, nid] = held.splice(Math.floor(rand() * held.length), 1)[0];
+        e.w.noteOff(0, note, 0, 0, nid);
+      }
+      if (rand() < 0.7) {
+        const note = 36 + Math.floor(rand() * 48);
+        held.push([note, id]);
+        e.w.noteOn(0, note, 0, 0.3 + rand() * 0.7, id++);
+      }
+      // swap osc C between granular and spectral now and then
+      if (i % 40 === 0) set('osc.c.type', (i / 40) % 2 ? 4 : 3);
+    };
+    for (let i = 0; i < 40; i++) {
+      step(i);
+      e.render(2400);
+    }
+    const before = e.ex.wt_alloc_count();
+    for (let i = 40; i < 440; i++) {
+      step(i);
+      const { l } = e.render(2400);
+      if (i % 50 === 0) expect(l.every(Number.isFinite)).toBe(true);
+    }
+    expect(e.ex.wt_alloc_count() - before).toBe(0);
+    expect(e.tel()[TEL.tableErrors]).toBe(0);
   });
 
   it('keeps its views when memory grows', () => {

@@ -321,3 +321,358 @@ default = 0.0
 unit = "%"
 flags = ["mod", "smooth"]
 explain = "How much of the oscillator also goes to FX Bus 2."
+
+# --------------------------------------------------------------- P6: types
+# Each oscillator can play a wavetable, or a recording four ways.
+
+[[param]]
+key = "type"
+name = "Type"
+curve = "enum"
+options = ["Wavetable", "Sample", "Multisample", "Granular", "Spectral"]
+default = 0
+explain = "What the oscillator plays: a wavetable; a recording (Sample); a set of recordings across the keyboard (Multisample); short grains of a recording (Granular); or a recording rebuilt from its spectrum, so time and pitch are independent (Spectral)."
+
+# --- the recording (Sample; Granular and Spectral play it too)
+
+[[param]]
+key = "smp_start"
+name = "Sample Start"
+short = "Start"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Where in the recording each note starts."
+
+[[param]]
+key = "smp_end"
+name = "Sample End"
+short = "End"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 1.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Where playback stops, and the furthest a loop can reach."
+
+[[param]]
+key = "loop_start"
+name = "Loop Start"
+short = "Loop In"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Where the loop begins, as a share of the recording."
+
+[[param]]
+key = "loop_end"
+name = "Loop End"
+short = "Loop Out"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 1.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Where the loop turns back."
+
+[[param]]
+key = "loop_mode"
+name = "Loop Mode"
+short = "Loop"
+curve = "enum"
+options = ["Off", "Forward", "Ping-Pong", "Reverse", "Tailed"]
+default = 1
+explain = "Off plays once; Forward repeats the loop; Ping-Pong goes back and forth; Reverse plays the loop backwards; Tailed loops while the key is held, then plays on to the end."
+
+[[param]]
+key = "xfade"
+name = "Loop Crossfade"
+short = "X-Fade"
+curve = "lin"
+min = 0.0
+max = 0.5
+default = 0.05
+unit = "%"
+flags = ["mod"]
+explain = "Blends the end of the loop into the audio just before its start, so the jump back can't click. A share of the loop's length."
+
+[[param]]
+key = "snap"
+name = "Loop Snap"
+short = "Snap"
+curve = "bool"
+default = 1
+explain = "Moves the loop points to the nearest zero crossings, another way to keep the loop from clicking."
+
+[[param]]
+key = "rate"
+name = "Playback Rate"
+short = "Rate"
+curve = "lin"
+min = 0.0
+max = 2.0
+default = 1.0
+unit = "×"
+flags = ["mod", "smooth"]
+explain = "Speed on top of the note's pitch: 0.5 is an octave down. Sweep it to zero for a tape stop."
+
+[[param]]
+key = "root"
+name = "Root Note"
+short = "Root"
+curve = "int"
+min = 0.0
+max = 127.0
+default = 60.0
+explain = "The key that plays the recording at its own pitch."
+
+[[param]]
+key = "keytrack"
+name = "Key Track"
+short = "Key"
+curve = "bool"
+default = 1
+explain = "Higher keys play the recording higher. Off: every key plays it at its own pitch."
+
+[[param]]
+key = "slice"
+name = "Slice Mode"
+short = "Slices"
+curve = "bool"
+default = 0
+explain = "Each key plays one slice of the recording, cut where its transients are: the root key plays the first slice, the key above the second."
+
+[[param]]
+key = "tail"
+name = "Slice Tails"
+short = "Tails"
+curve = "bool"
+default = 0
+explain = "Lets a slice play on past its end instead of stopping at the next slice."
+
+# --- granular
+
+[[param]]
+key = "gr_density"
+name = "Grain Density"
+short = "Density"
+curve = "exp"
+min = 1.0
+max = 200.0
+default = 25.0
+unit = "/s"
+flags = ["mod", "smooth"]
+explain = "How many grains start each second."
+
+[[param]]
+key = "gr_length"
+name = "Grain Length"
+short = "Length"
+curve = "exp"
+min = 5.0
+max = 1000.0
+default = 100.0
+unit = "ms"
+flags = ["mod", "smooth"]
+explain = "How long each grain lasts. Short grains buzz and blur; long ones overlap into a smooth cloud."
+
+[[param]]
+key = "gr_position"
+name = "Grain Position"
+short = "Position"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Where in the recording the grains come from. With Scan at zero it stays put, which is the manual mode: move it by hand, with the XY pad, or with modulation."
+
+[[param]]
+key = "gr_scan"
+name = "Grain Scan"
+short = "Scan"
+curve = "lin"
+min = -2.0
+max = 2.0
+default = 1.0
+unit = "×"
+flags = ["mod", "smooth"]
+explain = "How fast the position travels through the recording: 1 is its own speed, 0 holds still, negative goes backwards."
+
+[[param]]
+key = "gr_spray"
+name = "Grain Spray"
+short = "Spray"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.02
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Scatters each grain's start around the position, as a share of the recording."
+
+[[param]]
+key = "gr_pitch_rand"
+name = "Grain Pitch Random"
+short = "Pitch Rnd"
+curve = "lin"
+min = 0.0
+max = 12.0
+default = 0.0
+unit = "st"
+flags = ["mod"]
+explain = "Detunes each grain by a random amount up to this many semitones either way."
+
+[[param]]
+key = "gr_pan"
+name = "Grain Pan Spread"
+short = "Pan"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.5
+unit = "%"
+flags = ["mod"]
+explain = "Places each grain at a random point across the stereo field, up to this wide."
+
+[[param]]
+key = "gr_window"
+name = "Grain Window"
+short = "Window"
+curve = "enum"
+options = ["Hann", "Triangle", "Tukey", "Rectangle", "Decay", "Swell"]
+default = 0
+explain = "The shape each grain fades in and out with: Hann is smooth, Rectangle clicks on purpose, Decay starts hard and fades, Swell the reverse."
+
+[[param]]
+key = "gr_direction"
+name = "Grain Direction"
+short = "Direction"
+curve = "enum"
+options = ["Forward", "Reverse", "Random"]
+default = 0
+explain = "Whether grains play forwards, backwards, or each one either way at random."
+
+[[param]]
+key = "gr_sync"
+name = "Grain Pitch Sync"
+short = "Sync"
+curve = "bool"
+default = 0
+explain = "Starts grains at the note's frequency instead of the density, so the note sets the pitch and the recording sets the tone."
+
+[[param]]
+key = "gr_timbre"
+name = "Grain Timbre"
+short = "Timbre"
+curve = "lin"
+min = -24.0
+max = 24.0
+default = 0.0
+unit = "st"
+flags = ["mod", "smooth"]
+explain = "Shifts the pitch inside each grain. With Pitch Sync it moves the tone's character (its formants) without changing the note."
+
+[[param]]
+key = "gr_loop"
+name = "Grain Loop"
+short = "Loop"
+curve = "bool"
+default = 1
+explain = "When the position runs off the end of the recording, it goes round again instead of stopping."
+
+# --- spectral
+
+[[param]]
+key = "sp_position"
+name = "Spectral Position"
+short = "Position"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Where in the recording each note starts."
+
+[[param]]
+key = "sp_scan"
+name = "Spectral Speed"
+short = "Speed"
+curve = "lin"
+min = -2.0
+max = 2.0
+default = 1.0
+unit = "×"
+flags = ["mod", "smooth"]
+explain = "How fast the recording plays, independent of its pitch: 0.5 lasts twice as long at the same pitch, 0 freezes the sound where it is."
+
+[[param]]
+key = "sp_low"
+name = "Spectral Low Cut"
+short = "Low"
+curve = "exp"
+min = 20.0
+max = 20000.0
+default = 20.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "Removes everything in the spectrum below this frequency."
+
+[[param]]
+key = "sp_high"
+name = "Spectral High Cut"
+short = "High"
+curve = "exp"
+min = 20.0
+max = 20000.0
+default = 20000.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "Removes everything above this frequency."
+
+[[param]]
+key = "sp_warp"
+name = "Spectral Warp"
+short = "Warp"
+curve = "enum"
+options = ["Off", "Smear", "Spread", "Detune +", "Detune -", "Bend +", "Bend -", "Harmonics", "Subharmonics", "Comb", "Pitch Shift", "Pitch Blend"]
+default = 0
+explain = "Reshapes the spectrum as it plays: Smear blurs it in time; Spread and Bend move partials apart; Detune shifts them all by the same number of hertz; Harmonics keeps only the note's harmonics; Subharmonics adds an octave below; Comb cuts regular notches; Pitch Shift moves it up to two octaves; Pitch Blend mixes in a copy an octave up."
+
+[[param]]
+key = "sp_warp_amt"
+name = "Spectral Warp Amount"
+short = "Amount"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How strongly the spectral warp acts."
+
+[[param]]
+key = "sp_loop"
+name = "Spectral Loop"
+short = "Loop"
+curve = "bool"
+default = 1
+explain = "Starts again from the beginning at the end of the recording. Off: it plays once."
+
+[[param]]
+key = "sp_filter"
+name = "Spectral Filter"
+short = "Filter"
+curve = "bool"
+default = 0
+explain = "Shapes the spectrum with the curve you draw: each frequency gets the gain the curve has there."

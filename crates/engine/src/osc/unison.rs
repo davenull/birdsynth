@@ -15,7 +15,7 @@ pub const MODE_RANDOM: u8 = 4;
 /// voices at ±1; other voice counts are interpolated from it.
 const SUPER: [f32; 7] = [-1.0, -0.571_55, -0.177_45, 0.0, 0.180_98, 0.565_02, 0.976_64];
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct UniParams {
     pub voices: usize,
     pub detune: f32,

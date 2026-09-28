@@ -40,13 +40,17 @@ interface EngineExports {
 }
 
 /** An asset being copied into wasm memory a chunk per quantum. */
+type UploadKind = 'table' | 'frame' | 'sample' | 'ir' | 'rec' | 'multi' | 'spectral';
+
 interface Upload {
-  kind: 'table' | 'frame' | 'sample' | 'ir';
+  kind: UploadKind;
   /** Oscillator, or sample slot. */
   osc: number;
   index: number;
   frames: number;
   rate: number;
+  /** rec: channels, levels, slices; multi: zones. */
+  extra: [number, number, number];
   ptr: number;
   bytes: number;
   src: Uint8Array[];
@@ -221,13 +225,16 @@ class WtProcessor extends AudioWorkletProcessor {
       case 'frame':
       case 'sample':
       case 'ir':
+      case 'rec':
+      case 'multi':
+      case 'spectral':
         if (!this.dead) this.startUpload(d);
         break;
     }
   }
 
   /** Allocate the asset and split the source into chunks (views made here, not in process()). */
-  private startUpload(d: Extract<ToWorklet, { t: 'table' | 'frame' | 'sample' | 'ir' }>): void {
+  private startUpload(d: Extract<ToWorklet, { t: UploadKind }>): void {
     const bytes = d.data.byteLength;
     const target = d.t === 'sample' ? d.slot : d.t === 'ir' ? d.inst : d.osc;
     if (d.t !== 'frame') {
@@ -255,8 +262,9 @@ class WtProcessor extends AudioWorkletProcessor {
       kind: d.t,
       osc: target,
       index: d.t === 'frame' ? d.index : 0,
-      frames: d.t === 'frame' ? 1 : d.t === 'ir' ? d.taps : d.frames,
-      rate: d.t === 'sample' ? d.rate : 0,
+      frames: d.t === 'frame' ? 1 : d.t === 'ir' ? d.taps : d.t === 'multi' ? d.zones : d.frames,
+      rate: d.t === 'sample' || d.t === 'rec' || d.t === 'spectral' ? d.rate : 0,
+      extra: d.t === 'rec' ? [d.channels, d.levels, d.slices] : [0, 0, 0],
       ptr,
       bytes,
       src,
@@ -277,6 +285,9 @@ class WtProcessor extends AudioWorkletProcessor {
       if (u.kind === 'table') w.loadTable(0, u.osc, u.frames, u.ptr, u.bytes);
       else if (u.kind === 'sample') w.loadSample(0, u.osc, u.frames, u.rate, u.ptr, u.bytes);
       else if (u.kind === 'ir') w.loadIr(0, u.osc, u.frames, u.ptr, u.bytes);
+      else if (u.kind === 'rec') w.loadOscSample(0, u.osc, u.extra[0], u.extra[1], u.extra[2], u.frames, u.rate, u.ptr, u.bytes);
+      else if (u.kind === 'multi') w.loadMulti(0, u.osc, u.frames, u.ptr, u.bytes);
+      else if (u.kind === 'spectral') w.loadSpectral(0, u.osc, u.frames, u.rate, u.ptr, u.bytes);
       else w.updateFrame(0, u.osc, u.index, u.ptr, u.bytes);
     });
   }

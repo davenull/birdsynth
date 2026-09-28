@@ -55,7 +55,13 @@ export type ToWorklet =
   /** Mono f32 audio for a sample slot (0: the noise oscillator). */
   | { t: 'sample'; slot: number; frames: number; rate: number; data: ArrayBuffer }
   /** A prepared impulse response for convolver `inst` (layout in crates/dsp/src/conv.rs). */
-  | { t: 'ir'; inst: number; taps: number; data: ArrayBuffer };
+  | { t: 'ir'; inst: number; taps: number; data: ArrayBuffer }
+  /** A recording packed for an oscillator's Sample and Granular types (crates/tools/src/recording.rs). */
+  | { t: 'rec'; osc: number; channels: number; levels: number; slices: number; frames: number; rate: number; data: ArrayBuffer }
+  /** A multisample: zone headers, then the zones' audio (crates/engine/src/osc/multi.rs). */
+  | { t: 'multi'; osc: number; zones: number; data: ArrayBuffer }
+  /** A spectral analysis for an oscillator's Spectral type (crates/tools/src/spectral.rs). */
+  | { t: 'spectral'; osc: number; frames: number; rate: number; data: ArrayBuffer };
 
 /** Largest slice of an upload copied into wasm memory per render quantum. */
 export const UPLOAD_CHUNK = 512 * 1024;

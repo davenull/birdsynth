@@ -222,6 +222,16 @@ export const CONTENT: Record<string, Explanation> = {
     view: 'spectrum',
     tap: 'master.l',
   },
+  sampler: {
+    title: 'Sample editor',
+    text: 'The recording an oscillator plays, big. Drag the start, end and loop markers; double-click to add a slice, Alt-click to remove one, or find them at the transients. Root from pitch listens for the recording’s own note, so it plays in tune.',
+    view: 'scope',
+    tap: 'focus.osc.a',
+  },
+  xy: {
+    title: 'XY pad',
+    text: 'Two grain settings on one square: across moves where the grains come from, up makes them longer. With Scan at zero this is the manual way to play a recording: drag through it.',
+  },
   editor: {
     title: 'Wavetable editor',
     text: 'Draw a frame with the pen or line (snap to the grid for steps), set harmonics directly, or type a formula. Process, Harmonics and Morph change the selected frames or the whole table; Import builds a table from a recording, following its pitch. Everything you change plays at once, and Cmd/Ctrl+Z undoes it.',

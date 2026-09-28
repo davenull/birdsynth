@@ -20,7 +20,13 @@ export type ToolsReq =
   | { op: 'formula'; src: string; frames: Float32Array; count: number; apply: Uint8Array; selected: Uint8Array; seed: number }
   | { op: 'formulaCheck'; src: string }
   | { op: 'pitch'; audio: Float32Array; sr: number }
-  | { op: 'import'; mode: number; audio: Float32Array; sr: number; arg: number; max: number };
+  | { op: 'import'; mode: number; audio: Float32Array; sr: number; arg: number; max: number }
+  // recordings for the Sample, Granular, Spectral and Multisample types
+  | { op: 'recPrepare'; channels: Float32Array[]; slices: Float32Array }
+  | { op: 'onsets'; audio: Float32Array; sr: number }
+  | { op: 'specAnalyze'; audio: Float32Array; sr: number }
+  | { op: 'multiList' }
+  | { op: 'multiFactory'; index: number; sr: number };
 
 export interface ToolsResults {
   mips: Float32Array;
@@ -47,6 +53,13 @@ export interface ToolsResults {
   /** Hz, or 0 when the recording has no clear pitch. */
   pitch: number;
   import: { frames: Float32Array; count: number };
+  /** Packed for LoadOscSample: `levels` copies then the slices. */
+  recPrepare: { data: Float32Array; levels: number };
+  /** Frame positions. */
+  onsets: Float32Array;
+  specAnalyze: { data: Float32Array; frames: number };
+  multiList: string[];
+  multiFactory: { data: Float32Array; zones: number };
 }
 
 /** A formula's outcome: ran (error null), or where and why it didn't. */

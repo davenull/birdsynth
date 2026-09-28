@@ -7,7 +7,11 @@
 pub mod factory;
 pub mod ir;
 pub mod mips;
+pub mod multis;
 pub mod noise;
+pub mod onsets;
 pub mod preview;
+pub mod recording;
 pub mod resample;
+pub mod spectral;
 pub mod wt;

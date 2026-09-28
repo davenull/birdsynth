@@ -35,6 +35,16 @@ export interface Exports {
   tl_formula_error(out: number, cap: number): number;
   tl_pitch(audio: number, len: number, sr: number): number;
   tl_import(mode: number, audio: number, len: number, sr: number, arg: number, max: number, dst: number): number;
+  tl_rec_floats(frames: number, channels: number, slices: number): number;
+  tl_rec_prepare(l: number, r: number, frames: number, slices: number, n: number, dst: number): number;
+  tl_onsets(x: number, len: number, rate: number, dst: number, cap: number): number;
+  tl_spec_frames(len: number): number;
+  tl_spec_frame_floats(): number;
+  tl_spec_analyze(x: number, len: number, rate: number, dst: number): number;
+  tl_multi_count(): number;
+  tl_multi_name(i: number, out: number, cap: number): number;
+  tl_multi_floats(sr: number): number;
+  tl_multi_build(i: number, sr: number, dst: number): number;
 }
 
 const HARMONICS = 1024;
@@ -277,6 +287,72 @@ export function handle(ex: Exports, req: ToolsReq): { result: unknown; transfer:
           return { result: { frames, count }, transfer: [frames.buffer] };
         }),
       );
+    }
+    case 'recPrepare': {
+      const n = req.channels[0].length;
+      const ch = Math.min(2, req.channels.length);
+      const ns = req.slices.length;
+      const len = ex.tl_rec_floats(n, ch, ns);
+      return withBuf(ex, n * 4, (lp) =>
+        withBuf(ex, ch > 1 ? n * 4 : 4, (rp) =>
+          withBuf(ex, Math.max(1, ns) * 4, (sp) =>
+            withBuf(ex, len * 4, (dst) => {
+              f32(ex, lp, n).set(req.channels[0]);
+              if (ch > 1) f32(ex, rp, n).set(req.channels[1].subarray(0, n));
+              if (ns) f32(ex, sp, ns).set(req.slices);
+              const levels = ex.tl_rec_prepare(lp, ch > 1 ? rp : 0, n, sp, ns, dst);
+              const data = f32(ex, dst, len).slice();
+              return { result: { data, levels }, transfer: [data.buffer] };
+            }),
+          ),
+        ),
+      );
+    }
+    case 'onsets': {
+      const n = req.audio.length;
+      const cap = 4096;
+      return withBuf(ex, n * 4, (xp) =>
+        withBuf(ex, cap * 4, (dst) => {
+          f32(ex, xp, n).set(req.audio);
+          const k = ex.tl_onsets(xp, n, req.sr, dst, cap);
+          const out = f32(ex, dst, k).slice();
+          return { result: out, transfer: [out.buffer] };
+        }),
+      );
+    }
+    case 'specAnalyze': {
+      const n = req.audio.length;
+      const frames = ex.tl_spec_frames(n);
+      const len = frames * ex.tl_spec_frame_floats();
+      return withBuf(ex, n * 4, (xp) =>
+        withBuf(ex, len * 4, (dst) => {
+          f32(ex, xp, n).set(req.audio);
+          const got = ex.tl_spec_analyze(xp, n, req.sr, dst);
+          const data = f32(ex, dst, len).slice();
+          return { result: { data, frames: got }, transfer: [data.buffer] };
+        }),
+      );
+    }
+    case 'multiList': {
+      const names: string[] = [];
+      for (let i = 0; i < ex.tl_multi_count(); i++) {
+        names.push(
+          withBuf(ex, 64, (p) => {
+            const len = ex.tl_multi_name(i, p, 64);
+            return String.fromCharCode(...new Uint8Array(ex.memory.buffer, p, len));
+          }),
+        );
+      }
+      return { result: names, transfer: [] };
+    }
+    case 'multiFactory': {
+      const len = ex.tl_multi_floats(req.sr);
+      return withBuf(ex, len * 4, (dst) => {
+        const zones = ex.tl_multi_build(req.index, req.sr, dst);
+        if (!zones) throw new Error(`no factory multisample ${req.index}`);
+        const data = f32(ex, dst, len).slice();
+        return { result: { data, zones }, transfer: [data.buffer] };
+      });
     }
     case 'noise': {
       const n = ex.tl_noise_len();

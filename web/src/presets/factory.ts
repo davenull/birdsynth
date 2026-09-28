@@ -737,6 +737,9 @@ export function patchOf(d: Def): Patch {
     fx: { chains },
     tables: [0, 1, 2].map((o) => (d.tables?.[o] ? { name: d.tables[o]!, source: `factory:${d.tables[o]}`, count: 0 } : { name: 'Saw', source: 'factory:Saw', count: 1 })),
     irs: [null, null, null, null],
+    recordings: [null, null, null],
+    multis: [null, null, null],
+    specFilter: [null, null, null],
   };
 }
 

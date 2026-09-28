@@ -7,6 +7,7 @@ import { toNorm, toPlain } from './state/param-math';
 import { SOURCES, TAP, TEL, TEL_COUNT, type TapName } from './gen/protocol';
 import { parseMidi } from './input/midi';
 import { exportFile, importFile } from './state/patch';
+import { pictureToAnalysis } from './state/spectral';
 import { explain } from './explain/content';
 import { explainMode } from './explain/explain.svelte';
 import { inharmonicDbc } from './explain/measure';
@@ -264,6 +265,75 @@ export function installTestApi(synth: Synth): void {
           heard: Math.round((toSound + out) * 10) / 10,
         };
       },
+    },
+    // --------------------------------------------------------- recordings
+    recording: {
+      /** Put a generated recording on an oscillator: a saw at `hz` (harmonics to 40) for `secs`, at `rate`. */
+      tone: (osc: number, hz = 220, secs = 2, rate = 48_000, stereo = false) => {
+        const n = Math.round(secs * rate);
+        const make = (detune: number) =>
+          Float32Array.from({ length: n }, (_, i) => {
+            let v = 0;
+            for (let h = 1; h <= 40 && h * hz < rate / 2; h++) v += Math.sin((2 * Math.PI * hz * detune * h * i) / rate) / h;
+            return v * 0.4;
+          });
+        const channels = stereo ? [make(1), make(1.003)] : [make(1)];
+        return synth.recordings.set(osc, { name: `tone ${hz} Hz`, rate, channels, slices: [] });
+      },
+      /** A drum-like loop: hits at the given times (seconds), for slicing. */
+      hits: (osc: number, times: number[], secs = 2, rate = 48_000) => {
+        const x = new Float32Array(Math.round(secs * rate));
+        let seed = 7;
+        for (const t of times) {
+          const a = Math.round(t * rate);
+          for (let i = 0; i < rate * 0.15 && a + i < x.length; i++) {
+            seed = (seed * 1664525 + 1013904223) >>> 0;
+            x[a + i] += ((seed / 4294967296) * 2 - 1) * Math.exp(-i / (rate * 0.03)) * 0.6;
+          }
+        }
+        return synth.recordings.set(osc, { name: 'hits', rate, channels: [x], slices: [] });
+      },
+      state: (osc: number) => {
+        const r = synth.recordings.osc[osc];
+        return r ? { name: r.name, rate: r.rate, channels: r.channels.length, frames: r.channels[0].length, slices: [...r.slices] } : null;
+      },
+      spectrum: (osc: number) => synth.recordings.spectrum(osc)?.frames ?? 0,
+      picture: async (osc: number, w = 64, h = 64) => {
+        // a rising line: a sweep
+        const data = new Uint8ClampedArray(w * h * 4);
+        for (let x = 0; x < w; x++) {
+          const y = Math.round((1 - x / w) * (h - 1));
+          const i = (y * w + x) * 4;
+          data[i] = data[i + 1] = data[i + 2] = 255;
+          data[i + 3] = 255;
+        }
+        const c = new OffscreenCanvas(w, h);
+        c.getContext('2d')!.putImageData(new ImageData(data, w, h), 0, 0);
+        const blob = await c.convertToBlob({ type: 'image/png' });
+        const bytes = await blob.arrayBuffer();
+        return synth.recordings.setPicture(osc, { name: 'sweep', bytes, seconds: 2 }, pictureToAnalysis({ width: w, height: h, data }, 2, synth.host?.ctx.sampleRate ?? 48_000));
+      },
+    },
+    multi: {
+      list: () => synth.multis.factoryList(),
+      factory: (osc: number, name: string) => synth.multis.loadFactory(osc, name),
+      state: (osc: number) => {
+        const m = synth.multis.osc[osc];
+        return m ? { name: m.name, zones: m.zones.length, source: m.source } : null;
+      },
+    },
+    /** What the engine reports about each oscillator's assets and grains. */
+    oscAssets: () => {
+      const t = synth.host?.tel;
+      if (!t) return null;
+      return {
+        play: [0, 1, 2].map((o) => t[TEL.oscPlay + o]),
+        recFrames: [0, 1, 2].map((o) => t[TEL.oscAssets + o * 3]),
+        zones: [0, 1, 2].map((o) => t[TEL.oscAssets + o * 3 + 1]),
+        specFrames: [0, 1, 2].map((o) => t[TEL.oscAssets + o * 3 + 2]),
+        grains: t[TEL.grains],
+        stolen: t[TEL.grainsStolen],
+      };
     },
     tour: {
       start: (id: string) => tours.start(synth, id),

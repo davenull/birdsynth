@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { PARAMS, PARAM_ID, type ParamKey } from '../../web/src/gen/params';
 import { DEBUG, SOURCES } from '../../web/src/gen/protocol';
 import { toNorm } from '../../web/src/state/param-math';
-import { Engine, factoryIr } from './harness';
+import { Engine, factoryIr, loadMulti, loadRecording, loadSpectral, testRecording } from './harness';
 
 type Route = [source: (typeof SOURCES)[number], dest: ParamKey, amount: number];
 
@@ -15,8 +15,9 @@ interface FxSetup {
   irs?: [number, number][];
 }
 
-function load(setup: Partial<Record<ParamKey, number>>, voices: number, opts: { scalar?: boolean; secs?: number; mod?: Route[]; fx?: FxSetup } = {}): number {
+function load(setup: Partial<Record<ParamKey, number>>, voices: number, opts: { scalar?: boolean; secs?: number; mod?: Route[]; fx?: FxSetup; assets?: (e: Engine) => void } = {}): number {
   const e = new Engine(48_000);
+  opts.assets?.(e);
   const set = (key: ParamKey, plain: number) => {
     const p = PARAMS[PARAM_ID[key]];
     e.w.setParam(0, p.id, toNorm(p, plain));
@@ -41,6 +42,24 @@ function load(setup: Partial<Record<ParamKey, number>>, voices: number, opts: { 
 const pct = (x: number) => `${(x * 100).toFixed(2)}%`;
 
 describe('engine cost', () => {
+  it('each recording type keeps within its cap (16 voices)', () => {
+    const rec = testRecording(48_000);
+    const withRec = (e: Engine) => loadRecording(e, 0, rec, 48_000);
+    const sample = load({ 'osc.a.type': 1, 'osc.a.unison': 4 }, 16, { secs: 2, assets: withRec });
+    const multi = load({ 'osc.a.type': 2 }, 16, { secs: 2, assets: (e) => loadMulti(e, 0, 0) });
+    const granular = load({ 'osc.a.type': 3, 'osc.a.gr_density': 100, 'osc.a.gr_length': 150 }, 16, { secs: 2, assets: withRec });
+    const budget = load({ 'osc.a.type': 3, 'osc.a.gr_density': 200, 'osc.a.gr_length': 1000 }, 16, { secs: 2, assets: withRec });
+    const spectral = load({ 'osc.a.type': 4 }, 16, { secs: 2, assets: (e) => loadSpectral(e, 0, rec, 48_000) });
+    const warped = load({ 'osc.a.type': 4, 'osc.a.sp_warp': 2, 'osc.a.sp_warp_amt': 0.5 }, 16, { secs: 2, assets: (e) => loadSpectral(e, 0, rec, 48_000) });
+    console.log(`16 voices: sample x4 unison ${pct(sample)}, multisample ${pct(multi)}, granular (~240 grains) ${pct(granular)}, granular at the 512-grain budget ${pct(budget)}, spectral ${pct(spectral)} (${pct(warped)} warped)`);
+    expect(sample).toBeLessThan(0.05);
+    expect(multi).toBeLessThan(0.03);
+    expect(granular).toBeLessThan(0.12);
+    expect(budget).toBeLessThan(0.25);
+    expect(spectral).toBeLessThan(0.15);
+    expect(warped).toBeLessThan(0.15);
+  });
+
   it('16 voices x 16 unison stays within 6% of real time', () => {
     const simd = load({ 'osc.a.unison': 16 }, 16);
     const scalar = load({ 'osc.a.unison': 16 }, 16, { scalar: true });
