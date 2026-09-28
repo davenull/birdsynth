@@ -1,0 +1,131 @@
+# Delay: echoes, with a band-pass filter in the feedback loop.
+
+[group]
+key = "fx.delay"
+name = "Delay"
+instances = ["1", "2", "3", "4"]
+instance_names = ["Delay 1", "Delay 2", "Delay 3", "Delay 4"]
+
+[[param]]
+key = "enable"
+name = "On"
+curve = "bool"
+default = 1
+explain = "Switches the delay on. Off, the signal passes through untouched (the change is faded, so it never clicks)."
+
+[[param]]
+key = "mode"
+name = "Mode"
+curve = "enum"
+options = ["Normal", "Ping-Pong", "Tap->Delay"]
+default = 0
+explain = "Normal: separate left and right echoes. Ping-Pong: echoes bounce between the sides. Tap->Delay: one early tap (left time), then echoes repeating at the right time."
+
+[[param]]
+key = "bpm"
+name = "BPM Sync"
+short = "BPM"
+curve = "bool"
+default = 1
+explain = "Sets the times in musical note values."
+
+[[param]]
+key = "sync_l"
+name = "Sync Left"
+short = "Left"
+curve = "enum"
+options = ["1/64", "1/32", "1/16T", "1/16", "1/16D", "1/8T", "1/8", "1/8D", "1/4T", "1/4", "1/4D", "1/2T", "1/2", "1/2D", "1/1", "2/1"]
+default = 6
+explain = "Left (or first) echo time in note values."
+
+[[param]]
+key = "sync_r"
+name = "Sync Right"
+short = "Right"
+curve = "enum"
+options = ["1/64", "1/32", "1/16T", "1/16", "1/16D", "1/8T", "1/8", "1/8D", "1/4T", "1/4", "1/4D", "1/2T", "1/2", "1/2D", "1/1", "2/1"]
+default = 6
+explain = "Right (or repeat) echo time in note values."
+
+[[param]]
+key = "time_l"
+name = "Time Left"
+short = "Left"
+curve = "exp"
+min = 1.0
+max = 4000.0
+default = 250.0
+unit = "ms"
+flags = ["mod", "smooth"]
+explain = "Left (or first) echo time."
+
+[[param]]
+key = "time_r"
+name = "Time Right"
+short = "Right"
+curve = "exp"
+min = 1.0
+max = 4000.0
+default = 250.0
+unit = "ms"
+flags = ["mod", "smooth"]
+explain = "Right (or repeat) echo time."
+
+[[param]]
+key = "link"
+name = "Link"
+curve = "bool"
+default = 1
+explain = "Uses the left time for both sides."
+
+[[param]]
+key = "feedback"
+name = "Feedback"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.4
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How much of each echo feeds the next."
+
+[[param]]
+key = "freq"
+name = "Filter"
+curve = "exp"
+min = 40.0
+max = 18000.0
+default = 1500.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "Centre of the band-pass in the feedback loop: echoes grow darker or thinner as they repeat."
+
+[[param]]
+key = "width"
+name = "Filter Width"
+short = "Width"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.7
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Width of the feedback band-pass, from narrow to the whole spectrum."
+
+[[param]]
+key = "hq"
+name = "HQ"
+curve = "bool"
+default = 1
+explain = "Higher-quality interpolation, for clean echoes while the time moves."
+
+[[param]]
+key = "mix"
+name = "Mix"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.3
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Balance between the dry signal and the echoes."

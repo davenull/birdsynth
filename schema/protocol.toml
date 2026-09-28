@@ -184,6 +184,37 @@ fields = [
 ]
 
 [[command]]
+name = "SetOscCurve"
+op = 28
+doc = "An oscillator's drawn remap curve (warps Remap 1-4), as a lookup table: count values in 0..1 over x from 0 to 1 (257 for full detail)."
+fields = [
+  { name = "osc", type = "u8" },
+  { name = "count", type = "u16" },
+]
+tail = { type = "f32" }
+
+[[command]]
+name = "SetChain"
+op = 29
+doc = "An FX chain's modules, in order: chain 0 is the Main rack, 1 Bus 1, 2 Bus 2, and 3 + 3 × splitter + band the band chains of the splitters. Each entry is type × 256 + instance (types in fx/mod.rs order)."
+fields = [
+  { name = "chain", type = "u8" },
+  { name = "count", type = "u8" },
+]
+tail = { type = "u16" }
+
+[[command]]
+name = "LoadIr"
+op = 30
+doc = "Give convolver `inst` an impulse response prepared by the tools (layout in crates/engine/src/fx/convolve.rs) at ptr (from wt_asset_alloc). taps = 0 removes it. The engine takes ownership."
+fields = [
+  { name = "inst", type = "u8" },
+  { name = "taps", type = "u32" },
+  { name = "ptr", type = "u32" },
+  { name = "bytes", type = "u32" },
+]
+
+[[command]]
 name = "ClearMod"
 op = 25
 doc = "Clear every modulation slot."
@@ -272,6 +303,12 @@ name = "macroValue"   # the focused voice's macro values after modulation
 count = 8
 [[telemetry]]
 name = "oversample"   # voice-path oversampling factor in use (1, 2 or 4)
+[[telemetry]]
+name = "fxGr"         # compressor gain reduction in dB (instance × 3 + band; single-band uses band 0)
+count = 12
+[[telemetry]]
+name = "fxIr"         # convolver impulse response length in taps (0: none loaded)
+count = 4
 
 # Taps: signals the engine can record for scopes and the explainer.
 [[tap]]

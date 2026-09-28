@@ -2,7 +2,7 @@
 
 use crate::params::{Curve, ParamInfo};
 
-pub const COUNT: usize = 328;
+pub const COUNT: usize = 882;
 
 pub const ENV_ATTACK: [u16; 4] = [0, 11, 22, 33];
 pub const ENV_HOLD: [u16; 4] = [1, 12, 23, 34];
@@ -15,97 +15,238 @@ pub const ENV_RELEASE_CURVE: [u16; 4] = [7, 18, 29, 40];
 pub const ENV_BPM: [u16; 4] = [8, 19, 30, 41];
 pub const ENV_LEGATO_INVERT: [u16; 4] = [9, 20, 31, 42];
 pub const ENV_RETRIG: [u16; 4] = [10, 21, 32, 43];
-pub const FILTER_ENABLE: [u16; 2] = [44, 53];
-pub const FILTER_TYPE: [u16; 2] = [45, 54];
-pub const FILTER_CUTOFF: [u16; 2] = [46, 55];
-pub const FILTER_RES: [u16; 2] = [47, 56];
-pub const FILTER_DRIVE: [u16; 2] = [48, 57];
-pub const FILTER_MIX: [u16; 2] = [49, 58];
-pub const FILTER_KEYTRACK: [u16; 2] = [50, 59];
-pub const FILTER_LEVEL: [u16; 2] = [51, 60];
-pub const FILTER_PAN: [u16; 2] = [52, 61];
-pub const GLOBAL_QUALITY: u16 = 62;
-pub const GLOBAL_BPM: u16 = 63;
-pub const GLOBAL_ENV_RATE: u16 = 64;
-pub const GLOBAL_LFO_RATE: u16 = 65;
-pub const LFO_TYPE: [u16; 10] = [66, 79, 92, 105, 118, 131, 144, 157, 170, 183];
-pub const LFO_MODE: [u16; 10] = [67, 80, 93, 106, 119, 132, 145, 158, 171, 184];
-pub const LFO_RATE: [u16; 10] = [68, 81, 94, 107, 120, 133, 146, 159, 172, 185];
-pub const LFO_BPM: [u16; 10] = [69, 82, 95, 108, 121, 134, 147, 160, 173, 186];
-pub const LFO_SYNC_RATE: [u16; 10] = [70, 83, 96, 109, 122, 135, 148, 161, 174, 187];
-pub const LFO_SYNC_MOD: [u16; 10] = [71, 84, 97, 110, 123, 136, 149, 162, 175, 188];
-pub const LFO_X10: [u16; 10] = [72, 85, 98, 111, 124, 137, 150, 163, 176, 189];
-pub const LFO_RISE: [u16; 10] = [73, 86, 99, 112, 125, 138, 151, 164, 177, 190];
-pub const LFO_DELAY: [u16; 10] = [74, 87, 100, 113, 126, 139, 152, 165, 178, 191];
-pub const LFO_SMOOTH: [u16; 10] = [75, 88, 101, 114, 127, 140, 153, 166, 179, 192];
-pub const LFO_PHASE: [u16; 10] = [76, 89, 102, 115, 128, 141, 154, 167, 180, 193];
-pub const LFO_DIRECTION: [u16; 10] = [77, 90, 103, 116, 129, 142, 155, 168, 181, 194];
-pub const LFO_POLY: [u16; 10] = [78, 91, 104, 117, 130, 143, 156, 169, 182, 195];
-pub const MACRO_VALUE: [u16; 8] = [196, 197, 198, 199, 200, 201, 202, 203];
-pub const MASTER_VOLUME: u16 = 204;
-pub const MIX_FILTER_ROUTING: u16 = 205;
-pub const NOISE_ENABLE: u16 = 206;
-pub const NOISE_TYPE: u16 = 207;
-pub const NOISE_LEVEL: u16 = 208;
-pub const NOISE_PAN: u16 = 209;
-pub const NOISE_PITCH: u16 = 210;
-pub const NOISE_KEYTRACK: u16 = 211;
-pub const NOISE_ONESHOT: u16 = 212;
-pub const NOISE_PHASE: u16 = 213;
-pub const NOISE_RAND: u16 = 214;
-pub const NOISE_ROUTE: u16 = 215;
-pub const NOISE_BALANCE: u16 = 216;
-pub const NOISE_SEND1: u16 = 217;
-pub const NOISE_SEND2: u16 = 218;
-pub const OSC_ENABLE: [u16; 3] = [219, 249, 279];
-pub const OSC_LEVEL: [u16; 3] = [220, 250, 280];
-pub const OSC_PAN: [u16; 3] = [221, 251, 281];
-pub const OSC_OCTAVE: [u16; 3] = [222, 252, 282];
-pub const OSC_SEMI: [u16; 3] = [223, 253, 283];
-pub const OSC_FINE: [u16; 3] = [224, 254, 284];
-pub const OSC_COARSE: [u16; 3] = [225, 255, 285];
-pub const OSC_PITCH_MODE: [u16; 3] = [226, 256, 286];
-pub const OSC_WT_POS: [u16; 3] = [227, 257, 287];
-pub const OSC_WT_SMOOTH: [u16; 3] = [228, 258, 288];
-pub const OSC_PHASE: [u16; 3] = [229, 259, 289];
-pub const OSC_RAND_PHASE: [u16; 3] = [230, 260, 290];
-pub const OSC_PHASE_MEM: [u16; 3] = [231, 261, 291];
-pub const OSC_UNISON: [u16; 3] = [232, 262, 292];
-pub const OSC_DETUNE: [u16; 3] = [233, 263, 293];
-pub const OSC_BLEND: [u16; 3] = [234, 264, 294];
-pub const OSC_WIDTH: [u16; 3] = [235, 265, 295];
-pub const OSC_UNI_RANGE: [u16; 3] = [236, 266, 296];
-pub const OSC_UNI_MODE: [u16; 3] = [237, 267, 297];
-pub const OSC_UNI_STACK: [u16; 3] = [238, 268, 298];
-pub const OSC_WT_SPREAD: [u16; 3] = [239, 269, 299];
-pub const OSC_WARP_SPREAD: [u16; 3] = [240, 270, 300];
-pub const OSC_WARP1_MODE: [u16; 3] = [241, 271, 301];
-pub const OSC_WARP1_AMOUNT: [u16; 3] = [242, 272, 302];
-pub const OSC_WARP2_MODE: [u16; 3] = [243, 273, 303];
-pub const OSC_WARP2_AMOUNT: [u16; 3] = [244, 274, 304];
-pub const OSC_ROUTE: [u16; 3] = [245, 275, 305];
-pub const OSC_BALANCE: [u16; 3] = [246, 276, 306];
-pub const OSC_SEND1: [u16; 3] = [247, 277, 307];
-pub const OSC_SEND2: [u16; 3] = [248, 278, 308];
-pub const SUB_ENABLE: u16 = 309;
-pub const SUB_SHAPE: u16 = 310;
-pub const SUB_OCTAVE: u16 = 311;
-pub const SUB_LEVEL: u16 = 312;
-pub const SUB_PAN: u16 = 313;
-pub const SUB_ROUTE: u16 = 314;
-pub const SUB_BALANCE: u16 = 315;
-pub const SUB_SEND1: u16 = 316;
-pub const SUB_SEND2: u16 = 317;
-pub const VOICE_POLYPHONY: u16 = 318;
-pub const VOICE_MONO: u16 = 319;
-pub const VOICE_LEGATO: u16 = 320;
-pub const VOICE_GLIDE: u16 = 321;
-pub const VOICE_GLIDE_ALWAYS: u16 = 322;
-pub const VOICE_GLIDE_SCALED: u16 = 323;
-pub const VOICE_GLIDE_CURVE: u16 = 324;
-pub const VOICE_STEAL: u16 = 325;
-pub const VOICE_BEND_UP: u16 = 326;
-pub const VOICE_BEND_DOWN: u16 = 327;
+pub const FILTER_ENABLE: [u16; 2] = [44, 55];
+pub const FILTER_TYPE: [u16; 2] = [45, 56];
+pub const FILTER_CUTOFF: [u16; 2] = [46, 57];
+pub const FILTER_RES: [u16; 2] = [47, 58];
+pub const FILTER_DRIVE: [u16; 2] = [48, 59];
+pub const FILTER_MIX: [u16; 2] = [49, 60];
+pub const FILTER_KEYTRACK: [u16; 2] = [50, 61];
+pub const FILTER_LEVEL: [u16; 2] = [51, 62];
+pub const FILTER_PAN: [u16; 2] = [52, 63];
+pub const FILTER_VAR: [u16; 2] = [53, 64];
+pub const FILTER_STEREO: [u16; 2] = [54, 65];
+pub const FX_BODE_ENABLE: [u16; 4] = [66, 71, 76, 81];
+pub const FX_BODE_SHIFT: [u16; 4] = [67, 72, 77, 82];
+pub const FX_BODE_FEEDBACK: [u16; 4] = [68, 73, 78, 83];
+pub const FX_BODE_SPREAD: [u16; 4] = [69, 74, 79, 84];
+pub const FX_BODE_MIX: [u16; 4] = [70, 75, 80, 85];
+pub const FX_CHORUS_ENABLE: [u16; 4] = [86, 96, 106, 116];
+pub const FX_CHORUS_RATE: [u16; 4] = [87, 97, 107, 117];
+pub const FX_CHORUS_BPM: [u16; 4] = [88, 98, 108, 118];
+pub const FX_CHORUS_SYNC: [u16; 4] = [89, 99, 109, 119];
+pub const FX_CHORUS_DELAY1: [u16; 4] = [90, 100, 110, 120];
+pub const FX_CHORUS_DELAY2: [u16; 4] = [91, 101, 111, 121];
+pub const FX_CHORUS_DEPTH: [u16; 4] = [92, 102, 112, 122];
+pub const FX_CHORUS_FEEDBACK: [u16; 4] = [93, 103, 113, 123];
+pub const FX_CHORUS_LPF: [u16; 4] = [94, 104, 114, 124];
+pub const FX_CHORUS_MIX: [u16; 4] = [95, 105, 115, 125];
+pub const FX_COMPRESSOR_ENABLE: [u16; 4] = [126, 144, 162, 180];
+pub const FX_COMPRESSOR_MODE: [u16; 4] = [127, 145, 163, 181];
+pub const FX_COMPRESSOR_THRESHOLD: [u16; 4] = [128, 146, 164, 182];
+pub const FX_COMPRESSOR_RATIO: [u16; 4] = [129, 147, 165, 183];
+pub const FX_COMPRESSOR_ATTACK: [u16; 4] = [130, 148, 166, 184];
+pub const FX_COMPRESSOR_RELEASE: [u16; 4] = [131, 149, 167, 185];
+pub const FX_COMPRESSOR_KNEE: [u16; 4] = [132, 150, 168, 186];
+pub const FX_COMPRESSOR_GAIN: [u16; 4] = [133, 151, 169, 187];
+pub const FX_COMPRESSOR_DEPTH: [u16; 4] = [134, 152, 170, 188];
+pub const FX_COMPRESSOR_UPWARD: [u16; 4] = [135, 153, 171, 189];
+pub const FX_COMPRESSOR_DOWNWARD: [u16; 4] = [136, 154, 172, 190];
+pub const FX_COMPRESSOR_TIME: [u16; 4] = [137, 155, 173, 191];
+pub const FX_COMPRESSOR_XOVER1: [u16; 4] = [138, 156, 174, 192];
+pub const FX_COMPRESSOR_XOVER2: [u16; 4] = [139, 157, 175, 193];
+pub const FX_COMPRESSOR_LOW: [u16; 4] = [140, 158, 176, 194];
+pub const FX_COMPRESSOR_MID: [u16; 4] = [141, 159, 177, 195];
+pub const FX_COMPRESSOR_HIGH: [u16; 4] = [142, 160, 178, 196];
+pub const FX_COMPRESSOR_MIX: [u16; 4] = [143, 161, 179, 197];
+pub const FX_CONVOLVE_ENABLE: [u16; 4] = [198, 205, 212, 219];
+pub const FX_CONVOLVE_IR: [u16; 4] = [199, 206, 213, 220];
+pub const FX_CONVOLVE_PREDELAY: [u16; 4] = [200, 207, 214, 221];
+pub const FX_CONVOLVE_LOWCUT: [u16; 4] = [201, 208, 215, 222];
+pub const FX_CONVOLVE_HIGHCUT: [u16; 4] = [202, 209, 216, 223];
+pub const FX_CONVOLVE_WIDTH: [u16; 4] = [203, 210, 217, 224];
+pub const FX_CONVOLVE_MIX: [u16; 4] = [204, 211, 218, 225];
+pub const FX_DELAY_ENABLE: [u16; 4] = [226, 239, 252, 265];
+pub const FX_DELAY_MODE: [u16; 4] = [227, 240, 253, 266];
+pub const FX_DELAY_BPM: [u16; 4] = [228, 241, 254, 267];
+pub const FX_DELAY_SYNC_L: [u16; 4] = [229, 242, 255, 268];
+pub const FX_DELAY_SYNC_R: [u16; 4] = [230, 243, 256, 269];
+pub const FX_DELAY_TIME_L: [u16; 4] = [231, 244, 257, 270];
+pub const FX_DELAY_TIME_R: [u16; 4] = [232, 245, 258, 271];
+pub const FX_DELAY_LINK: [u16; 4] = [233, 246, 259, 272];
+pub const FX_DELAY_FEEDBACK: [u16; 4] = [234, 247, 260, 273];
+pub const FX_DELAY_FREQ: [u16; 4] = [235, 248, 261, 274];
+pub const FX_DELAY_WIDTH: [u16; 4] = [236, 249, 262, 275];
+pub const FX_DELAY_HQ: [u16; 4] = [237, 250, 263, 276];
+pub const FX_DELAY_MIX: [u16; 4] = [238, 251, 264, 277];
+pub const FX_DISTORTION_ENABLE: [u16; 4] = [278, 289, 300, 311];
+pub const FX_DISTORTION_MODE: [u16; 4] = [279, 290, 301, 312];
+pub const FX_DISTORTION_DRIVE: [u16; 4] = [280, 291, 302, 313];
+pub const FX_DISTORTION_BIAS: [u16; 4] = [281, 292, 303, 314];
+pub const FX_DISTORTION_FILTER: [u16; 4] = [282, 293, 304, 315];
+pub const FX_DISTORTION_FILTER_TYPE: [u16; 4] = [283, 294, 305, 316];
+pub const FX_DISTORTION_FREQ: [u16; 4] = [284, 295, 306, 317];
+pub const FX_DISTORTION_Q: [u16; 4] = [285, 296, 307, 318];
+pub const FX_DISTORTION_KEYTRACK: [u16; 4] = [286, 297, 308, 319];
+pub const FX_DISTORTION_MIX: [u16; 4] = [287, 298, 309, 320];
+pub const FX_DISTORTION_OUTPUT: [u16; 4] = [288, 299, 310, 321];
+pub const FX_EQ_ENABLE: [u16; 4] = [322, 334, 346, 358];
+pub const FX_EQ_LOW_TYPE: [u16; 4] = [323, 335, 347, 359];
+pub const FX_EQ_LOW_FREQ: [u16; 4] = [324, 336, 348, 360];
+pub const FX_EQ_LOW_Q: [u16; 4] = [325, 337, 349, 361];
+pub const FX_EQ_LOW_GAIN: [u16; 4] = [326, 338, 350, 362];
+pub const FX_EQ_MID_FREQ: [u16; 4] = [327, 339, 351, 363];
+pub const FX_EQ_MID_Q: [u16; 4] = [328, 340, 352, 364];
+pub const FX_EQ_MID_GAIN: [u16; 4] = [329, 341, 353, 365];
+pub const FX_EQ_HIGH_TYPE: [u16; 4] = [330, 342, 354, 366];
+pub const FX_EQ_HIGH_FREQ: [u16; 4] = [331, 343, 355, 367];
+pub const FX_EQ_HIGH_Q: [u16; 4] = [332, 344, 356, 368];
+pub const FX_EQ_HIGH_GAIN: [u16; 4] = [333, 345, 357, 369];
+pub const FX_FILTER_ENABLE: [u16; 4] = [370, 378, 386, 394];
+pub const FX_FILTER_TYPE: [u16; 4] = [371, 379, 387, 395];
+pub const FX_FILTER_CUTOFF: [u16; 4] = [372, 380, 388, 396];
+pub const FX_FILTER_RES: [u16; 4] = [373, 381, 389, 397];
+pub const FX_FILTER_DRIVE: [u16; 4] = [374, 382, 390, 398];
+pub const FX_FILTER_VAR: [u16; 4] = [375, 383, 391, 399];
+pub const FX_FILTER_STEREO: [u16; 4] = [376, 384, 392, 400];
+pub const FX_FILTER_MIX: [u16; 4] = [377, 385, 393, 401];
+pub const FX_FLANGER_ENABLE: [u16; 4] = [402, 411, 420, 429];
+pub const FX_FLANGER_RATE: [u16; 4] = [403, 412, 421, 430];
+pub const FX_FLANGER_BPM: [u16; 4] = [404, 413, 422, 431];
+pub const FX_FLANGER_SYNC: [u16; 4] = [405, 414, 423, 432];
+pub const FX_FLANGER_DEPTH: [u16; 4] = [406, 415, 424, 433];
+pub const FX_FLANGER_DELAY: [u16; 4] = [407, 416, 425, 434];
+pub const FX_FLANGER_FEEDBACK: [u16; 4] = [408, 417, 426, 435];
+pub const FX_FLANGER_PHASE: [u16; 4] = [409, 418, 427, 436];
+pub const FX_FLANGER_MIX: [u16; 4] = [410, 419, 428, 437];
+pub const FX_HYPER_ENABLE: [u16; 4] = [438, 445, 452, 459];
+pub const FX_HYPER_RATE: [u16; 4] = [439, 446, 453, 460];
+pub const FX_HYPER_DETUNE: [u16; 4] = [440, 447, 454, 461];
+pub const FX_HYPER_VOICES: [u16; 4] = [441, 448, 455, 462];
+pub const FX_HYPER_HYPER_MIX: [u16; 4] = [442, 449, 456, 463];
+pub const FX_HYPER_SIZE: [u16; 4] = [443, 450, 457, 464];
+pub const FX_HYPER_DIM_MIX: [u16; 4] = [444, 451, 458, 465];
+pub const FX_PHASER_ENABLE: [u16; 4] = [466, 476, 486, 496];
+pub const FX_PHASER_RATE: [u16; 4] = [467, 477, 487, 497];
+pub const FX_PHASER_BPM: [u16; 4] = [468, 478, 488, 498];
+pub const FX_PHASER_SYNC: [u16; 4] = [469, 479, 489, 499];
+pub const FX_PHASER_DEPTH: [u16; 4] = [470, 480, 490, 500];
+pub const FX_PHASER_FREQ: [u16; 4] = [471, 481, 491, 501];
+pub const FX_PHASER_FEEDBACK: [u16; 4] = [472, 482, 492, 502];
+pub const FX_PHASER_STAGES: [u16; 4] = [473, 483, 493, 503];
+pub const FX_PHASER_SPREAD: [u16; 4] = [474, 484, 494, 504];
+pub const FX_PHASER_MIX: [u16; 4] = [475, 485, 495, 505];
+pub const RACK_BUS1_TO: u16 = 506;
+pub const RACK_BUS2_TO: u16 = 507;
+pub const FX_REVERB_ENABLE: [u16; 4] = [508, 519, 530, 541];
+pub const FX_REVERB_ALGO: [u16; 4] = [509, 520, 531, 542];
+pub const FX_REVERB_SIZE: [u16; 4] = [510, 521, 532, 543];
+pub const FX_REVERB_DECAY: [u16; 4] = [511, 522, 533, 544];
+pub const FX_REVERB_PREDELAY: [u16; 4] = [512, 523, 534, 545];
+pub const FX_REVERB_DAMP: [u16; 4] = [513, 524, 535, 546];
+pub const FX_REVERB_LOWCUT: [u16; 4] = [514, 525, 536, 547];
+pub const FX_REVERB_WIDTH: [u16; 4] = [515, 526, 537, 548];
+pub const FX_REVERB_MOVEMENT: [u16; 4] = [516, 527, 538, 549];
+pub const FX_REVERB_FREEZE: [u16; 4] = [517, 528, 539, 550];
+pub const FX_REVERB_MIX: [u16; 4] = [518, 529, 540, 551];
+pub const FX_SPLITTER_ENABLE: [u16; 4] = [552, 559, 566, 573];
+pub const FX_SPLITTER_MODE: [u16; 4] = [553, 560, 567, 574];
+pub const FX_SPLITTER_FREQ1: [u16; 4] = [554, 561, 568, 575];
+pub const FX_SPLITTER_FREQ2: [u16; 4] = [555, 562, 569, 576];
+pub const FX_SPLITTER_BAND1: [u16; 4] = [556, 563, 570, 577];
+pub const FX_SPLITTER_BAND2: [u16; 4] = [557, 564, 571, 578];
+pub const FX_SPLITTER_BAND3: [u16; 4] = [558, 565, 572, 579];
+pub const FX_UTILITY_ENABLE: [u16; 4] = [580, 589, 598, 607];
+pub const FX_UTILITY_GAIN: [u16; 4] = [581, 590, 599, 608];
+pub const FX_UTILITY_PAN: [u16; 4] = [582, 591, 600, 609];
+pub const FX_UTILITY_WIDTH: [u16; 4] = [583, 592, 601, 610];
+pub const FX_UTILITY_MONO_BASS: [u16; 4] = [584, 593, 602, 611];
+pub const FX_UTILITY_BASS_FREQ: [u16; 4] = [585, 594, 603, 612];
+pub const FX_UTILITY_INVERT_L: [u16; 4] = [586, 595, 604, 613];
+pub const FX_UTILITY_INVERT_R: [u16; 4] = [587, 596, 605, 614];
+pub const FX_UTILITY_DC: [u16; 4] = [588, 597, 606, 615];
+pub const GLOBAL_QUALITY: u16 = 616;
+pub const GLOBAL_BPM: u16 = 617;
+pub const GLOBAL_ENV_RATE: u16 = 618;
+pub const GLOBAL_LFO_RATE: u16 = 619;
+pub const LFO_TYPE: [u16; 10] = [620, 633, 646, 659, 672, 685, 698, 711, 724, 737];
+pub const LFO_MODE: [u16; 10] = [621, 634, 647, 660, 673, 686, 699, 712, 725, 738];
+pub const LFO_RATE: [u16; 10] = [622, 635, 648, 661, 674, 687, 700, 713, 726, 739];
+pub const LFO_BPM: [u16; 10] = [623, 636, 649, 662, 675, 688, 701, 714, 727, 740];
+pub const LFO_SYNC_RATE: [u16; 10] = [624, 637, 650, 663, 676, 689, 702, 715, 728, 741];
+pub const LFO_SYNC_MOD: [u16; 10] = [625, 638, 651, 664, 677, 690, 703, 716, 729, 742];
+pub const LFO_X10: [u16; 10] = [626, 639, 652, 665, 678, 691, 704, 717, 730, 743];
+pub const LFO_RISE: [u16; 10] = [627, 640, 653, 666, 679, 692, 705, 718, 731, 744];
+pub const LFO_DELAY: [u16; 10] = [628, 641, 654, 667, 680, 693, 706, 719, 732, 745];
+pub const LFO_SMOOTH: [u16; 10] = [629, 642, 655, 668, 681, 694, 707, 720, 733, 746];
+pub const LFO_PHASE: [u16; 10] = [630, 643, 656, 669, 682, 695, 708, 721, 734, 747];
+pub const LFO_DIRECTION: [u16; 10] = [631, 644, 657, 670, 683, 696, 709, 722, 735, 748];
+pub const LFO_POLY: [u16; 10] = [632, 645, 658, 671, 684, 697, 710, 723, 736, 749];
+pub const MACRO_VALUE: [u16; 8] = [750, 751, 752, 753, 754, 755, 756, 757];
+pub const MASTER_VOLUME: u16 = 758;
+pub const MIX_FILTER_ROUTING: u16 = 759;
+pub const NOISE_ENABLE: u16 = 760;
+pub const NOISE_TYPE: u16 = 761;
+pub const NOISE_LEVEL: u16 = 762;
+pub const NOISE_PAN: u16 = 763;
+pub const NOISE_PITCH: u16 = 764;
+pub const NOISE_KEYTRACK: u16 = 765;
+pub const NOISE_ONESHOT: u16 = 766;
+pub const NOISE_PHASE: u16 = 767;
+pub const NOISE_RAND: u16 = 768;
+pub const NOISE_ROUTE: u16 = 769;
+pub const NOISE_BALANCE: u16 = 770;
+pub const NOISE_SEND1: u16 = 771;
+pub const NOISE_SEND2: u16 = 772;
+pub const OSC_ENABLE: [u16; 3] = [773, 803, 833];
+pub const OSC_LEVEL: [u16; 3] = [774, 804, 834];
+pub const OSC_PAN: [u16; 3] = [775, 805, 835];
+pub const OSC_OCTAVE: [u16; 3] = [776, 806, 836];
+pub const OSC_SEMI: [u16; 3] = [777, 807, 837];
+pub const OSC_FINE: [u16; 3] = [778, 808, 838];
+pub const OSC_COARSE: [u16; 3] = [779, 809, 839];
+pub const OSC_PITCH_MODE: [u16; 3] = [780, 810, 840];
+pub const OSC_WT_POS: [u16; 3] = [781, 811, 841];
+pub const OSC_WT_SMOOTH: [u16; 3] = [782, 812, 842];
+pub const OSC_PHASE: [u16; 3] = [783, 813, 843];
+pub const OSC_RAND_PHASE: [u16; 3] = [784, 814, 844];
+pub const OSC_PHASE_MEM: [u16; 3] = [785, 815, 845];
+pub const OSC_UNISON: [u16; 3] = [786, 816, 846];
+pub const OSC_DETUNE: [u16; 3] = [787, 817, 847];
+pub const OSC_BLEND: [u16; 3] = [788, 818, 848];
+pub const OSC_WIDTH: [u16; 3] = [789, 819, 849];
+pub const OSC_UNI_RANGE: [u16; 3] = [790, 820, 850];
+pub const OSC_UNI_MODE: [u16; 3] = [791, 821, 851];
+pub const OSC_UNI_STACK: [u16; 3] = [792, 822, 852];
+pub const OSC_WT_SPREAD: [u16; 3] = [793, 823, 853];
+pub const OSC_WARP_SPREAD: [u16; 3] = [794, 824, 854];
+pub const OSC_WARP1_MODE: [u16; 3] = [795, 825, 855];
+pub const OSC_WARP1_AMOUNT: [u16; 3] = [796, 826, 856];
+pub const OSC_WARP2_MODE: [u16; 3] = [797, 827, 857];
+pub const OSC_WARP2_AMOUNT: [u16; 3] = [798, 828, 858];
+pub const OSC_ROUTE: [u16; 3] = [799, 829, 859];
+pub const OSC_BALANCE: [u16; 3] = [800, 830, 860];
+pub const OSC_SEND1: [u16; 3] = [801, 831, 861];
+pub const OSC_SEND2: [u16; 3] = [802, 832, 862];
+pub const SUB_ENABLE: u16 = 863;
+pub const SUB_SHAPE: u16 = 864;
+pub const SUB_OCTAVE: u16 = 865;
+pub const SUB_LEVEL: u16 = 866;
+pub const SUB_PAN: u16 = 867;
+pub const SUB_ROUTE: u16 = 868;
+pub const SUB_BALANCE: u16 = 869;
+pub const SUB_SEND1: u16 = 870;
+pub const SUB_SEND2: u16 = 871;
+pub const VOICE_POLYPHONY: u16 = 872;
+pub const VOICE_MONO: u16 = 873;
+pub const VOICE_LEGATO: u16 = 874;
+pub const VOICE_GLIDE: u16 = 875;
+pub const VOICE_GLIDE_ALWAYS: u16 = 876;
+pub const VOICE_GLIDE_SCALED: u16 = 877;
+pub const VOICE_GLIDE_CURVE: u16 = 878;
+pub const VOICE_STEAL: u16 = 879;
+pub const VOICE_BEND_UP: u16 = 880;
+pub const VOICE_BEND_DOWN: u16 = 881;
 
 pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "env.1.attack", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.025, flags: 1 },
@@ -153,7 +294,7 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "env.4.legato_invert", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "env.4.retrig", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "filter.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
-    ParamInfo { key: "filter.1.type", curve: Curve::Enum(12), min: 0.0, max: 11.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "filter.1.type", curve: Curve::Enum(63), min: 0.0, max: 62.0, default: 0.0, flags: 0 },
     ParamInfo { key: "filter.1.cutoff", curve: Curve::Exp, min: 20.0, max: 22000.0, default: 0.4364313, flags: 3 },
     ParamInfo { key: "filter.1.res", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.1, flags: 3 },
     ParamInfo { key: "filter.1.drive", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
@@ -161,8 +302,10 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "filter.1.keytrack", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
     ParamInfo { key: "filter.1.level", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
     ParamInfo { key: "filter.1.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "filter.1.var", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "filter.1.stereo", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
     ParamInfo { key: "filter.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
-    ParamInfo { key: "filter.2.type", curve: Curve::Enum(12), min: 0.0, max: 11.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "filter.2.type", curve: Curve::Enum(63), min: 0.0, max: 62.0, default: 0.0, flags: 0 },
     ParamInfo { key: "filter.2.cutoff", curve: Curve::Exp, min: 20.0, max: 22000.0, default: 0.4364313, flags: 3 },
     ParamInfo { key: "filter.2.res", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.1, flags: 3 },
     ParamInfo { key: "filter.2.drive", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
@@ -170,6 +313,558 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "filter.2.keytrack", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
     ParamInfo { key: "filter.2.level", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
     ParamInfo { key: "filter.2.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "filter.2.var", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "filter.2.stereo", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.bode.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.bode.1.shift", curve: Curve::Lin, min: -2000.0, max: 2000.0, default: 0.525, flags: 3 },
+    ParamInfo { key: "fx.bode.1.feedback", curve: Curve::Lin, min: 0.0, max: 0.95, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.bode.1.spread", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.bode.1.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.bode.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.bode.2.shift", curve: Curve::Lin, min: -2000.0, max: 2000.0, default: 0.525, flags: 3 },
+    ParamInfo { key: "fx.bode.2.feedback", curve: Curve::Lin, min: 0.0, max: 0.95, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.bode.2.spread", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.bode.2.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.bode.3.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.bode.3.shift", curve: Curve::Lin, min: -2000.0, max: 2000.0, default: 0.525, flags: 3 },
+    ParamInfo { key: "fx.bode.3.feedback", curve: Curve::Lin, min: 0.0, max: 0.95, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.bode.3.spread", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.bode.3.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.bode.4.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.bode.4.shift", curve: Curve::Lin, min: -2000.0, max: 2000.0, default: 0.525, flags: 3 },
+    ParamInfo { key: "fx.bode.4.feedback", curve: Curve::Lin, min: 0.0, max: 0.95, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.bode.4.spread", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.bode.4.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.chorus.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.chorus.1.rate", curve: Curve::Exp, min: 0.01, max: 20.0, default: 0.5146788, flags: 1 },
+    ParamInfo { key: "fx.chorus.1.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.chorus.1.sync", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "fx.chorus.1.delay1", curve: Curve::Lin, min: 1.0, max: 40.0, default: 0.17948718, flags: 3 },
+    ParamInfo { key: "fx.chorus.1.delay2", curve: Curve::Lin, min: 1.0, max: 40.0, default: 0.33333334, flags: 3 },
+    ParamInfo { key: "fx.chorus.1.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.chorus.1.feedback", curve: Curve::Lin, min: -0.95, max: 0.95, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.chorus.1.lpf", curve: Curve::Exp, min: 200.0, max: 20000.0, default: 0.88907564, flags: 3 },
+    ParamInfo { key: "fx.chorus.1.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.chorus.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.chorus.2.rate", curve: Curve::Exp, min: 0.01, max: 20.0, default: 0.5146788, flags: 1 },
+    ParamInfo { key: "fx.chorus.2.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.chorus.2.sync", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "fx.chorus.2.delay1", curve: Curve::Lin, min: 1.0, max: 40.0, default: 0.17948718, flags: 3 },
+    ParamInfo { key: "fx.chorus.2.delay2", curve: Curve::Lin, min: 1.0, max: 40.0, default: 0.33333334, flags: 3 },
+    ParamInfo { key: "fx.chorus.2.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.chorus.2.feedback", curve: Curve::Lin, min: -0.95, max: 0.95, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.chorus.2.lpf", curve: Curve::Exp, min: 200.0, max: 20000.0, default: 0.88907564, flags: 3 },
+    ParamInfo { key: "fx.chorus.2.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.chorus.3.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.chorus.3.rate", curve: Curve::Exp, min: 0.01, max: 20.0, default: 0.5146788, flags: 1 },
+    ParamInfo { key: "fx.chorus.3.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.chorus.3.sync", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "fx.chorus.3.delay1", curve: Curve::Lin, min: 1.0, max: 40.0, default: 0.17948718, flags: 3 },
+    ParamInfo { key: "fx.chorus.3.delay2", curve: Curve::Lin, min: 1.0, max: 40.0, default: 0.33333334, flags: 3 },
+    ParamInfo { key: "fx.chorus.3.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.chorus.3.feedback", curve: Curve::Lin, min: -0.95, max: 0.95, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.chorus.3.lpf", curve: Curve::Exp, min: 200.0, max: 20000.0, default: 0.88907564, flags: 3 },
+    ParamInfo { key: "fx.chorus.3.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.chorus.4.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.chorus.4.rate", curve: Curve::Exp, min: 0.01, max: 20.0, default: 0.5146788, flags: 1 },
+    ParamInfo { key: "fx.chorus.4.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.chorus.4.sync", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "fx.chorus.4.delay1", curve: Curve::Lin, min: 1.0, max: 40.0, default: 0.17948718, flags: 3 },
+    ParamInfo { key: "fx.chorus.4.delay2", curve: Curve::Lin, min: 1.0, max: 40.0, default: 0.33333334, flags: 3 },
+    ParamInfo { key: "fx.chorus.4.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.chorus.4.feedback", curve: Curve::Lin, min: -0.95, max: 0.95, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.chorus.4.lpf", curve: Curve::Exp, min: 200.0, max: 20000.0, default: 0.88907564, flags: 3 },
+    ParamInfo { key: "fx.chorus.4.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.compressor.1.mode", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.compressor.1.threshold", curve: Curve::Lin, min: -60.0, max: 0.0, default: 0.7, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.ratio", curve: Curve::Exp, min: 1.0, max: 20.0, default: 0.46275643, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.attack", curve: Curve::Exp, min: 0.1, max: 300.0, default: 0.57518846, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.release", curve: Curve::Exp, min: 5.0, max: 2000.0, default: 0.5304302, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.knee", curve: Curve::Lin, min: 0.0, max: 24.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.gain", curve: Curve::Lin, min: -12.0, max: 36.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.upward", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.downward", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.time", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.xover1", curve: Curve::Exp, min: 40.0, max: 2000.0, default: 0.2808297, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.xover2", curve: Curve::Exp, min: 500.0, max: 16000.0, default: 0.46438563, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.low", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.mid", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.high", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.1.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.compressor.2.mode", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.compressor.2.threshold", curve: Curve::Lin, min: -60.0, max: 0.0, default: 0.7, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.ratio", curve: Curve::Exp, min: 1.0, max: 20.0, default: 0.46275643, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.attack", curve: Curve::Exp, min: 0.1, max: 300.0, default: 0.57518846, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.release", curve: Curve::Exp, min: 5.0, max: 2000.0, default: 0.5304302, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.knee", curve: Curve::Lin, min: 0.0, max: 24.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.gain", curve: Curve::Lin, min: -12.0, max: 36.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.upward", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.downward", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.time", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.xover1", curve: Curve::Exp, min: 40.0, max: 2000.0, default: 0.2808297, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.xover2", curve: Curve::Exp, min: 500.0, max: 16000.0, default: 0.46438563, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.low", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.mid", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.high", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.2.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.compressor.3.mode", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.compressor.3.threshold", curve: Curve::Lin, min: -60.0, max: 0.0, default: 0.7, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.ratio", curve: Curve::Exp, min: 1.0, max: 20.0, default: 0.46275643, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.attack", curve: Curve::Exp, min: 0.1, max: 300.0, default: 0.57518846, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.release", curve: Curve::Exp, min: 5.0, max: 2000.0, default: 0.5304302, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.knee", curve: Curve::Lin, min: 0.0, max: 24.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.gain", curve: Curve::Lin, min: -12.0, max: 36.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.upward", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.downward", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.time", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.xover1", curve: Curve::Exp, min: 40.0, max: 2000.0, default: 0.2808297, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.xover2", curve: Curve::Exp, min: 500.0, max: 16000.0, default: 0.46438563, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.low", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.mid", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.high", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.3.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.compressor.4.mode", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.compressor.4.threshold", curve: Curve::Lin, min: -60.0, max: 0.0, default: 0.7, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.ratio", curve: Curve::Exp, min: 1.0, max: 20.0, default: 0.46275643, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.attack", curve: Curve::Exp, min: 0.1, max: 300.0, default: 0.57518846, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.release", curve: Curve::Exp, min: 5.0, max: 2000.0, default: 0.5304302, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.knee", curve: Curve::Lin, min: 0.0, max: 24.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.gain", curve: Curve::Lin, min: -12.0, max: 36.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.upward", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.downward", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.time", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.xover1", curve: Curve::Exp, min: 40.0, max: 2000.0, default: 0.2808297, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.xover2", curve: Curve::Exp, min: 500.0, max: 16000.0, default: 0.46438563, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.low", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.mid", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.high", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.compressor.4.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.convolve.1.ir", curve: Curve::Enum(13), min: 0.0, max: 12.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.convolve.1.predelay", curve: Curve::Lin, min: 0.0, max: 250.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.1.lowcut", curve: Curve::Exp, min: 20.0, max: 2000.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.1.highcut", curve: Curve::Exp, min: 1000.0, max: 20000.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.1.width", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.1.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.convolve.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.convolve.2.ir", curve: Curve::Enum(13), min: 0.0, max: 12.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.convolve.2.predelay", curve: Curve::Lin, min: 0.0, max: 250.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.2.lowcut", curve: Curve::Exp, min: 20.0, max: 2000.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.2.highcut", curve: Curve::Exp, min: 1000.0, max: 20000.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.2.width", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.2.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.convolve.3.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.convolve.3.ir", curve: Curve::Enum(13), min: 0.0, max: 12.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.convolve.3.predelay", curve: Curve::Lin, min: 0.0, max: 250.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.3.lowcut", curve: Curve::Exp, min: 20.0, max: 2000.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.3.highcut", curve: Curve::Exp, min: 1000.0, max: 20000.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.3.width", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.3.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.convolve.4.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.convolve.4.ir", curve: Curve::Enum(13), min: 0.0, max: 12.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.convolve.4.predelay", curve: Curve::Lin, min: 0.0, max: 250.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.4.lowcut", curve: Curve::Exp, min: 20.0, max: 2000.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.4.highcut", curve: Curve::Exp, min: 1000.0, max: 20000.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.4.width", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.convolve.4.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.delay.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.1.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.delay.1.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.1.sync_l", curve: Curve::Enum(16), min: 0.0, max: 15.0, default: 0.4, flags: 0 },
+    ParamInfo { key: "fx.delay.1.sync_r", curve: Curve::Enum(16), min: 0.0, max: 15.0, default: 0.4, flags: 0 },
+    ParamInfo { key: "fx.delay.1.time_l", curve: Curve::Exp, min: 1.0, max: 4000.0, default: 0.6657135, flags: 3 },
+    ParamInfo { key: "fx.delay.1.time_r", curve: Curve::Exp, min: 1.0, max: 4000.0, default: 0.6657135, flags: 3 },
+    ParamInfo { key: "fx.delay.1.link", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.1.feedback", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.4, flags: 3 },
+    ParamInfo { key: "fx.delay.1.freq", curve: Curve::Exp, min: 40.0, max: 18000.0, default: 0.59325486, flags: 3 },
+    ParamInfo { key: "fx.delay.1.width", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.7, flags: 3 },
+    ParamInfo { key: "fx.delay.1.hq", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.1.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.delay.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.2.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.delay.2.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.2.sync_l", curve: Curve::Enum(16), min: 0.0, max: 15.0, default: 0.4, flags: 0 },
+    ParamInfo { key: "fx.delay.2.sync_r", curve: Curve::Enum(16), min: 0.0, max: 15.0, default: 0.4, flags: 0 },
+    ParamInfo { key: "fx.delay.2.time_l", curve: Curve::Exp, min: 1.0, max: 4000.0, default: 0.6657135, flags: 3 },
+    ParamInfo { key: "fx.delay.2.time_r", curve: Curve::Exp, min: 1.0, max: 4000.0, default: 0.6657135, flags: 3 },
+    ParamInfo { key: "fx.delay.2.link", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.2.feedback", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.4, flags: 3 },
+    ParamInfo { key: "fx.delay.2.freq", curve: Curve::Exp, min: 40.0, max: 18000.0, default: 0.59325486, flags: 3 },
+    ParamInfo { key: "fx.delay.2.width", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.7, flags: 3 },
+    ParamInfo { key: "fx.delay.2.hq", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.2.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.delay.3.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.3.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.delay.3.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.3.sync_l", curve: Curve::Enum(16), min: 0.0, max: 15.0, default: 0.4, flags: 0 },
+    ParamInfo { key: "fx.delay.3.sync_r", curve: Curve::Enum(16), min: 0.0, max: 15.0, default: 0.4, flags: 0 },
+    ParamInfo { key: "fx.delay.3.time_l", curve: Curve::Exp, min: 1.0, max: 4000.0, default: 0.6657135, flags: 3 },
+    ParamInfo { key: "fx.delay.3.time_r", curve: Curve::Exp, min: 1.0, max: 4000.0, default: 0.6657135, flags: 3 },
+    ParamInfo { key: "fx.delay.3.link", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.3.feedback", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.4, flags: 3 },
+    ParamInfo { key: "fx.delay.3.freq", curve: Curve::Exp, min: 40.0, max: 18000.0, default: 0.59325486, flags: 3 },
+    ParamInfo { key: "fx.delay.3.width", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.7, flags: 3 },
+    ParamInfo { key: "fx.delay.3.hq", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.3.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.delay.4.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.4.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.delay.4.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.4.sync_l", curve: Curve::Enum(16), min: 0.0, max: 15.0, default: 0.4, flags: 0 },
+    ParamInfo { key: "fx.delay.4.sync_r", curve: Curve::Enum(16), min: 0.0, max: 15.0, default: 0.4, flags: 0 },
+    ParamInfo { key: "fx.delay.4.time_l", curve: Curve::Exp, min: 1.0, max: 4000.0, default: 0.6657135, flags: 3 },
+    ParamInfo { key: "fx.delay.4.time_r", curve: Curve::Exp, min: 1.0, max: 4000.0, default: 0.6657135, flags: 3 },
+    ParamInfo { key: "fx.delay.4.link", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.4.feedback", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.4, flags: 3 },
+    ParamInfo { key: "fx.delay.4.freq", curve: Curve::Exp, min: 40.0, max: 18000.0, default: 0.59325486, flags: 3 },
+    ParamInfo { key: "fx.delay.4.width", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.7, flags: 3 },
+    ParamInfo { key: "fx.delay.4.hq", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.delay.4.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.distortion.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.1.mode", curve: Curve::Enum(15), min: 0.0, max: 14.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.1.drive", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.distortion.1.bias", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.distortion.1.filter", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.1.filter_type", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.1.freq", curve: Curve::Exp, min: 20.0, max: 20000.0, default: 0.56632334, flags: 3 },
+    ParamInfo { key: "fx.distortion.1.q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.1, flags: 3 },
+    ParamInfo { key: "fx.distortion.1.keytrack", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.1.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.distortion.1.output", curve: Curve::Lin, min: -24.0, max: 12.0, default: 0.6666667, flags: 3 },
+    ParamInfo { key: "fx.distortion.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.2.mode", curve: Curve::Enum(15), min: 0.0, max: 14.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.2.drive", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.distortion.2.bias", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.distortion.2.filter", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.2.filter_type", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.2.freq", curve: Curve::Exp, min: 20.0, max: 20000.0, default: 0.56632334, flags: 3 },
+    ParamInfo { key: "fx.distortion.2.q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.1, flags: 3 },
+    ParamInfo { key: "fx.distortion.2.keytrack", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.2.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.distortion.2.output", curve: Curve::Lin, min: -24.0, max: 12.0, default: 0.6666667, flags: 3 },
+    ParamInfo { key: "fx.distortion.3.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.3.mode", curve: Curve::Enum(15), min: 0.0, max: 14.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.3.drive", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.distortion.3.bias", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.distortion.3.filter", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.3.filter_type", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.3.freq", curve: Curve::Exp, min: 20.0, max: 20000.0, default: 0.56632334, flags: 3 },
+    ParamInfo { key: "fx.distortion.3.q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.1, flags: 3 },
+    ParamInfo { key: "fx.distortion.3.keytrack", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.3.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.distortion.3.output", curve: Curve::Lin, min: -24.0, max: 12.0, default: 0.6666667, flags: 3 },
+    ParamInfo { key: "fx.distortion.4.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.4.mode", curve: Curve::Enum(15), min: 0.0, max: 14.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.4.drive", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.distortion.4.bias", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.distortion.4.filter", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.4.filter_type", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.4.freq", curve: Curve::Exp, min: 20.0, max: 20000.0, default: 0.56632334, flags: 3 },
+    ParamInfo { key: "fx.distortion.4.q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.1, flags: 3 },
+    ParamInfo { key: "fx.distortion.4.keytrack", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.distortion.4.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.distortion.4.output", curve: Curve::Lin, min: -24.0, max: 12.0, default: 0.6666667, flags: 3 },
+    ParamInfo { key: "fx.eq.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.eq.1.low_type", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.eq.1.low_freq", curve: Curve::Exp, min: 20.0, max: 2000.0, default: 0.38907564, flags: 3 },
+    ParamInfo { key: "fx.eq.1.low_q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.1.low_gain", curve: Curve::Lin, min: -18.0, max: 18.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.1.mid_freq", curve: Curve::Exp, min: 100.0, max: 10000.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.1.mid_q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.1.mid_gain", curve: Curve::Lin, min: -18.0, max: 18.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.1.high_type", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.eq.1.high_freq", curve: Curve::Exp, min: 1000.0, max: 20000.0, default: 0.598104, flags: 3 },
+    ParamInfo { key: "fx.eq.1.high_q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.1.high_gain", curve: Curve::Lin, min: -18.0, max: 18.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.eq.2.low_type", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.eq.2.low_freq", curve: Curve::Exp, min: 20.0, max: 2000.0, default: 0.38907564, flags: 3 },
+    ParamInfo { key: "fx.eq.2.low_q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.2.low_gain", curve: Curve::Lin, min: -18.0, max: 18.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.2.mid_freq", curve: Curve::Exp, min: 100.0, max: 10000.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.2.mid_q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.2.mid_gain", curve: Curve::Lin, min: -18.0, max: 18.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.2.high_type", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.eq.2.high_freq", curve: Curve::Exp, min: 1000.0, max: 20000.0, default: 0.598104, flags: 3 },
+    ParamInfo { key: "fx.eq.2.high_q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.2.high_gain", curve: Curve::Lin, min: -18.0, max: 18.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.3.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.eq.3.low_type", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.eq.3.low_freq", curve: Curve::Exp, min: 20.0, max: 2000.0, default: 0.38907564, flags: 3 },
+    ParamInfo { key: "fx.eq.3.low_q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.3.low_gain", curve: Curve::Lin, min: -18.0, max: 18.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.3.mid_freq", curve: Curve::Exp, min: 100.0, max: 10000.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.3.mid_q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.3.mid_gain", curve: Curve::Lin, min: -18.0, max: 18.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.3.high_type", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.eq.3.high_freq", curve: Curve::Exp, min: 1000.0, max: 20000.0, default: 0.598104, flags: 3 },
+    ParamInfo { key: "fx.eq.3.high_q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.3.high_gain", curve: Curve::Lin, min: -18.0, max: 18.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.4.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.eq.4.low_type", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.eq.4.low_freq", curve: Curve::Exp, min: 20.0, max: 2000.0, default: 0.38907564, flags: 3 },
+    ParamInfo { key: "fx.eq.4.low_q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.4.low_gain", curve: Curve::Lin, min: -18.0, max: 18.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.4.mid_freq", curve: Curve::Exp, min: 100.0, max: 10000.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.4.mid_q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.4.mid_gain", curve: Curve::Lin, min: -18.0, max: 18.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.4.high_type", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.eq.4.high_freq", curve: Curve::Exp, min: 1000.0, max: 20000.0, default: 0.598104, flags: 3 },
+    ParamInfo { key: "fx.eq.4.high_q", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.eq.4.high_gain", curve: Curve::Lin, min: -18.0, max: 18.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.filter.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.filter.1.type", curve: Curve::Enum(63), min: 0.0, max: 62.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.filter.1.cutoff", curve: Curve::Exp, min: 20.0, max: 22000.0, default: 0.5586158, flags: 3 },
+    ParamInfo { key: "fx.filter.1.res", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.2, flags: 3 },
+    ParamInfo { key: "fx.filter.1.drive", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.filter.1.var", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.filter.1.stereo", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.filter.1.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.filter.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.filter.2.type", curve: Curve::Enum(63), min: 0.0, max: 62.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.filter.2.cutoff", curve: Curve::Exp, min: 20.0, max: 22000.0, default: 0.5586158, flags: 3 },
+    ParamInfo { key: "fx.filter.2.res", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.2, flags: 3 },
+    ParamInfo { key: "fx.filter.2.drive", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.filter.2.var", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.filter.2.stereo", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.filter.2.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.filter.3.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.filter.3.type", curve: Curve::Enum(63), min: 0.0, max: 62.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.filter.3.cutoff", curve: Curve::Exp, min: 20.0, max: 22000.0, default: 0.5586158, flags: 3 },
+    ParamInfo { key: "fx.filter.3.res", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.2, flags: 3 },
+    ParamInfo { key: "fx.filter.3.drive", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.filter.3.var", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.filter.3.stereo", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.filter.3.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.filter.4.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.filter.4.type", curve: Curve::Enum(63), min: 0.0, max: 62.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.filter.4.cutoff", curve: Curve::Exp, min: 20.0, max: 22000.0, default: 0.5586158, flags: 3 },
+    ParamInfo { key: "fx.filter.4.res", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.2, flags: 3 },
+    ParamInfo { key: "fx.filter.4.drive", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.filter.4.var", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.filter.4.stereo", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.filter.4.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.flanger.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.flanger.1.rate", curve: Curve::Exp, min: 0.01, max: 20.0, default: 0.44747284, flags: 1 },
+    ParamInfo { key: "fx.flanger.1.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.flanger.1.sync", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "fx.flanger.1.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.flanger.1.delay", curve: Curve::Exp, min: 0.1, max: 10.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.flanger.1.feedback", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.75, flags: 3 },
+    ParamInfo { key: "fx.flanger.1.phase", curve: Curve::Lin, min: 0.0, max: 180.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.flanger.1.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.flanger.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.flanger.2.rate", curve: Curve::Exp, min: 0.01, max: 20.0, default: 0.44747284, flags: 1 },
+    ParamInfo { key: "fx.flanger.2.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.flanger.2.sync", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "fx.flanger.2.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.flanger.2.delay", curve: Curve::Exp, min: 0.1, max: 10.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.flanger.2.feedback", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.75, flags: 3 },
+    ParamInfo { key: "fx.flanger.2.phase", curve: Curve::Lin, min: 0.0, max: 180.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.flanger.2.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.flanger.3.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.flanger.3.rate", curve: Curve::Exp, min: 0.01, max: 20.0, default: 0.44747284, flags: 1 },
+    ParamInfo { key: "fx.flanger.3.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.flanger.3.sync", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "fx.flanger.3.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.flanger.3.delay", curve: Curve::Exp, min: 0.1, max: 10.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.flanger.3.feedback", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.75, flags: 3 },
+    ParamInfo { key: "fx.flanger.3.phase", curve: Curve::Lin, min: 0.0, max: 180.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.flanger.3.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.flanger.4.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.flanger.4.rate", curve: Curve::Exp, min: 0.01, max: 20.0, default: 0.44747284, flags: 1 },
+    ParamInfo { key: "fx.flanger.4.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.flanger.4.sync", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "fx.flanger.4.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.flanger.4.delay", curve: Curve::Exp, min: 0.1, max: 10.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.flanger.4.feedback", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.75, flags: 3 },
+    ParamInfo { key: "fx.flanger.4.phase", curve: Curve::Lin, min: 0.0, max: 180.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.flanger.4.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.hyper.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.hyper.1.rate", curve: Curve::Exp, min: 0.1, max: 20.0, default: 0.39247206, flags: 1 },
+    ParamInfo { key: "fx.hyper.1.detune", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.hyper.1.voices", curve: Curve::Int, min: 2.0, max: 8.0, default: 0.33333334, flags: 0 },
+    ParamInfo { key: "fx.hyper.1.hyper_mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.hyper.1.size", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.hyper.1.dim_mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.hyper.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.hyper.2.rate", curve: Curve::Exp, min: 0.1, max: 20.0, default: 0.39247206, flags: 1 },
+    ParamInfo { key: "fx.hyper.2.detune", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.hyper.2.voices", curve: Curve::Int, min: 2.0, max: 8.0, default: 0.33333334, flags: 0 },
+    ParamInfo { key: "fx.hyper.2.hyper_mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.hyper.2.size", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.hyper.2.dim_mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.hyper.3.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.hyper.3.rate", curve: Curve::Exp, min: 0.1, max: 20.0, default: 0.39247206, flags: 1 },
+    ParamInfo { key: "fx.hyper.3.detune", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.hyper.3.voices", curve: Curve::Int, min: 2.0, max: 8.0, default: 0.33333334, flags: 0 },
+    ParamInfo { key: "fx.hyper.3.hyper_mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.hyper.3.size", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.hyper.3.dim_mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.hyper.4.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.hyper.4.rate", curve: Curve::Exp, min: 0.1, max: 20.0, default: 0.39247206, flags: 1 },
+    ParamInfo { key: "fx.hyper.4.detune", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.hyper.4.voices", curve: Curve::Int, min: 2.0, max: 8.0, default: 0.33333334, flags: 0 },
+    ParamInfo { key: "fx.hyper.4.hyper_mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.hyper.4.size", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.hyper.4.dim_mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "fx.phaser.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.phaser.1.rate", curve: Curve::Exp, min: 0.01, max: 20.0, default: 0.44747284, flags: 1 },
+    ParamInfo { key: "fx.phaser.1.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.phaser.1.sync", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "fx.phaser.1.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.phaser.1.freq", curve: Curve::Exp, min: 40.0, max: 10000.0, default: 0.54256153, flags: 3 },
+    ParamInfo { key: "fx.phaser.1.feedback", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.75, flags: 3 },
+    ParamInfo { key: "fx.phaser.1.stages", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.5, flags: 0 },
+    ParamInfo { key: "fx.phaser.1.spread", curve: Curve::Lin, min: 0.0, max: 180.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.phaser.1.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.phaser.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.phaser.2.rate", curve: Curve::Exp, min: 0.01, max: 20.0, default: 0.44747284, flags: 1 },
+    ParamInfo { key: "fx.phaser.2.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.phaser.2.sync", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "fx.phaser.2.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.phaser.2.freq", curve: Curve::Exp, min: 40.0, max: 10000.0, default: 0.54256153, flags: 3 },
+    ParamInfo { key: "fx.phaser.2.feedback", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.75, flags: 3 },
+    ParamInfo { key: "fx.phaser.2.stages", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.5, flags: 0 },
+    ParamInfo { key: "fx.phaser.2.spread", curve: Curve::Lin, min: 0.0, max: 180.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.phaser.2.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.phaser.3.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.phaser.3.rate", curve: Curve::Exp, min: 0.01, max: 20.0, default: 0.44747284, flags: 1 },
+    ParamInfo { key: "fx.phaser.3.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.phaser.3.sync", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "fx.phaser.3.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.phaser.3.freq", curve: Curve::Exp, min: 40.0, max: 10000.0, default: 0.54256153, flags: 3 },
+    ParamInfo { key: "fx.phaser.3.feedback", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.75, flags: 3 },
+    ParamInfo { key: "fx.phaser.3.stages", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.5, flags: 0 },
+    ParamInfo { key: "fx.phaser.3.spread", curve: Curve::Lin, min: 0.0, max: 180.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.phaser.3.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.phaser.4.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.phaser.4.rate", curve: Curve::Exp, min: 0.01, max: 20.0, default: 0.44747284, flags: 1 },
+    ParamInfo { key: "fx.phaser.4.bpm", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.phaser.4.sync", curve: Curve::Enum(10), min: 0.0, max: 9.0, default: 0.5555556, flags: 0 },
+    ParamInfo { key: "fx.phaser.4.depth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.phaser.4.freq", curve: Curve::Exp, min: 40.0, max: 10000.0, default: 0.54256153, flags: 3 },
+    ParamInfo { key: "fx.phaser.4.feedback", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.75, flags: 3 },
+    ParamInfo { key: "fx.phaser.4.stages", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.5, flags: 0 },
+    ParamInfo { key: "fx.phaser.4.spread", curve: Curve::Lin, min: 0.0, max: 180.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.phaser.4.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "rack.bus1_to", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "rack.bus2_to", curve: Curve::Enum(2), min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.reverb.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.reverb.1.algo", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.reverb.1.size", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.reverb.1.decay", curve: Curve::Exp, min: 0.1, max: 30.0, default: 0.5643406, flags: 3 },
+    ParamInfo { key: "fx.reverb.1.predelay", curve: Curve::Lin, min: 0.0, max: 250.0, default: 0.04, flags: 3 },
+    ParamInfo { key: "fx.reverb.1.damp", curve: Curve::Exp, min: 500.0, max: 20000.0, default: 0.7516073, flags: 3 },
+    ParamInfo { key: "fx.reverb.1.lowcut", curve: Curve::Exp, min: 20.0, max: 1000.0, default: 0.2808297, flags: 3 },
+    ParamInfo { key: "fx.reverb.1.width", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.reverb.1.movement", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.reverb.1.freeze", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.reverb.1.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.reverb.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.reverb.2.algo", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.reverb.2.size", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.reverb.2.decay", curve: Curve::Exp, min: 0.1, max: 30.0, default: 0.5643406, flags: 3 },
+    ParamInfo { key: "fx.reverb.2.predelay", curve: Curve::Lin, min: 0.0, max: 250.0, default: 0.04, flags: 3 },
+    ParamInfo { key: "fx.reverb.2.damp", curve: Curve::Exp, min: 500.0, max: 20000.0, default: 0.7516073, flags: 3 },
+    ParamInfo { key: "fx.reverb.2.lowcut", curve: Curve::Exp, min: 20.0, max: 1000.0, default: 0.2808297, flags: 3 },
+    ParamInfo { key: "fx.reverb.2.width", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.reverb.2.movement", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.reverb.2.freeze", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.reverb.2.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.reverb.3.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.reverb.3.algo", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.reverb.3.size", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.reverb.3.decay", curve: Curve::Exp, min: 0.1, max: 30.0, default: 0.5643406, flags: 3 },
+    ParamInfo { key: "fx.reverb.3.predelay", curve: Curve::Lin, min: 0.0, max: 250.0, default: 0.04, flags: 3 },
+    ParamInfo { key: "fx.reverb.3.damp", curve: Curve::Exp, min: 500.0, max: 20000.0, default: 0.7516073, flags: 3 },
+    ParamInfo { key: "fx.reverb.3.lowcut", curve: Curve::Exp, min: 20.0, max: 1000.0, default: 0.2808297, flags: 3 },
+    ParamInfo { key: "fx.reverb.3.width", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.reverb.3.movement", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.reverb.3.freeze", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.reverb.3.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.reverb.4.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.reverb.4.algo", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.reverb.4.size", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.reverb.4.decay", curve: Curve::Exp, min: 0.1, max: 30.0, default: 0.5643406, flags: 3 },
+    ParamInfo { key: "fx.reverb.4.predelay", curve: Curve::Lin, min: 0.0, max: 250.0, default: 0.04, flags: 3 },
+    ParamInfo { key: "fx.reverb.4.damp", curve: Curve::Exp, min: 500.0, max: 20000.0, default: 0.7516073, flags: 3 },
+    ParamInfo { key: "fx.reverb.4.lowcut", curve: Curve::Exp, min: 20.0, max: 1000.0, default: 0.2808297, flags: 3 },
+    ParamInfo { key: "fx.reverb.4.width", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 3 },
+    ParamInfo { key: "fx.reverb.4.movement", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.3, flags: 3 },
+    ParamInfo { key: "fx.reverb.4.freeze", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.reverb.4.mix", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.25, flags: 3 },
+    ParamInfo { key: "fx.splitter.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.splitter.1.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.splitter.1.freq1", curve: Curve::Exp, min: 40.0, max: 16000.0, default: 0.33629557, flags: 3 },
+    ParamInfo { key: "fx.splitter.1.freq2", curve: Curve::Exp, min: 100.0, max: 18000.0, default: 0.65496355, flags: 3 },
+    ParamInfo { key: "fx.splitter.1.band1", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.splitter.1.band2", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.splitter.1.band3", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.splitter.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.splitter.2.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.splitter.2.freq1", curve: Curve::Exp, min: 40.0, max: 16000.0, default: 0.33629557, flags: 3 },
+    ParamInfo { key: "fx.splitter.2.freq2", curve: Curve::Exp, min: 100.0, max: 18000.0, default: 0.65496355, flags: 3 },
+    ParamInfo { key: "fx.splitter.2.band1", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.splitter.2.band2", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.splitter.2.band3", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.splitter.3.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.splitter.3.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.splitter.3.freq1", curve: Curve::Exp, min: 40.0, max: 16000.0, default: 0.33629557, flags: 3 },
+    ParamInfo { key: "fx.splitter.3.freq2", curve: Curve::Exp, min: 100.0, max: 18000.0, default: 0.65496355, flags: 3 },
+    ParamInfo { key: "fx.splitter.3.band1", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.splitter.3.band2", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.splitter.3.band3", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.splitter.4.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.splitter.4.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.splitter.4.freq1", curve: Curve::Exp, min: 40.0, max: 16000.0, default: 0.33629557, flags: 3 },
+    ParamInfo { key: "fx.splitter.4.freq2", curve: Curve::Exp, min: 100.0, max: 18000.0, default: 0.65496355, flags: 3 },
+    ParamInfo { key: "fx.splitter.4.band1", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.splitter.4.band2", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.splitter.4.band3", curve: Curve::Lin, min: -24.0, max: 24.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.utility.1.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.utility.1.gain", curve: Curve::Lin, min: -36.0, max: 36.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.utility.1.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.utility.1.width", curve: Curve::Lin, min: 0.0, max: 2.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.utility.1.mono_bass", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.utility.1.bass_freq", curve: Curve::Exp, min: 40.0, max: 500.0, default: 0.43496844, flags: 3 },
+    ParamInfo { key: "fx.utility.1.invert_l", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.utility.1.invert_r", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.utility.1.dc", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.utility.2.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.utility.2.gain", curve: Curve::Lin, min: -36.0, max: 36.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.utility.2.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.utility.2.width", curve: Curve::Lin, min: 0.0, max: 2.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.utility.2.mono_bass", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.utility.2.bass_freq", curve: Curve::Exp, min: 40.0, max: 500.0, default: 0.43496844, flags: 3 },
+    ParamInfo { key: "fx.utility.2.invert_l", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.utility.2.invert_r", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.utility.2.dc", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.utility.3.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.utility.3.gain", curve: Curve::Lin, min: -36.0, max: 36.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.utility.3.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.utility.3.width", curve: Curve::Lin, min: 0.0, max: 2.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.utility.3.mono_bass", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.utility.3.bass_freq", curve: Curve::Exp, min: 40.0, max: 500.0, default: 0.43496844, flags: 3 },
+    ParamInfo { key: "fx.utility.3.invert_l", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.utility.3.invert_r", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.utility.3.dc", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.utility.4.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "fx.utility.4.gain", curve: Curve::Lin, min: -36.0, max: 36.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.utility.4.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.utility.4.width", curve: Curve::Lin, min: 0.0, max: 2.0, default: 0.5, flags: 3 },
+    ParamInfo { key: "fx.utility.4.mono_bass", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.utility.4.bass_freq", curve: Curve::Exp, min: 40.0, max: 500.0, default: 0.43496844, flags: 3 },
+    ParamInfo { key: "fx.utility.4.invert_l", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.utility.4.invert_r", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "fx.utility.4.dc", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "global.quality", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.5, flags: 0 },
     ParamInfo { key: "global.bpm", curve: Curve::Lin, min: 20.0, max: 300.0, default: 0.35714287, flags: 0 },
     ParamInfo { key: "global.env_rate", curve: Curve::Exp, min: 0.1, max: 10.0, default: 0.5, flags: 0 },

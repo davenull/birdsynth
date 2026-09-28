@@ -1,0 +1,89 @@
+# Filter: any of the voice filter types, on the whole mix.
+
+[group]
+key = "fx.filter"
+name = "FX Filter"
+instances = ["1", "2", "3", "4"]
+instance_names = ["FX Filter 1", "FX Filter 2", "FX Filter 3", "FX Filter 4"]
+
+[[param]]
+key = "enable"
+name = "On"
+curve = "bool"
+default = 1
+explain = "Switches the filter on. Off, the signal passes through untouched (the change is faded, so it never clicks)."
+
+[[param]]
+key = "type"
+name = "Type"
+curve = "enum"
+options = ["Low 12", "Low 24", "High 12", "High 24", "Band 12", "Band 24", "Notch 12", "Notch 24", "Ladder Low 6", "Ladder Low 12", "Ladder Low 18", "Ladder Low 24", "Low 6", "High 6", "Low 18", "High 18", "Low 36", "High 36", "Peak 12", "Peak 24", "Allpass 12", "Allpass 24", "Low Shelf", "High Shelf", "Bell", "Tilt", "Low-Band-High 12", "Low-Band-High 24", "Low-High 12", "Band-Notch 12", "Ladder High 24", "Ladder Band 12", "Dirty Ladder 24", "Smooth Ladder 24", "Acid 18", "Acid 24", "Diode 12", "Diode 24", "SK Low 12", "SK High 12", "SK Band 12", "Scream Low 12", "Scream High 12", "Comb +", "Comb -", "Flange +", "Flange -", "Dist Comb +", "Dist Comb -", "Allpass Comb", "Phaser 4 +", "Phaser 4 -", "Phaser 8 +", "Phaser 8 -", "Phaser 12 +", "Phaser 12 -", "Formant", "Formant Deep", "Formant Bright", "Ring Mod", "Sample & Hold", "Diffusor", "Band Reject"]
+default = 0
+explain = "The filter's shape (the same types as the voice filters)."
+
+[[param]]
+key = "cutoff"
+name = "Cutoff"
+curve = "exp"
+min = 20.0
+max = 22000.0
+default = 1000.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "The frequency where the filter starts to act."
+
+[[param]]
+key = "res"
+name = "Resonance"
+short = "Res"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.2
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Boost at the cutoff (the gain of the EQ types, the feedback of the combs)."
+
+[[param]]
+key = "drive"
+name = "Drive"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Saturation on the way into the filter."
+
+[[param]]
+key = "var"
+name = "Var"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.5
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "The type's extra control (morph, vowel, Q, spread or tone)."
+
+[[param]]
+key = "stereo"
+name = "Stereo"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+unit = "oct"
+flags = ["mod", "smooth"]
+explain = "Spreads the cutoff between left and right."
+
+[[param]]
+key = "mix"
+name = "Mix"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 1.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Balance between the dry signal and the filtered signal."

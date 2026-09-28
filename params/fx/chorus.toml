@@ -1,0 +1,108 @@
+# Chorus: two gently swept delays per side, thickening the sound.
+
+[group]
+key = "fx.chorus"
+name = "Chorus"
+instances = ["1", "2", "3", "4"]
+instance_names = ["Chorus 1", "Chorus 2", "Chorus 3", "Chorus 4"]
+
+[[param]]
+key = "enable"
+name = "On"
+curve = "bool"
+default = 1
+explain = "Switches the chorus on. Off, the signal passes through untouched (the change is faded, so it never clicks)."
+
+[[param]]
+key = "rate"
+name = "Rate"
+curve = "exp"
+min = 0.01
+max = 20.0
+default = 0.5
+unit = "Hz"
+flags = ["mod"]
+explain = "Speed of the modulation, in cycles per second (when BPM sync is off)."
+
+[[param]]
+key = "bpm"
+name = "BPM Sync"
+short = "BPM"
+curve = "bool"
+default = 0
+explain = "Locks the modulation rate to the tempo."
+
+[[param]]
+key = "sync"
+name = "Sync Rate"
+short = "Length"
+curve = "enum"
+options = ["8 bars", "4 bars", "2 bars", "1 bar", "1/2", "1/4", "1/8", "1/16", "1/32", "1/64"]
+default = 5
+explain = "Length of one modulation cycle in musical time (when BPM sync is on)."
+
+[[param]]
+key = "delay1"
+name = "Delay 1"
+curve = "lin"
+min = 1.0
+max = 40.0
+default = 8.0
+unit = "ms"
+flags = ["mod", "smooth"]
+explain = "Length of the first delay."
+
+[[param]]
+key = "delay2"
+name = "Delay 2"
+curve = "lin"
+min = 1.0
+max = 40.0
+default = 14.0
+unit = "ms"
+flags = ["mod", "smooth"]
+explain = "Length of the second delay."
+
+[[param]]
+key = "depth"
+name = "Depth"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.3
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How far the delays sweep."
+
+[[param]]
+key = "feedback"
+name = "Feedback"
+curve = "lin"
+min = -0.95
+max = 0.95
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Feeds the delays back into themselves."
+
+[[param]]
+key = "lpf"
+name = "Filter"
+curve = "exp"
+min = 200.0
+max = 20000.0
+default = 12000.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "A low-pass on the chorused signal."
+
+[[param]]
+key = "mix"
+name = "Mix"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.5
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Balance between the dry signal and the chorused signal."

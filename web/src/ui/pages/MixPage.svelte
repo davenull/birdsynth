@@ -8,6 +8,7 @@
   import Toggle from '../primitives/Toggle.svelte';
   import Scope from '../primitives/Scope.svelte';
   import RoutingDiagram from '../graphs/RoutingDiagram.svelte';
+  import { filterGroup } from '../../state/filter-types';
 
   const synth = getContext<Synth>('synth');
   const SOURCES = [
@@ -44,12 +45,13 @@
         <div class="row">
           <Knob param={p(`filter.${n}`, 'level')} size={24} color="var(--filter)" compact />
           <Knob param={p(`filter.${n}`, 'pan')} size={24} color="var(--filter)" compact />
+          <Knob param={p(`filter.${n}`, 'mix')} size={24} color="var(--filter)" compact />
         </div>
-        <Select param={p(`filter.${n}`, 'type')} label="Type" wide />
+        <Select param={p(`filter.${n}`, 'type')} label="Type" wide group={filterGroup} />
         <div class="row">
-          <Knob param={p(`filter.${n}`, 'cutoff')} size={22} color="var(--filter)" compact />
-          <Knob param={p(`filter.${n}`, 'res')} size={22} color="var(--filter)" compact />
           <Knob param={p(`filter.${n}`, 'keytrack')} size={22} color="var(--filter)" compact />
+          <Knob param={p(`filter.${n}`, 'stereo')} size={22} color="var(--filter)" compact />
+          <Knob param={p(`filter.${n}`, 'var')} size={22} color="var(--filter)" compact />
         </div>
       </section>
     {/each}

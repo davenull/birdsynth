@@ -17,9 +17,9 @@ explain = "Switches the filter on. While it's off, the signal passes untouched."
 key = "type"
 name = "Type"
 curve = "enum"
-options = ["Low 12", "Low 24", "High 12", "High 24", "Band 12", "Band 24", "Notch 12", "Notch 24", "Ladder Low 6", "Ladder Low 12", "Ladder Low 18", "Ladder Low 24"]
+options = ["Low 12", "Low 24", "High 12", "High 24", "Band 12", "Band 24", "Notch 12", "Notch 24", "Ladder Low 6", "Ladder Low 12", "Ladder Low 18", "Ladder Low 24", "Low 6", "High 6", "Low 18", "High 18", "Low 36", "High 36", "Peak 12", "Peak 24", "Allpass 12", "Allpass 24", "Low Shelf", "High Shelf", "Bell", "Tilt", "Low-Band-High 12", "Low-Band-High 24", "Low-High 12", "Band-Notch 12", "Ladder High 24", "Ladder Band 12", "Dirty Ladder 24", "Smooth Ladder 24", "Acid 18", "Acid 24", "Diode 12", "Diode 24", "SK Low 12", "SK High 12", "SK Band 12", "Scream Low 12", "Scream High 12", "Comb +", "Comb -", "Flange +", "Flange -", "Dist Comb +", "Dist Comb -", "Allpass Comb", "Phaser 4 +", "Phaser 4 -", "Phaser 8 +", "Phaser 8 -", "Phaser 12 +", "Phaser 12 -", "Formant", "Formant Deep", "Formant Bright", "Ring Mod", "Sample & Hold", "Diffusor", "Band Reject"]
 default = 0
-explain = "The filter's shape. Low passes lows and cuts highs; High does the reverse; Band keeps a band around the cutoff; Notch removes one. 12 or 24 is how steeply it cuts, in dB per octave. The Ladder types model the classic four-stage transistor ladder."
+explain = "The filter's shape. Low passes lows and cuts highs; High does the reverse; Band keeps a band around the cutoff; Notch removes one; the number is how steeply it cuts, in dB per octave. EQ types boost or cut (Resonance sets the gain), Multi types morph with Var, Ladders model four-stage transistor ladders, Sallen-Key types scream when pushed, Flanges are combs and phasers tuned by the cutoff, Formants make vowels (Var picks the vowel), and Misc holds ring modulation, sample & hold, a diffusor and a band reject."
 
 [[param]]
 key = "cutoff"
@@ -99,3 +99,25 @@ default = 0.0
 unit = "pan"
 flags = ["mod", "smooth"]
 explain = "Stereo position of the filter's output."
+
+[[param]]
+key = "var"
+name = "Var"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.5
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "The type's extra control: the morph position of the Multi types, the vowel of the Formants, the Q of the EQ types, the spread of the phasers, the brightness of the combs, and the waveform of the ring modulator."
+
+[[param]]
+key = "stereo"
+name = "Stereo"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+unit = "oct"
+flags = ["mod", "smooth"]
+explain = "Spreads the cutoff between the left and right channels (up to an octave apart), widening the sound."

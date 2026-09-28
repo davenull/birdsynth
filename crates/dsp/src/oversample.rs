@@ -45,6 +45,104 @@ pub fn design() -> [f32; TAPS] {
     out
 }
 
+/// Coefficients of a halfband of any length `taps` = 4k + 3 (unity DC gain),
+/// for effects that need a deeper stopband than the voice path's.
+pub fn design_taps(taps: usize, beta: f64) -> Vec<f32> {
+    assert!(taps % 4 == 3, "a halfband with an odd centre needs 4k + 3 taps");
+    let c = ((taps - 1) / 2) as f64;
+    let mut h: Vec<f64> = (0..taps)
+        .map(|i| {
+            let n = i as f64 - c;
+            let sinc = if n == 0.0 { 0.5 } else { (std::f64::consts::PI * n * 0.5).sin() / (std::f64::consts::PI * n) };
+            let r = n / c;
+            sinc * bessel_i0(beta * (1.0 - r * r).max(0.0).sqrt()) / bessel_i0(beta)
+        })
+        .collect();
+    let sum: f64 = h.iter().sum();
+    h.iter_mut().for_each(|v| *v /= sum);
+    h.into_iter().map(|v| v as f32).collect()
+}
+
+/// 1:2 interpolation for one channel with a halfband from `design_taps`:
+/// zero-stuffing then filtering, done polyphase (the odd outputs are just a
+/// delayed copy of the input).
+pub struct Up2 {
+    /// The taps at even indices (the non-zero off-centre ones), doubled for the ×2 gain.
+    even: Box<[f32]>,
+    hist: Box<[f32]>,
+    pos: usize,
+    /// Input delay of the odd outputs.
+    lag: usize,
+}
+
+impl Up2 {
+    pub fn new(h: &[f32]) -> Up2 {
+        let even: Box<[f32]> = h.iter().step_by(2).map(|v| 2.0 * v).collect();
+        let m = even.len();
+        let c = (h.len() - 1) / 2;
+        Up2 { even, hist: vec![0.0; 2 * m].into_boxed_slice(), pos: 0, lag: (c - 1) / 2 }
+    }
+
+    /// One input sample in, two output samples out.
+    #[inline]
+    pub fn process(&mut self, x: f32) -> (f32, f32) {
+        let m = self.even.len();
+        self.pos = if self.pos == 0 { m - 1 } else { self.pos - 1 };
+        self.hist[self.pos] = x;
+        self.hist[self.pos + m] = x;
+        // hist[pos..pos+m] is newest..oldest
+        let w = &self.hist[self.pos..self.pos + m];
+        let mut acc = 0.0;
+        for j in 0..m {
+            acc += self.even[j] * w[j];
+        }
+        (acc, w[self.lag])
+    }
+
+    pub fn reset(&mut self) {
+        self.hist.fill(0.0);
+        self.pos = 0;
+    }
+}
+
+/// 2:1 decimation for one channel with a halfband from `design_taps`.
+pub struct Down2 {
+    h: Box<[f32]>,
+    hist: Box<[f32]>,
+    pos: usize,
+}
+
+impl Down2 {
+    pub fn new(h: &[f32]) -> Down2 {
+        Down2 { h: h.into(), hist: vec![0.0; 2 * h.len()].into_boxed_slice(), pos: 0 }
+    }
+
+    /// Two input samples in (oldest first), one out.
+    #[inline]
+    pub fn process(&mut self, x0: f32, x1: f32) -> f32 {
+        let t = self.h.len();
+        for x in [x0, x1] {
+            self.hist[self.pos] = x;
+            self.hist[self.pos + t] = x;
+            self.pos = if self.pos + 1 == t { 0 } else { self.pos + 1 };
+        }
+        let w = &self.hist[self.pos..self.pos + t];
+        let c = (t - 1) / 2;
+        let mut acc = self.h[c] * w[c];
+        let mut i = (c + 1) % 2;
+        while i < t {
+            acc += self.h[i] * w[i];
+            i += 2;
+        }
+        acc
+    }
+
+    pub fn reset(&mut self) {
+        self.hist.fill(0.0);
+        self.pos = 0;
+    }
+}
+
 /// One 2:1 stage for one channel.
 #[derive(Clone, Copy, Debug)]
 pub struct Halfband {
@@ -117,6 +215,49 @@ mod tests {
         for f in [29_000.0, 35_000.0, 45_000.0] {
             let g = gain_at(f, sr_in);
             assert!(20.0 * g.log10() < -70.0, "{f} Hz: {:.1} dB", 20.0 * g.log10());
+        }
+    }
+
+    #[test]
+    fn up_then_down_is_a_clean_delay() {
+        let h = design_taps(79, 9.0);
+        let (mut up, mut down) = (Up2::new(&h), Down2::new(&h));
+        let n = 4096;
+        // a few unrelated tones, so only the true delay lines them up
+        let x: Vec<f32> = (0..n)
+            .map(|i| {
+                let t = i as f64 / 48_000.0;
+                [(311.0, 0.3), (1_733.0, 0.3), (5_101.0, 0.2), (11_003.0, 0.1)].iter().map(|(f, a)| a * (std::f64::consts::TAU * f * t).sin()).sum::<f64>() as f32
+            })
+            .collect();
+        // pairing each even output with the odd one before it makes the round trip a whole number of samples
+        let mut prev = 0.0;
+        let y: Vec<f32> = x
+            .iter()
+            .map(|&v| {
+                let (a, b) = up.process(v);
+                let out = down.process(prev, a);
+                prev = b;
+                out
+            })
+            .collect();
+        let err = |d: usize| x[200..n - 400].iter().zip(&y[200 + d..]).map(|(p, q)| (p - q).abs()).fold(0.0f32, f32::max);
+        let best = (0..200).min_by(|&a, &b| err(a).total_cmp(&err(b))).unwrap();
+        assert_eq!(best, 39);
+        assert!(err(best) < 1e-3, "delay {best}, error {}", err(best));
+    }
+
+    #[test]
+    fn deep_halfband_stops_below_90_db() {
+        let h = design_taps(79, 9.0);
+        let mut d = Down2::new(&h);
+        let sr_in = 96_000.0;
+        for f in [30_000.0f64, 40_000.0] {
+            let n = 1 << 14;
+            let x: Vec<f32> = (0..2 * n).map(|i| (std::f64::consts::TAU * f * i as f64 / sr_in).sin() as f32).collect();
+            let out: Vec<f32> = x.chunks(2).map(|c| d.process(c[0], c[1])).collect();
+            let g = out[n / 2..].iter().fold(0.0f32, |m, v| m.max(v.abs()));
+            assert!(20.0 * g.log10() < -90.0, "{f} Hz: {:.1} dB", 20.0 * g.log10());
         }
     }
 

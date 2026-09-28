@@ -1,0 +1,91 @@
+# Utility: gain, pan, width and fixes.
+
+[group]
+key = "fx.utility"
+name = "Utility"
+instances = ["1", "2", "3", "4"]
+instance_names = ["Utility 1", "Utility 2", "Utility 3", "Utility 4"]
+
+[[param]]
+key = "enable"
+name = "On"
+curve = "bool"
+default = 1
+explain = "Switches the utility on. Off, the signal passes through untouched (the change is faded, so it never clicks)."
+
+[[param]]
+key = "gain"
+name = "Gain"
+curve = "lin"
+min = -36.0
+max = 36.0
+default = 0.0
+unit = "dB"
+flags = ["mod", "smooth"]
+explain = "Level change."
+
+[[param]]
+key = "pan"
+name = "Pan"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+unit = "pan"
+flags = ["mod", "smooth"]
+explain = "Moves the sound left or right."
+
+[[param]]
+key = "width"
+name = "Width"
+curve = "lin"
+min = 0.0
+max = 2.0
+default = 1.0
+unit = ""
+flags = ["mod", "smooth"]
+explain = "Stereo width: 0 is mono, 1 unchanged, 2 extra wide."
+
+[[param]]
+key = "mono_bass"
+name = "Mono Bass"
+short = "Mono Lo"
+curve = "bool"
+default = 0
+explain = "Makes everything below the bass frequency mono, for a solid low end."
+
+[[param]]
+key = "bass_freq"
+name = "Bass Freq"
+short = "Freq"
+curve = "exp"
+min = 40.0
+max = 500.0
+default = 120.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "Where Mono Bass starts."
+
+[[param]]
+key = "invert_l"
+name = "Invert Left"
+short = "Inv L"
+curve = "bool"
+default = 0
+explain = "Flips the left channel's polarity."
+
+[[param]]
+key = "invert_r"
+name = "Invert Right"
+short = "Inv R"
+curve = "bool"
+default = 0
+explain = "Flips the right channel's polarity."
+
+[[param]]
+key = "dc"
+name = "DC Filter"
+short = "DC"
+curve = "bool"
+default = 0
+explain = "Removes any DC offset."

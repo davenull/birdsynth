@@ -1,0 +1,82 @@
+# Splitter: splits the sound into bands (low/high, low/mid/high, or mid/side) with an effect chain for each.
+
+[group]
+key = "fx.splitter"
+name = "Splitter"
+instances = ["1", "2", "3", "4"]
+instance_names = ["Splitter 1", "Splitter 2", "Splitter 3", "Splitter 4"]
+
+[[param]]
+key = "enable"
+name = "On"
+curve = "bool"
+default = 1
+explain = "Switches the splitter on. Off, the signal passes through untouched (the change is faded, so it never clicks)."
+
+[[param]]
+key = "mode"
+name = "Mode"
+curve = "enum"
+options = ["Low/High", "Low/Mid/High", "Mid/Side"]
+default = 0
+explain = "How to split: two bands at one frequency, three bands at two, or into mid (centre) and side (stereo difference)."
+
+[[param]]
+key = "freq1"
+name = "Low Split"
+short = "Split 1"
+curve = "exp"
+min = 40.0
+max = 16000.0
+default = 300.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "Frequency between the low band and the rest (the bands add back up flat)."
+
+[[param]]
+key = "freq2"
+name = "High Split"
+short = "Split 2"
+curve = "exp"
+min = 100.0
+max = 18000.0
+default = 3000.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "Frequency between the mid and high bands (three-band mode)."
+
+[[param]]
+key = "band1"
+name = "Band 1 Gain"
+short = "Band 1"
+curve = "lin"
+min = -24.0
+max = 24.0
+default = 0.0
+unit = "dB"
+flags = ["mod", "smooth"]
+explain = "Level of the first band (low, or mid)."
+
+[[param]]
+key = "band2"
+name = "Band 2 Gain"
+short = "Band 2"
+curve = "lin"
+min = -24.0
+max = 24.0
+default = 0.0
+unit = "dB"
+flags = ["mod", "smooth"]
+explain = "Level of the second band (mid or high, or side)."
+
+[[param]]
+key = "band3"
+name = "Band 3 Gain"
+short = "Band 3"
+curve = "lin"
+min = -24.0
+max = 24.0
+default = 0.0
+unit = "dB"
+flags = ["mod", "smooth"]
+explain = "Level of the third band (high, in three-band mode)."

@@ -28,6 +28,8 @@ export interface Exports {
   wt_alloc_count(): number;
   wt_param_count(): number;
   wt_param_plain(id: number, norm: number): number;
+  wt_asset_alloc(bytes: number): number;
+  wt_asset_free(ptr: number, bytes: number): void;
 }
 
 let cached: WebAssembly.Module | null = null;
@@ -76,6 +78,15 @@ export class Engine {
     return { l, r };
   }
 
+  /** Copy prepared data into a fresh engine asset; returns its pointer (the engine owns it once a command hands it over). */
+  asset(data: Float32Array): number {
+    const bytes = data.byteLength;
+    const ptr = this.ex.wt_asset_alloc(bytes);
+    if (!ptr) throw new Error('asset allocation failed');
+    new Float32Array(this.buf, ptr, data.length).set(data);
+    return ptr;
+  }
+
   tel(): Float32Array {
     return new Float32Array(this.buf, this.ex.wt_tel_ptr(), this.ex.wt_tel_len()).slice();
   }
@@ -99,4 +110,33 @@ export function pitch(x: Float32Array, sr: number): number {
     den += (i - mi) ** 2;
   }
   return sr / (num / den);
+}
+
+type ToolFn = (...a: number[]) => number;
+let toolsEx: (Record<string, ToolFn> & { memory: WebAssembly.Memory }) | null = null;
+
+/** The tools module, in Node (for test data such as impulse responses). */
+export function toolsWasm() {
+  if (!toolsEx) {
+    const mod = new WebAssembly.Module(fs.readFileSync(path.join(ROOT, 'web', 'wasm', 'tools.wasm')));
+    toolsEx = new WebAssembly.Instance(mod, {}).exports as unknown as Record<string, ToolFn> & { memory: WebAssembly.Memory };
+  }
+  return toolsEx;
+}
+
+/** A factory impulse response prepared for the convolver: [taps, data]. */
+export function factoryIr(index: number, sr: number): [number, Float32Array] {
+  const t = toolsWasm();
+  const taps = t.tl_ir_taps(index, sr);
+  const l = t.tl_alloc(taps * 4);
+  const r = t.tl_alloc(taps * 4);
+  t.tl_ir_build(index, sr, l, r);
+  const len = t.tl_ir_prepared_len(taps);
+  const dst = t.tl_alloc(len * 4);
+  t.tl_ir_prepare(l, r, taps, dst);
+  const data = new Float32Array(t.memory.buffer, dst, len).slice();
+  t.tl_free(l, taps * 4);
+  t.tl_free(r, taps * 4);
+  t.tl_free(dst, len * 4);
+  return [taps, data];
 }

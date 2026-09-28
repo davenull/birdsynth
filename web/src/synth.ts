@@ -11,6 +11,9 @@ import { TableStore } from './state/tables';
 import { LfoShapes } from './state/lfo';
 import { ModMatrix, slotFlags, type ModSlot } from './state/matrix';
 import { NoiseStore } from './state/noise';
+import { RemapCurves } from './state/remap';
+import { FxRacks, CONVOLVE } from './state/fx';
+import { IrStore } from './state/ir';
 import type { MidiSink } from './input/midi';
 
 export type SynthStatus = 'idle' | 'starting' | 'running' | 'suspended' | 'error';
@@ -43,6 +46,9 @@ export class Synth implements MidiSink {
   readonly matrix = new ModMatrix();
   readonly lfo = new LfoShapes();
   readonly noise = new NoiseStore(this.bank);
+  readonly remap = new RemapCurves();
+  readonly fx = new FxRacks(this.bank);
+  readonly ir = new IrStore(this.bank);
   host: EngineHost | null = null;
   status: SynthStatus = 'idle';
   error = '';
@@ -60,6 +66,13 @@ export class Synth implements MidiSink {
   constructor() {
     this.bank.onAny((id, v) => this.host?.send((w) => w.setParam(0, id, v)));
     this.matrix.attach((i, s) => this.host?.send((w) => writeSlot(w, i, s)));
+    this.remap.attach((osc, lut) => this.host?.send((w) => w.setOscCurve(0, osc, lut.length, lut)));
+    this.fx.attach((chain, refs) => this.host?.send((w) => w.setChain(0, chain, refs.length, refs.map((r) => r.type * 256 + r.inst))));
+    // convolvers build their response once they're in a rack
+    this.ir.active = (inst) => this.fx.used(CONVOLVE, inst);
+    this.fx.subscribe(() => {
+      for (let i = 0; i < 4; i++) if (this.fx.used(CONVOLVE, i)) void this.ir.load(i);
+    });
     this.lfo.attach((lfo, kind, pts) =>
       this.host?.send((w) => w.setLfoShape(0, lfo, kind === 'path' ? 1 : 0, pts.length, pts.flatMap((p) => [p.x, p.y, p.c]))),
     );
@@ -92,6 +105,7 @@ export class Synth implements MidiSink {
         this.host = host;
         this.tables.attach(host);
         this.noise.attach(host);
+        this.ir.attach(host, host.ctx.sampleRate);
         const follow = () => {
           if (this.status !== 'error') this.setStatus(host.ctx.state === 'running' ? 'running' : 'suspended');
         };
@@ -130,6 +144,9 @@ export class Synth implements MidiSink {
     });
     this.matrix.resync();
     this.lfo.resync();
+    this.remap.resync();
+    this.fx.resync();
+    this.ir.resync();
     this.tables.resync();
     this.noise.resync();
     host.send((w) => {

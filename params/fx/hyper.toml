@@ -1,0 +1,83 @@
+# Hyper/Dimension: a chorus of detuned copies (Hyper) and a stereo room-like widener (Dimension).
+
+[group]
+key = "fx.hyper"
+name = "Hyper"
+instances = ["1", "2", "3", "4"]
+instance_names = ["Hyper 1", "Hyper 2", "Hyper 3", "Hyper 4"]
+
+[[param]]
+key = "enable"
+name = "On"
+curve = "bool"
+default = 1
+explain = "Switches the Hyper/Dimension on. Off, the signal passes through untouched (the change is faded, so it never clicks)."
+
+[[param]]
+key = "rate"
+name = "Hyper Rate"
+short = "Rate"
+curve = "exp"
+min = 0.1
+max = 20.0
+default = 0.8
+unit = "Hz"
+flags = ["mod"]
+explain = "How fast the copies drift in pitch."
+
+[[param]]
+key = "detune"
+name = "Detune"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.3
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How far the copies drift from the original pitch."
+
+[[param]]
+key = "voices"
+name = "Unison"
+curve = "int"
+min = 2
+max = 8
+default = 4
+unit = ""
+explain = "Number of detuned copies."
+
+[[param]]
+key = "hyper_mix"
+name = "Hyper Mix"
+short = "Hyper"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.5
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Level of the detuned copies against the dry signal."
+
+[[param]]
+key = "size"
+name = "Dimension Size"
+short = "Size"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.5
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Size of the Dimension widener: short cross-channel echoes that make the sound wider and roomier."
+
+[[param]]
+key = "dim_mix"
+name = "Dimension Mix"
+short = "Dim"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Level of the Dimension widener."

@@ -10,7 +10,7 @@
 use wide::bytemuck;
 use wide::{f32x4, i32x4, u32x4};
 use wt_dsp::mip::{FRAME_STRIDE, LEVEL_BITS, LEVEL_OFFSET, Pick, level_len, read_pick};
-use wt_dsp::warp;
+use wt_dsp::warp::{self, Read, Remap};
 
 use super::unison::MAX_LANES;
 use crate::filter::MAX_N;
@@ -43,8 +43,14 @@ pub struct Kernel<'a> {
     pub w1_amt: [f32; MAX_LANES],
     pub w2_mode: u8,
     pub w2_amt: [f32; MAX_LANES],
-    /// True when either warp changes the phase (then phases go through f32).
+    /// True when either warp is on (then phases go through f32).
     pub warped: bool,
+    /// True when a shape warp is on in some lane.
+    pub shaped: bool,
+    /// How the table is read (the read warps).
+    pub read: Read,
+    /// The oscillator's drawn remap curve.
+    pub remap: &'a Remap,
 }
 
 impl Kernel<'_> {
@@ -56,22 +62,6 @@ impl Kernel<'_> {
 
 // ------------------------------------------------------------------ scalar
 
-#[inline(always)]
-fn level_read_f(frame: &[f32], level: usize, q: f32) -> f32 {
-    let x = q * level_len(level) as f32;
-    let i = x as i32;
-    let t = x - i as f32;
-    let o = LEVEL_OFFSET[level] + i as usize;
-    let a = frame[o];
-    let b = frame[o + 1];
-    a + (b - a) * t
-}
-
-#[inline(always)]
-fn pick_read_f(frame: &[f32], p: Pick, q: f32) -> f32 {
-    let a = level_read_f(frame, p.lo, q);
-    if p.w > 0.0 { a + (level_read_f(frame, p.hi, q) - a) * p.w } else { a }
-}
 
 /// Reference kernel: adds this oscillator into `out_l`/`out_r` from sample `start`.
 pub fn render_scalar(k: &Kernel, phase: &mut [u32; MAX_LANES], start: usize, out_l: &mut [f32; MAX_N], out_r: &mut [f32; MAX_N]) {
@@ -101,12 +91,18 @@ pub fn render_scalar(k: &Kernel, phase: &mut [u32; MAX_LANES], start: usize, out
 
             let (s, g) = if k.warped {
                 let p = (ph >> 8) as i32 as f32 * INV_2_24;
-                let (p1, g1) = warp::apply(k.w1_mode, p, k.w1_amt[l]);
-                let (p2, g2) = warp::apply(k.w2_mode, warp::wrap01(p1), k.w2_amt[l]);
+                let (p1, g1) = warp::apply(k.w1_mode, p, k.w1_amt[l], k.remap);
+                let (p2, g2) = warp::apply(k.w2_mode, warp::wrap01(p1), k.w2_amt[l], k.remap);
                 let q = warp::wrap01(p2);
-                let a = pick_read_f(k.frame(i0), k.pick, q);
-                let s = if single { a } else { a + (pick_read_f(k.frame(i1), k.pick, q) - a) * t };
-                (s, g1 * g2)
+                let amt = [k.w1_amt[l], k.w2_amt[l]];
+                let a = warp::read(k.frame(i0), k.pick, k.read, q, amt);
+                let s = if single { a } else { a + (warp::read(k.frame(i1), k.pick, k.read, q, amt) - a) * t };
+                let mut y = s * (g1 * g2);
+                if k.shaped {
+                    y = warp::shape(k.w1_mode, y, k.w1_amt[l], k.remap);
+                    y = warp::shape(k.w2_mode, y, k.w2_amt[l], k.remap);
+                }
+                (y, 1.0)
             } else {
                 let a = read_pick(k.frame(i0), k.pick, ph);
                 let s = if single { a } else { a + (read_pick(k.frame(i1), k.pick, ph) - a) * t };
@@ -162,12 +158,18 @@ pub fn step(k: &Kernel, phase: &mut [u32; MAX_LANES], i: usize, inc_base: f32, x
         let i0 = (fr0 as usize).min(k.frames - 1);
         let i1 = (i0 + 1).min(k.frames - 1);
         let p = warp::wrap01((ph >> 8) as i32 as f32 * INV_2_24 + x.pd[l]);
-        let (p1, g1) = warp::apply(k.w1_mode, p, k.w1_amt[l]);
-        let (p2, g2) = warp::apply(k.w2_mode, warp::wrap01(p1), k.w2_amt[l]);
+        let (p1, g1) = warp::apply(k.w1_mode, p, k.w1_amt[l], k.remap);
+        let (p2, g2) = warp::apply(k.w2_mode, warp::wrap01(p1), k.w2_amt[l], k.remap);
         let q = warp::wrap01(p2);
-        let a = pick_read_f(k.frame(i0), k.pick, q);
-        let s = if single { a } else { a + (pick_read_f(k.frame(i1), k.pick, q) - a) * t };
-        let y = s * g1 * g2 * x.gain[l];
+        let amt = [k.w1_amt[l], k.w2_amt[l]];
+        let a = warp::read(k.frame(i0), k.pick, k.read, q, amt);
+        let s = if single { a } else { a + (warp::read(k.frame(i1), k.pick, k.read, q, amt) - a) * t };
+        let mut y = s * g1 * g2;
+        if k.shaped {
+            y = warp::shape(k.w1_mode, y, k.w1_amt[l], k.remap);
+            y = warp::shape(k.w2_mode, y, k.w2_amt[l], k.remap);
+        }
+        let y = y * x.gain[l];
         lane_out[l] = y;
         l_sum += y * k.gl[l];
         r_sum += y * k.gr[l];
@@ -216,8 +218,8 @@ fn asym4(p: f32x4, s: f32x4) -> f32x4 {
 
 /// Vector twin of `wt_dsp::warp::apply`, formula for formula.
 #[inline(always)]
-fn warp4(mode: u8, p: f32x4, a: f32x4) -> (f32x4, f32x4) {
-    if mode == warp::OFF || mode > warp::LAST_IMPLEMENTED {
+fn warp4(mode: u8, p: f32x4, a: f32x4, remap: &Remap) -> (f32x4, f32x4) {
+    if !warp::is_phase(mode) {
         return (p, f32x4::ONE);
     }
     let half = f32x4::splat(0.5);
@@ -255,11 +257,68 @@ fn warp4(mode: u8, p: f32x4, a: f32x4) -> (f32x4, f32x4) {
             let hi = half + half * asym4(two * p - f32x4::ONE, f32x4::ONE - s);
             (sel(p.simd_lt(half), lo, hi), f32x4::ONE)
         }
-        _ => (p, f32x4::ONE),
+        warp::FLIP => (p, sel(p.simd_ge(f32x4::ONE - a), f32x4::splat(-1.0), f32x4::ONE)),
+        warp::MIRROR => {
+            let m = sel(p.simd_lt(half), two * p, two - two * p);
+            (p + a * (m - p), f32x4::ONE)
+        }
+        _ => {
+            // remap and quantize: the scalar formula, lane by lane
+            let (pa, aa) = (p.to_array(), a.to_array());
+            let mut q = [0.0f32; 4];
+            for j in 0..4 {
+                q[j] = warp::apply(mode, pa[j], aa[j], remap).0;
+            }
+            (f32x4::new(q), f32x4::ONE)
+        }
     };
     // lanes with no amount pass through, exactly like the scalar `active` check
     let on = a.simd_gt(f32x4::ZERO);
     (sel(on, q, p), sel(on, g, f32x4::ONE))
+}
+
+/// Shape warp four lanes (the scalar formula, lane by lane).
+#[inline(always)]
+fn shape4(mode: u8, y: f32x4, a: f32x4, remap: &Remap) -> f32x4 {
+    if !warp::is_shape(mode) {
+        return y;
+    }
+    let (ya, aa) = (y.to_array(), a.to_array());
+    let mut o = [0.0f32; 4];
+    for j in 0..4 {
+        o[j] = warp::shape(mode, ya[j], aa[j], remap);
+    }
+    f32x4::new(o)
+}
+
+/// Four lanes of a read in the kernel's read mode. Vector reads when every
+/// lane sits on the same frame, the scalar `warp::read` per lane otherwise.
+#[inline(always)]
+fn read4(k: &Kernel, fr: [i32; 4], q: f32x4, a1: f32x4, a2: f32x4, lanes: usize) -> f32x4 {
+    if uniform(&fr, lanes) {
+        let frame = k.frame(fr[0] as usize);
+        match k.read {
+            Read::Plain => return pick_read_f4(frame, k.pick, q),
+            Read::Low(p) => return pick_read_f4(frame, p, q),
+            Read::High(p, mix) => return pick_read_f4(frame, k.pick, q) - f32x4::splat(mix) * pick_read_f4(frame, p, q),
+            Read::EvenOdd(slot) => {
+                let f = pick_read_f4(frame, k.pick, q);
+                let g = pick_read_f4(frame, k.pick, wrap01_4(q + f32x4::splat(0.5)));
+                let a = if slot == 0 { a1 } else { a2 };
+                let two = f32x4::splat(2.0);
+                let wo = (two - two * a).min(f32x4::ONE);
+                let we = (f32x4::ONE - two * a).abs();
+                let half = f32x4::splat(0.5);
+                return wo * (half * (f - g)) + we * (half * (f + g));
+            }
+        }
+    }
+    let (qa, aa, ab) = (q.to_array(), a1.to_array(), a2.to_array());
+    let mut v = [0.0f32; 4];
+    for j in 0..lanes.min(4) {
+        v[j] = warp::read(k.frame(fr[j] as usize), k.pick, k.read, qa[j], [aa[j], ab[j]]);
+    }
+    f32x4::new(v)
 }
 
 /// Four lanes of a u32-phase level read.
@@ -361,25 +420,23 @@ pub fn render_simd(k: &Kernel, phase: &mut [u32; MAX_LANES], start: usize, out_l
 
             let (s, gain) = if k.warped {
                 let pf = f32x4::from_i32x4(u2i(p >> 8)) * f32x4::splat(INV_2_24);
-                let (p1, g1) = warp4(k.w1_mode, pf, w1[g]);
-                let (p2, g2) = warp4(k.w2_mode, wrap01_4(p1), w2[g]);
+                let (p1, g1) = warp4(k.w1_mode, pf, w1[g], k.remap);
+                let (p2, g2) = warp4(k.w2_mode, wrap01_4(p1), w2[g], k.remap);
                 let q = wrap01_4(p2);
-                let qa = q.to_array();
-                let pick = k.pick;
-                let read = |frame: &[f32], j: usize| pick_read_f(frame, pick, qa[j]);
-                // f32 reads are gathered per lane but interpolated as vectors
-                let a = if uniform(&i0a, lanes) {
-                    pick_read_f4(k.frame(i0a[0] as usize), pick, q)
-                } else {
-                    gather_frames(k, i0a, read, lanes)
-                };
+                // reads are gathered per lane (or read as vectors on a shared frame), interpolated as vectors
+                let a = read4(k, i0a, q, w1[g], w2[g], lanes);
                 let s = if single {
                     a
                 } else {
-                    let b = if uniform(&i1a, lanes) { pick_read_f4(k.frame(i1a[0] as usize), pick, q) } else { gather_frames(k, i1a, read, lanes) };
+                    let b = read4(k, i1a, q, w1[g], w2[g], lanes);
                     a + (b - a) * t
                 };
-                (s, g1 * g2)
+                let mut y = s * (g1 * g2);
+                if k.shaped {
+                    y = shape4(k.w1_mode, y, w1[g], k.remap);
+                    y = shape4(k.w2_mode, y, w2[g], k.remap);
+                }
+                (y, f32x4::ONE)
             } else {
                 let pick = k.pick;
                 let pa = p.to_array();
@@ -439,7 +496,18 @@ mod tests {
         (0..frames * FRAME_STRIDE).map(|_| rng.next_f32() * 2.0 - 1.0).collect()
     }
 
-    fn random_kernel<'a>(t: &'a [f32], frames: usize, rng: &mut Rng) -> Kernel<'a> {
+    /// Every warp the kernel handles (the cross-mod modes are the oscillators' job).
+    fn random_mode(rng: &mut Rng) -> u8 {
+        let modes: Vec<u8> = (0..=warp::LAST_IMPLEMENTED).filter(|m| !(17..=45).contains(m)).collect();
+        modes[(rng.next_u32() as usize) % modes.len()]
+    }
+
+    fn random_remap(rng: &mut Rng) -> Remap {
+        let v: Vec<f32> = (0..warp::REMAP_POINTS).map(|i| (i as f32 / 256.0 + (rng.next_f32() - 0.5) * 0.2).clamp(0.0, 1.0)).collect();
+        Remap::from_values(&v)
+    }
+
+    fn random_kernel<'a>(t: &'a [f32], frames: usize, remap: &'a Remap, rng: &mut Rng) -> Kernel<'a> {
         let lanes = 1 + (rng.next_u32() % 16) as usize;
         let mut k = Kernel {
             len: N,
@@ -455,11 +523,14 @@ mod tests {
             fpos0: [0.0; MAX_LANES],
             fpos_step: [0.0; MAX_LANES],
             smooth: rng.next_f32() < 0.8,
-            w1_mode: (rng.next_u32() % 12) as u8,
+            w1_mode: random_mode(rng),
             w1_amt: [0.0; MAX_LANES],
-            w2_mode: (rng.next_u32() % 12) as u8,
+            w2_mode: random_mode(rng),
             w2_amt: [0.0; MAX_LANES],
             warped: false,
+            shaped: false,
+            read: Read::Plain,
+            remap,
         };
         for l in 0..MAX_LANES {
             k.ratio[l] = 0.9 + rng.next_f32() * 0.2;
@@ -471,6 +542,9 @@ mod tests {
             k.w2_amt[l] = if rng.next_f32() < 0.2 { 0.0 } else { rng.next_f32() };
         }
         k.warped = (0..lanes).any(|l| warp::active(k.w1_mode, k.w1_amt[l]) || warp::active(k.w2_mode, k.w2_amt[l]));
+        k.shaped = (0..lanes).any(|l| (warp::is_shape(k.w1_mode) && k.w1_amt[l] > 0.0) || (warp::is_shape(k.w2_mode) && k.w2_amt[l] > 0.0));
+        let max = |a: &[f32; MAX_LANES]| a[..lanes].iter().fold(0.0f32, |m, &v| m.max(v));
+        k.read = warp::read_mode(k.w1_mode, max(&k.w1_amt), k.w2_mode, max(&k.w2_amt), k.pick);
         k
     }
 
@@ -479,8 +553,9 @@ mod tests {
         let mut rng = Rng::new(99);
         for &frames in &[1usize, 2, 7, 64] {
             let t = table(frames);
-            for _ in 0..400 {
-                let k = random_kernel(&t, frames, &mut rng);
+            for _ in 0..600 {
+                let remap = random_remap(&mut rng);
+                let k = random_kernel(&t, frames, &remap, &mut rng);
                 let mut ph_a = [0u32; MAX_LANES];
                 for p in ph_a.iter_mut() {
                     *p = rng.next_u32();

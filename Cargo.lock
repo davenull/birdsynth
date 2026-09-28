@@ -134,6 +134,7 @@ version = "0.1.0"
 dependencies = [
  "realfft",
  "wt-dsp",
+ "wt-engine",
 ]
 
 [[package]]

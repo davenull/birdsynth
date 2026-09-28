@@ -2,6 +2,10 @@
 #![allow(clippy::needless_range_loop)]
 //! Shared DSP building blocks for the engine and the tools.
 
+pub mod conv;
+pub mod fft;
+pub mod filter;
+pub mod hilbert;
 pub mod math;
 pub mod mip;
 pub mod oversample;

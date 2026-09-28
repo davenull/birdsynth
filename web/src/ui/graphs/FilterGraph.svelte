@@ -1,82 +1,108 @@
 <!--
-  The filter's response curve (exact, see state/filter-response.ts). Drag
-  sideways for cutoff, up and down for resonance.
+  The filter's response curve, computed by the tools worker from the same
+  Rust code the engine runs (exact for the linear types). Drag sideways for
+  cutoff, up and down for resonance. While a voice plays, a fainter curve
+  shows where the modulated cutoff has it now.
 -->
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
   import { PARAMS, PARAM_ID, type ParamKey } from '../../gen/params';
   import { TEL } from '../../gen/protocol';
-  import { response } from '../../state/filter-response';
   import { toNorm, toPlain } from '../../state/param-math';
+  import { tools } from '../../tools/client';
   import type { Synth } from '../../synth';
   import { fitCanvas, onFrame } from '../frame';
 
   let { n = 1, color = 'var(--filter)' }: { n?: number; color?: string } = $props();
   const synth = getContext<Synth>('synth');
   const P = (k: string) => PARAMS[PARAM_ID[`filter.${n}.${k}` as ParamKey]];
-  const [pType, pCut, pRes, pOn] = [P('type'), P('cutoff'), P('res'), P('enable')];
+  const [pType, pCut, pRes, pOn, pVar] = [P('type'), P('cutoff'), P('res'), P('enable'), P('var')];
   let canvas = $state<HTMLCanvasElement>();
 
   const F0 = 20;
   const F1 = 20_000;
   const DB0 = -42;
   const DB1 = 24;
-  const xOf = (f: number, w: number) => (Math.log(f / F0) / Math.log(F1 / F0)) * w;
-  const fOf = (x: number, w: number) => F0 * Math.pow(F1 / F0, x / w);
+  const POINTS = 161;
 
   onMount(() => {
     let key = '';
     let stroke = '';
-    return onFrame(() => {
-      const c = canvas;
-      if (!c) return;
-      const g = c.getContext('2d');
+    // curves arrive from the worker; `want` is what the controls ask for now
+    const curves: Record<'base' | 'live', { key: string; db: Float32Array | null; busy: boolean; at: number }> = {
+      base: { key: '', db: null, busy: false, at: 0 },
+      live: { key: '', db: null, busy: false, at: 0 },
+    };
+    const request = (which: 'base' | 'live', kind: number, cutoff: number, res: number, v: number, sr: number, now: number) => {
+      const c = curves[which];
+      const want = `${kind}|${cutoff.toFixed(1)}|${res.toFixed(3)}|${v.toFixed(3)}|${sr}`;
+      if (want === c.key || c.busy || (which === 'live' && now - c.at < 40)) return;
+      c.busy = true;
+      c.at = now;
+      tools()
+        .call({ op: 'filterResponse', kind, cutoff, res, var: v, sr, f0: F0, f1: F1, points: POINTS })
+        .then((db) => {
+          c.db = db;
+          c.key = want;
+          key = ''; // redraw
+        })
+        .finally(() => (c.busy = false));
+    };
+    return onFrame((now) => {
+      const cv = canvas;
+      if (!cv) return;
+      const g = cv.getContext('2d');
       if (!g) return;
-      const { w, h, dpr } = fitCanvas(c);
+      const { w, h, dpr } = fitCanvas(cv);
       const b = synth.bank;
       const kind = toPlain(pType, b.get(pType.id));
       const cutoff = toPlain(pCut, b.get(pCut.id));
       const res = toPlain(pRes, b.get(pRes.id));
+      const v = toPlain(pVar, b.get(pVar.id));
       const on = b.get(pOn.id) >= 0.5;
       const tel = synth.host?.tel;
-      const live = tel && tel[TEL.voicesActive] > 0 && on ? tel[TEL.focusCutoff] : 0;
+      // telemetry reports filter 1's live cutoff
+      const live = n === 1 && tel && tel[TEL.voicesActive] > 0 && on ? tel[TEL.focusCutoff] : 0;
       const sr = synth.host?.ctx.sampleRate ?? 48_000;
-      const k = `${w}|${h}|${kind}|${cutoff.toFixed(1)}|${res.toFixed(3)}|${on}|${live.toFixed(0)}`;
+      request('base', kind, cutoff, res, v, sr, now);
+      const showLive = live > 0 && Math.abs(live - cutoff) / cutoff > 0.01;
+      if (showLive) request('live', kind, live, res, v, sr, now);
+      const k = `${w}|${h}|${on}|${showLive}|${curves.base.key}|${curves.live.key}`;
       if (k === key) return;
       key = k;
-      stroke ||= getComputedStyle(c).getPropertyValue('--graph-color').trim() || '#e6b450';
+      stroke ||= getComputedStyle(cv).getPropertyValue('--graph-color').trim() || '#e6b450';
       g.clearRect(0, 0, w, h);
       g.strokeStyle = 'rgba(255,255,255,0.06)';
       g.lineWidth = dpr;
       for (const f of [100, 1000, 10_000]) {
-        const x = xOf(f, w);
+        const x = (Math.log(f / F0) / Math.log(F1 / F0)) * w;
         g.beginPath();
         g.moveTo(x, 0);
         g.lineTo(x, h);
         g.stroke();
       }
-      const y0 = ((DB1 - 0) / (DB1 - DB0)) * h;
+      const y0 = (DB1 / (DB1 - DB0)) * h;
       g.beginPath();
       g.moveTo(0, y0);
       g.lineTo(w, y0);
       g.stroke();
-      const curve = (fc: number, alpha: number, width: number) => {
+      const draw = (db: Float32Array | null, alpha: number, width: number) => {
+        if (!db) return;
         g.globalAlpha = alpha;
         g.strokeStyle = stroke;
         g.lineWidth = width * dpr;
         g.beginPath();
-        for (let i = 0; i <= 160; i++) {
-          const x = (i / 160) * w;
-          const db = 20 * Math.log10(Math.max(1e-6, response(kind, fc, res, sr, fOf(x, w))));
-          const y = ((DB1 - Math.max(DB0, Math.min(DB1, db))) / (DB1 - DB0)) * h;
+        for (let i = 0; i < db.length; i++) {
+          const x = (i / (db.length - 1)) * w;
+          const y = ((DB1 - Math.max(DB0, Math.min(DB1, db[i]))) / (DB1 - DB0)) * h;
           if (i) g.lineTo(x, y);
           else g.moveTo(x, y);
         }
         g.stroke();
         g.globalAlpha = 1;
       };
-      curve(cutoff, on ? 1 : 0.35, 1.6);
-      if (live && Math.abs(live - cutoff) / cutoff > 0.01) curve(live, 0.45, 1.2);
+      draw(curves.base.db, on ? 1 : 0.35, 1.6);
+      if (showLive) draw(curves.live.db, 0.45, 1.2);
     });
   });
 

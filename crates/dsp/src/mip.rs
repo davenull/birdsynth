@@ -113,6 +113,50 @@ pub fn read_pick(frame: &[f32], pick: Pick, phase: u32) -> f32 {
     if pick.w > 0.0 { a + (read(frame, pick.hi, phase) - a) * pick.w } else { a }
 }
 
+/// Linear-interpolated read of one level at an f32 phase in [0, 1).
+#[inline(always)]
+pub fn read_f(frame: &[f32], level: usize, q: f32) -> f32 {
+    let x = q * level_len(level) as f32;
+    let i = x as i32;
+    let t = x - i as f32;
+    let o = LEVEL_OFFSET[level] + i as usize;
+    let a = frame[o];
+    let b = frame[o + 1];
+    a + (b - a) * t
+}
+
+/// f32-phase read with the crossfade a `Pick` asks for.
+#[inline(always)]
+pub fn read_pick_f(frame: &[f32], pick: Pick, q: f32) -> f32 {
+    let a = read_f(frame, pick.lo, q);
+    if pick.w > 0.0 { a + (read_f(frame, pick.hi, q) - a) * pick.w } else { a }
+}
+
+/// A pick for a continuous level (0 = all harmonics, 10 = the fundamental
+/// only), crossfading smoothly between neighbours.
+pub fn pick_level(l: f32) -> Pick {
+    let top = (LEVELS - 1) as f32;
+    let l = if l.is_nan() { 0.0 } else { l.clamp(0.0, top) };
+    let lo = l.floor();
+    if lo >= top {
+        return Pick { lo: LEVELS - 1, hi: LEVELS - 1, w: 0.0 };
+    }
+    let w = l - lo;
+    Pick { lo: lo as usize, hi: lo as usize + 1, w }
+}
+
+/// Where a pick sits on the continuous level scale.
+#[inline]
+pub fn position(p: Pick) -> f32 {
+    p.lo as f32 + p.w * (p.hi - p.lo) as f32
+}
+
+/// The duller of two picks (the one that keeps fewer harmonics).
+#[inline]
+pub fn duller(a: Pick, b: Pick) -> Pick {
+    if position(b) > position(a) { b } else { a }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

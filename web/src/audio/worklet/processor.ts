@@ -41,7 +41,7 @@ interface EngineExports {
 
 /** An asset being copied into wasm memory a chunk per quantum. */
 interface Upload {
-  kind: 'table' | 'frame' | 'sample';
+  kind: 'table' | 'frame' | 'sample' | 'ir';
   /** Oscillator, or sample slot. */
   osc: number;
   index: number;
@@ -220,15 +220,16 @@ class WtProcessor extends AudioWorkletProcessor {
       case 'table':
       case 'frame':
       case 'sample':
+      case 'ir':
         if (!this.dead) this.startUpload(d);
         break;
     }
   }
 
   /** Allocate the asset and split the source into chunks (views made here, not in process()). */
-  private startUpload(d: Extract<ToWorklet, { t: 'table' | 'frame' | 'sample' }>): void {
+  private startUpload(d: Extract<ToWorklet, { t: 'table' | 'frame' | 'sample' | 'ir' }>): void {
     const bytes = d.data.byteLength;
-    const target = d.t === 'sample' ? d.slot : d.osc;
+    const target = d.t === 'sample' ? d.slot : d.t === 'ir' ? d.inst : d.osc;
     if (d.t !== 'frame') {
       // a newer table (or sample) for the same slot makes a pending one pointless
       this.uploads = this.uploads.filter((u) => {
@@ -254,7 +255,7 @@ class WtProcessor extends AudioWorkletProcessor {
       kind: d.t,
       osc: target,
       index: d.t === 'frame' ? d.index : 0,
-      frames: d.t === 'frame' ? 1 : d.frames,
+      frames: d.t === 'frame' ? 1 : d.t === 'ir' ? d.taps : d.frames,
       rate: d.t === 'sample' ? d.rate : 0,
       ptr,
       bytes,
@@ -275,6 +276,7 @@ class WtProcessor extends AudioWorkletProcessor {
     this.localCmd((w) => {
       if (u.kind === 'table') w.loadTable(0, u.osc, u.frames, u.ptr, u.bytes);
       else if (u.kind === 'sample') w.loadSample(0, u.osc, u.frames, u.rate, u.ptr, u.bytes);
+      else if (u.kind === 'ir') w.loadIr(0, u.osc, u.frames, u.ptr, u.bytes);
       else w.updateFrame(0, u.osc, u.index, u.ptr, u.bytes);
     });
   }

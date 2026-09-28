@@ -420,6 +420,7 @@ fn fused_fm_matches_the_reference() {
         let s = [settings(0), settings(1)];
         let tables = Tables::default();
         let (table, frames) = tables.get(0);
+        let remap = wt_dsp::warp::Remap::default();
         let mut ov = [OscVoice::default(); 2];
         let mut rng = Rng::new(7);
         for v in ov.iter_mut() {
@@ -431,7 +432,7 @@ fn fused_fm_matches_the_reference() {
         let mut prev = [[0.0f32; MAX_LANES]; 2];
         let mut want = [Vec::new(), Vec::new()];
         for _ in 0..blocks {
-            let k = [ov[0].prepare(&s[0], table, frames, SR, N), ov[1].prepare(&s[1], table, frames, SR, N)];
+            let k = [ov[0].prepare(&s[0], table, frames, &remap, SR, N), ov[1].prepare(&s[1], table, frames, &remap, SR, N)];
             let mut inc = [k[0].inc0, k[1].inc0];
             for i in 0..N {
                 let mut cur = prev;
@@ -533,4 +534,43 @@ fn oversampling_cuts_sync_aliasing() {
     on(&mut e, 60, 1);
     render(&mut e, 480);
     assert_eq!(e.telemetry()[tel::OVERSAMPLE], 1.0);
+}
+
+// ----------------------------------------------------------- FX routing (P3)
+
+/// Sends reach the bus racks, whose output joins the Main rack or goes
+/// straight to the master; chains arrive through the SetChain command.
+#[test]
+fn bus_racks_route_to_main_or_master() {
+    let chain_cmd = |chain: u8, refs: &[u16]| {
+        let mut payload = vec![chain, refs.len() as u8, 0, 0, 0, 0, 0, 0];
+        for r in refs {
+            payload.extend_from_slice(&r.to_le_bytes());
+        }
+        while payload.len() % 8 != 0 {
+            payload.push(0);
+        }
+        let mut cmd = Vec::new();
+        cmd.extend_from_slice(&proto::op::SET_CHAIN.to_le_bytes());
+        cmd.extend_from_slice(&[0, 0]);
+        cmd.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        cmd.extend_from_slice(&0f64.to_le_bytes());
+        cmd.extend_from_slice(&payload);
+        cmd
+    };
+    let level = |to_master: bool| {
+        let mut e = engine(SR);
+        // osc A only on bus 1; the main rack mutes everything (utility at -36 dB)
+        set(&mut e, p::OSC_ROUTE[0], 3.0);
+        set(&mut e, p::OSC_SEND1[0], 1.0);
+        set(&mut e, p::FX_UTILITY_GAIN[0], -36.0);
+        set(&mut e, p::RACK_BUS1_TO, if to_master { 1.0 } else { 0.0 });
+        assert_eq!(e.apply(&chain_cmd(0, &[crate::fx::entry(crate::fx::UTILITY, 0)])), 1);
+        on(&mut e, 57, 1);
+        render(&mut e, 4800);
+        rms(&render(&mut e, 9600))
+    };
+    let (via_main, direct) = (level(false), level(true));
+    assert!(direct > 0.05, "bus 1 reaches the master: {direct}");
+    assert!(via_main < 0.03 * direct, "routed into Main, the muting utility applies: {via_main} vs {direct}");
 }

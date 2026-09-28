@@ -1,0 +1,81 @@
+# Convolve: plays the sound through a recorded space or device (an impulse response).
+
+[group]
+key = "fx.convolve"
+name = "Convolve"
+instances = ["1", "2", "3", "4"]
+instance_names = ["Convolve 1", "Convolve 2", "Convolve 3", "Convolve 4"]
+
+[[param]]
+key = "enable"
+name = "On"
+curve = "bool"
+default = 1
+explain = "Switches the convolver on. Off, the signal passes through untouched (the change is faded, so it never clicks)."
+
+[[param]]
+key = "ir"
+name = "Impulse"
+short = "IR"
+curve = "enum"
+options = ["Small Room", "Studio", "Hall", "Cathedral", "Plate", "Spring", "Cabinet", "Telephone", "Reverse", "Air", "Metal Box", "Tunnel", "User File"]
+default = 0
+explain = "The impulse response: our generated spaces and devices, or a file you drop on the module."
+
+[[param]]
+key = "predelay"
+name = "Pre-delay"
+short = "Pre"
+curve = "lin"
+min = 0.0
+max = 250.0
+default = 0.0
+unit = "ms"
+flags = ["mod", "smooth"]
+explain = "Gap before the convolved sound."
+
+[[param]]
+key = "lowcut"
+name = "Low Cut"
+short = "Lo Cut"
+curve = "exp"
+min = 20.0
+max = 2000.0
+default = 20.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "Removes lows from the convolved sound."
+
+[[param]]
+key = "highcut"
+name = "High Cut"
+short = "Hi Cut"
+curve = "exp"
+min = 1000.0
+max = 20000.0
+default = 20000.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "Removes highs from the convolved sound."
+
+[[param]]
+key = "width"
+name = "Width"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 1.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Stereo width of the convolved sound."
+
+[[param]]
+key = "mix"
+name = "Mix"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.3
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Balance between the dry signal and the convolved sound."

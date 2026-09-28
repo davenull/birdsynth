@@ -20,9 +20,11 @@ use wt_dsp::math;
 use wt_dsp::oversample::{self, Halfband};
 use wt_dsp::rng::Rng;
 use wt_dsp::saw;
+use wt_dsp::warp::{REMAP_POINTS, Remap};
 
 use crate::events::{Event, EventQueue};
 use crate::filter::MAX_N;
+use crate::fx::{self, Fx};
 use crate::lfo::{self, LfoSettings, LfoState, Point, Shape};
 use crate::modmatrix::{Matrix, NONE, Slot};
 use crate::osc::{self, unison::MAX_LANES};
@@ -67,7 +69,7 @@ struct Held {
 /// Is a parameter a global destination (one value for the whole synth)?
 pub fn is_global(id: u16) -> bool {
     let k = p::INFO[id as usize].key;
-    k.starts_with("master.") || k.starts_with("global.") || k.starts_with("mix.")
+    ["master.", "global.", "mix.", "fx.", "rack."].iter().any(|pre| k.starts_with(pre))
 }
 
 pub struct Engine {
@@ -81,6 +83,7 @@ pub struct Engine {
     note_count: u32,
     focus: Option<usize>,
     tables: Tables,
+    remaps: [Remap; OSC_COUNT],
     samples: Samples,
     triangle: Vec<f32>,
     matrix: Matrix,
@@ -108,6 +111,7 @@ pub struct Engine {
     dec: [[Halfband; 2]; DEC_CH],
     buses: Box<Buses>,
     scratch: Box<Scratch>,
+    fx: Box<Fx>,
     out: [Vec<f32>; 2],
     taps: Vec<Vec<f32>>,
     tap_mask: u32,
@@ -133,6 +137,7 @@ impl Engine {
             note_count: 0,
             focus: None,
             tables: Tables::default(),
+            remaps: [Remap::default(); OSC_COUNT],
             samples: Samples::default(),
             triangle: saw::triangle_frame(),
             matrix: Matrix::default(),
@@ -157,6 +162,7 @@ impl Engine {
             dec: [[Halfband::default(); 2]; DEC_CH],
             buses: Box::default(),
             scratch: Box::default(),
+            fx: Fx::new(sample_rate),
             out: [vec![0.0; MAX_BLOCK], vec![0.0; MAX_BLOCK]],
             taps: (0..tap::COUNT).map(|_| vec![0.0; MAX_BLOCK]).collect(),
             tap_mask: 0,
@@ -200,6 +206,10 @@ impl Engine {
 
     pub fn samples_mut(&mut self) -> &mut Samples {
         &mut self.samples
+    }
+
+    pub fn fx_mut(&mut self) -> &mut Fx {
+        &mut self.fx
     }
 
     #[cfg(test)]
@@ -258,14 +268,37 @@ impl Engine {
 
     /// Commands with a variable-length tail (applied immediately).
     fn command_tail(&mut self, cmd: Command, tail: &[u8]) {
-        if let Command::SetLfoShape { lfo, kind, count } = cmd {
-            let n = (count as usize).min(lfo::MAX_POINTS).min(tail.len() / 12);
-            let rd = |i: usize| f32::from_le_bytes([tail[i], tail[i + 1], tail[i + 2], tail[i + 3]]);
-            let mut pts = [Point::default(); lfo::MAX_POINTS];
-            for (i, pt) in pts.iter_mut().enumerate().take(n) {
-                *pt = Point { x: rd(i * 12), y: rd(i * 12 + 4), c: rd(i * 12 + 8) };
+        let rd = |i: usize| f32::from_le_bytes([tail[i], tail[i + 1], tail[i + 2], tail[i + 3]]);
+        match cmd {
+            Command::SetLfoShape { lfo, kind, count } => {
+                let n = (count as usize).min(lfo::MAX_POINTS).min(tail.len() / 12);
+                let mut pts = [Point::default(); lfo::MAX_POINTS];
+                for (i, pt) in pts.iter_mut().enumerate().take(n) {
+                    *pt = Point { x: rd(i * 12), y: rd(i * 12 + 4), c: rd(i * 12 + 8) };
+                }
+                self.set_lfo_shape(lfo as usize, kind == 1, &pts[..n]);
             }
-            self.set_lfo_shape(lfo as usize, kind == 1, &pts[..n]);
+            Command::SetChain { chain, count } => {
+                let n = (count as usize).min(fx::MAX_CHAIN).min(tail.len() / 2);
+                let mut refs = [0u16; fx::MAX_CHAIN];
+                for (i, r) in refs.iter_mut().enumerate().take(n) {
+                    *r = u16::from_le_bytes([tail[2 * i], tail[2 * i + 1]]);
+                }
+                if !self.fx.set_chain(chain as usize, &refs[..n]) {
+                    self.unknown_cmds += 1;
+                }
+            }
+            Command::SetOscCurve { osc, count } => {
+                let n = (count as usize).min(REMAP_POINTS).min(tail.len() / 4);
+                let mut v = [0.0f32; REMAP_POINTS];
+                for (i, x) in v.iter_mut().enumerate().take(n) {
+                    *x = rd(i * 4);
+                }
+                if let Some(r) = self.remaps.get_mut(osc as usize) {
+                    *r = Remap::from_values(&v[..n]);
+                }
+            }
+            _ => {}
         }
     }
 
@@ -318,7 +351,13 @@ impl Engine {
                 }
             }
             Command::ClearMod => self.matrix.clear(),
-            Command::SetLfoShape { .. } => {} // needs its tail: see `apply`
+            Command::LoadIr { inst, taps, ptr, bytes } => {
+                let asset = if ptr == 0 { None } else { Some(unsafe { AssetBuf::from_raw(ptr as usize as *mut u8, bytes as usize) }) };
+                if !self.fx.load_ir(inst as usize, asset, taps as usize) {
+                    self.table_errors += 1;
+                }
+            }
+            Command::SetLfoShape { .. } | Command::SetOscCurve { .. } | Command::SetChain { .. } => {} // need their tails: see `apply`
             _ => {
                 let frame = if frame > 0.0 { frame as u64 } else { 0 };
                 self.queue.push(Event { frame, cmd });
@@ -345,6 +384,7 @@ impl Engine {
         }
         self.lfo_global = [LfoState::default(); LFOS];
         self.global_off = [0.0; MAX_MOD_SLOTS];
+        self.fx.reset();
     }
 
     /// Render `frames` samples starting at absolute frame `start`. A negative
@@ -682,6 +722,7 @@ impl Engine {
             params: &self.params,
             matrix: &self.matrix,
             tables: &self.tables,
+            remaps: &self.remaps,
             samples: &self.samples,
             saw: self.tables.saw(),
             triangle: &self.triangle,
@@ -721,23 +762,20 @@ impl Engine {
             self.vtaps = VoiceTaps::default();
         }
 
-        // back to the output rate; until the FX racks exist every bus goes to the master
-        let mut mix = [[0.0f32; N]; 2];
+        // back to the output rate
+        let mut bus = [[[0.0f32; N]; 2]; 4]; // main, direct, bus 1, bus 2
         let b = &*self.buses;
         let chans: [&[f32; MAX_N]; DEC_CH] = [&b.main[0], &b.main[1], &b.direct[0], &b.direct[1], &b.bus1[0], &b.bus1[1], &b.bus2[0], &b.bus2[1]];
         for (c, src) in chans.iter().enumerate() {
-            let mut out = [0.0f32; N];
+            let out = &mut bus[c / 2][c % 2];
             match os {
                 1 => out.copy_from_slice(&src[..N]),
-                2 => self.dec[c][0].process(&self.hb, &src[..2 * N], &mut out),
+                2 => self.dec[c][0].process(&self.hb, &src[..2 * N], out),
                 _ => {
                     let mut half = [0.0f32; 2 * N];
                     self.dec[c][0].process(&self.hb, &src[..4 * N], &mut half);
-                    self.dec[c][1].process(&self.hb, &half, &mut out);
+                    self.dec[c][1].process(&self.hb, &half, out);
                 }
-            }
-            for (m, x) in mix[c % 2].iter_mut().zip(out) {
-                *m += x;
             }
         }
 
@@ -745,6 +783,18 @@ impl Engine {
         if let Some(i) = self.focus {
             for d in 0..self.matrix.dests {
                 self.global_off[d] = self.voices[i].mod_offset(d);
+            }
+        }
+
+        // the FX racks, then the direct bus joins at the master
+        let note = self.focus.map_or(60.0, |i| self.voices[i].pitch());
+        let fcx = fx::Ctx::new(self.sr, bpm, beat, note, &self.params, &self.matrix, &self.global_off);
+        let [mut main, direct, mut bus1, mut bus2] = bus;
+        self.fx.process(&fcx, &mut main, &mut bus1, &mut bus2);
+        let mut mix = main;
+        for ch in 0..2 {
+            for i in 0..N {
+                mix[ch][i] += direct[ch][i];
             }
         }
         let g1 = match self.matrix.dest_of[p::MASTER_VOLUME as usize] {
@@ -831,6 +881,12 @@ impl Engine {
         t[tel::TABLE_ERRORS] = self.table_errors as f32;
         t[tel::MOD_SLOTS] = self.matrix.live() as f32;
         t[tel::OVERSAMPLE] = self.os as f32;
+        for inst in 0..fx::INSTANCES {
+            for band in 0..3 {
+                t[tel::FX_GR + inst * 3 + band] = self.fx.gain_reduction(inst, band);
+            }
+            t[tel::FX_IR + inst] = self.fx.ir_taps(inst) as f32;
+        }
         let dests = self.matrix.dests;
         for d in 0..MAX_MOD_SLOTS {
             t[tel::MOD_DEST + d] = if d < dests { self.matrix.dest_param[d] as f32 } else { -1.0 };

@@ -8,3 +8,6 @@ publish.workspace = true
 [dependencies]
 wt-dsp.workspace = true
 realfft = "3.5"
+
+[dev-dependencies]
+wt-engine.workspace = true

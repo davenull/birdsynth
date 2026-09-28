@@ -128,6 +128,13 @@ export class EngineHost {
     this.post({ t: 'sample', slot, frames: audio.length, rate, data }, [data]);
   }
 
+  /** Give convolver `inst` a prepared impulse response of `taps` taps. The data is copied. */
+  loadIr(inst: number, taps: number, prepared: Float32Array): void {
+    const data = prepared.slice().buffer;
+    this.flush();
+    this.post({ t: 'ir', inst, taps, data }, [data]);
+  }
+
   setTaps(names: readonly TapName[]): void {
     let mask = 0;
     for (const n of names) mask |= 1 << TAP_NAMES.indexOf(n);

@@ -7,6 +7,9 @@
   import Select from '../primitives/Select.svelte';
   import Toggle from '../primitives/Toggle.svelte';
   import WtDisplay from '../graphs/WtDisplay.svelte';
+  import RemapEditor from '../graphs/RemapEditor.svelte';
+  import { PARAMS, PARAM_ID } from '../../gen/params';
+  import { toPlain } from '../../state/param-math';
 
   let { osc }: { osc: number } = $props();
   const synth = getContext<Synth>('synth');
@@ -14,8 +17,18 @@
   const NAME = $derived(`Osc ${L.toUpperCase()}`);
   const color = $derived(`var(--osc-${L})`);
   const k = (s: string) => `osc.${L}.${s}` as ParamKey;
-  /** Warp modes built so far: phase warps and cross-modulation (the distortion and filter warps arrive in P3). */
-  const WARP_MAX = 45;
+  /** Every warp mode: phase, cross-modulation, distortion and filter warps. */
+  const WARP_MAX = 61;
+
+  // the remap curve editor shows while either warp slot is on a Remap mode
+  let remapOn = $state(false);
+  $effect(() => {
+    const ids = [PARAM_ID[k('warp1_mode')], PARAM_ID[k('warp2_mode')]];
+    const read = () => (remapOn = ids.some((id) => [12, 13, 14, 15].includes(toPlain(PARAMS[id], synth.bank.get(id)))));
+    read();
+    const offs = ids.map((id) => synth.bank.subscribe(id, read));
+    return () => offs.forEach((f) => f());
+  });
 
   let tableName = $state('Saw');
   let factory = $state<{ name: string; frames: number }[]>([]);
@@ -120,6 +133,9 @@
     <Select param={k('warp2_mode')} max={WARP_MAX} />
     <Knob param={k('warp2_amount')} label="Amt" size={26} {color} />
   </div>
+  {#if remapOn}
+    <div class="remap"><span>Remap curve</span><RemapEditor {osc} {color} width={170} height={64} /></div>
+  {/if}
   <details class="more">
     <summary>Unison and phase options</summary>
     <div class="grid small">
@@ -197,6 +213,13 @@
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
+  }
+  .remap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    color: var(--text-dim);
   }
   .error {
     margin: 0;

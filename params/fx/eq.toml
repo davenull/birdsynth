@@ -1,0 +1,140 @@
+# EQ: three bands to shape the tone.
+
+[group]
+key = "fx.eq"
+name = "EQ"
+instances = ["1", "2", "3", "4"]
+instance_names = ["EQ 1", "EQ 2", "EQ 3", "EQ 4"]
+
+[[param]]
+key = "enable"
+name = "On"
+curve = "bool"
+default = 1
+explain = "Switches the EQ on. Off, the signal passes through untouched (the change is faded, so it never clicks)."
+
+[[param]]
+key = "low_type"
+name = "Low Type"
+short = "Low"
+curve = "enum"
+options = ["Shelf", "Peak", "Cut"]
+default = 0
+explain = "The low band's shape: shelf, bell or low cut."
+
+[[param]]
+key = "low_freq"
+name = "Low Freq"
+short = "Freq"
+curve = "exp"
+min = 20.0
+max = 2000.0
+default = 120.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "The low band's frequency."
+
+[[param]]
+key = "low_q"
+name = "Low Q"
+short = "Q"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.5
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "The low band's width (narrow at the top)."
+
+[[param]]
+key = "low_gain"
+name = "Low Gain"
+short = "Gain"
+curve = "lin"
+min = -18.0
+max = 18.0
+default = 0.0
+unit = "dB"
+flags = ["mod", "smooth"]
+explain = "Boost or cut of the low band."
+
+[[param]]
+key = "mid_freq"
+name = "Mid Freq"
+short = "Freq"
+curve = "exp"
+min = 100.0
+max = 10000.0
+default = 1000.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "The mid band's frequency."
+
+[[param]]
+key = "mid_q"
+name = "Mid Q"
+short = "Q"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.5
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "The mid band's width (narrow at the top)."
+
+[[param]]
+key = "mid_gain"
+name = "Mid Gain"
+short = "Gain"
+curve = "lin"
+min = -18.0
+max = 18.0
+default = 0.0
+unit = "dB"
+flags = ["mod", "smooth"]
+explain = "Boost or cut of the mid band."
+
+[[param]]
+key = "high_type"
+name = "High Type"
+short = "High"
+curve = "enum"
+options = ["Shelf", "Peak", "Cut"]
+default = 0
+explain = "The high band's shape: shelf, bell or high cut."
+
+[[param]]
+key = "high_freq"
+name = "High Freq"
+short = "Freq"
+curve = "exp"
+min = 1000.0
+max = 20000.0
+default = 6000.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "The high band's frequency."
+
+[[param]]
+key = "high_q"
+name = "High Q"
+short = "Q"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.5
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "The high band's width (narrow at the top)."
+
+[[param]]
+key = "high_gain"
+name = "High Gain"
+short = "Gain"
+curve = "lin"
+min = -18.0
+max = 18.0
+default = 0.0
+unit = "dB"
+flags = ["mod", "smooth"]
+explain = "Boost or cut of the high band."

@@ -1,0 +1,58 @@
+# Frequency shifter: moves every partial up or down by the same number of Hz, so harmonics stop being harmonic.
+
+[group]
+key = "fx.bode"
+name = "Frequency Shifter"
+instances = ["1", "2", "3", "4"]
+instance_names = ["Frequency Shifter 1", "Frequency Shifter 2", "Frequency Shifter 3", "Frequency Shifter 4"]
+
+[[param]]
+key = "enable"
+name = "On"
+curve = "bool"
+default = 1
+explain = "Switches the frequency shifter on. Off, the signal passes through untouched (the change is faded, so it never clicks)."
+
+[[param]]
+key = "shift"
+name = "Shift"
+curve = "lin"
+min = -2000.0
+max = 2000.0
+default = 100.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "How many Hz every frequency moves (negative moves down)."
+
+[[param]]
+key = "feedback"
+name = "Feedback"
+curve = "lin"
+min = 0.0
+max = 0.95
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Feeds the shifted sound back in, making spiralling barber-pole sweeps."
+
+[[param]]
+key = "spread"
+name = "Stereo"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Shifts the right channel the other way, by this share."
+
+[[param]]
+key = "mix"
+name = "Mix"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.5
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Balance between the dry signal and the shifted signal."

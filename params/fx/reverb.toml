@@ -1,0 +1,122 @@
+# Reverb: five algorithms of our own, from tight plates to endless basins.
+
+[group]
+key = "fx.reverb"
+name = "Reverb"
+instances = ["1", "2", "3", "4"]
+instance_names = ["Reverb 1", "Reverb 2", "Reverb 3", "Reverb 4"]
+
+[[param]]
+key = "enable"
+name = "On"
+curve = "bool"
+default = 1
+explain = "Switches the reverb on. Off, the signal passes through untouched (the change is faded, so it never clicks)."
+
+[[param]]
+key = "algo"
+name = "Algorithm"
+short = "Type"
+curve = "enum"
+options = ["Hall", "Plate", "Vintage", "Bloom", "Basin"]
+default = 0
+explain = "Hall: smooth and natural. Plate: dense and bright. Vintage: grainy early-digital. Bloom: swells in slowly. Basin: huge and dark."
+
+[[param]]
+key = "size"
+name = "Size"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.5
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Size of the space: how far apart the reflections are."
+
+[[param]]
+key = "decay"
+name = "Decay"
+curve = "exp"
+min = 0.1
+max = 30.0
+default = 2.5
+unit = "s"
+flags = ["mod", "smooth"]
+explain = "Time for the tail to fall by 60 dB."
+
+[[param]]
+key = "predelay"
+name = "Pre-delay"
+short = "Pre"
+curve = "lin"
+min = 0.0
+max = 250.0
+default = 10.0
+unit = "ms"
+flags = ["mod", "smooth"]
+explain = "Gap before the reverb starts."
+
+[[param]]
+key = "damp"
+name = "Damping"
+short = "Damp"
+curve = "exp"
+min = 500.0
+max = 20000.0
+default = 8000.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "High frequencies above this die away faster."
+
+[[param]]
+key = "lowcut"
+name = "Low Cut"
+short = "Lo Cut"
+curve = "exp"
+min = 20.0
+max = 1000.0
+default = 60.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "Removes lows from the reverb, keeping the bass dry."
+
+[[param]]
+key = "width"
+name = "Width"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 1.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Stereo width of the tail."
+
+[[param]]
+key = "movement"
+name = "Movement"
+short = "Move"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.3
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Slow modulation inside the tail, for a lush, less metallic sound."
+
+[[param]]
+key = "freeze"
+name = "Freeze"
+curve = "bool"
+default = 0
+explain = "Holds the tail forever and stops new sound entering."
+
+[[param]]
+key = "mix"
+name = "Mix"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.25
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Balance between the dry signal and the reverb."

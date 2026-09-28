@@ -1,0 +1,23 @@
+# The FX racks: Main (the mix), and two buses fed by each source's sends.
+
+[group]
+key = "rack"
+name = "Rack"
+
+[[param]]
+key = "bus1_to"
+name = "Bus 1 Output"
+short = "Bus 1 to"
+curve = "enum"
+options = ["Main", "Master"]
+default = 0
+explain = "Where Bus 1's rack sends its output: into the Main rack (so the main effects apply too), or straight to the master."
+
+[[param]]
+key = "bus2_to"
+name = "Bus 2 Output"
+short = "Bus 2 to"
+curve = "enum"
+options = ["Main", "Master"]
+default = 0
+explain = "Where Bus 2's rack sends its output: into the Main rack, or straight to the master."

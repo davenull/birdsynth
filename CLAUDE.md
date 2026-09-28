@@ -2,8 +2,8 @@
 
 A Serum 2-style wavetable synth. The Rust engine is compiled to wasm and runs in
 an AudioWorklet; the UI is Svelte 5 + TS. The roadmap and each phase's gates
-are in `docs/plan.md`. P0–P2 are done; P3 (FX racks, the rest of the
-filter and warp types) comes next.
+are in `docs/plan.md`. P0–P3 are done; P4 (presets, MIDI, GLOBAL, the
+explainer MVP, first public deploy) comes next.
 
 ## Commands
 - The shell may lack `~/.cargo/bin`; use `. "$HOME/.cargo/env"` or `node tools/cargo.mjs …`.
@@ -12,13 +12,15 @@ filter and warp types) comes next.
 - After editing `params/` or `schema/`, run `npm run gen`. A test fails if the generated files are stale. Never hand-edit `crates/engine/src/spec/*` or `web/src/gen/*`.
 
 ## Layout notes
-- `crates/dsp`: mip layout (`mip.rs`), warps (`warp.rs`, shared by the engine and previews), phase/math/rng, the built-in saw.
+- `crates/dsp`: mip layout (`mip.rs`), warps (`warp.rs`, shared by the engine and previews), the filters (`filter.rs`, 63 types on shared cores, with `response` for graphs), halfbands (`oversample.rs`), `hilbert.rs`, a small power-of-two FFT (`fft.rs`, the engine avoids rustfft's size), the convolver's IR layout (`conv.rs`, shared with the tools), phase/math/rng, the built-in saw.
+- `crates/engine/src/fx/`: the racks (`mod.rs`: chains, click-free bypass and reorder, splitter band chains) and one file per effect family. Four instances per type; chain entries are type × 256 + instance. Big buffers live on the heap (`Fx::new` must never build modules on the stack: the wasm stack is 1 MB).
 - `crates/engine`: `engine.rs` (commands, allocation, oversampling, the global-modulation policy), `voice.rs` (sources → routing → filters → buses, the fused cross-mod loop), `osc/` (kernel with scalar + SIMD + the per-sample `step`, unison, sub), `filter/` (block and per-sample `tick`), `lfo.rs`, `env.rs`, `modmatrix.rs`, `samples.rs` (noise slot), `tables.rs` (host-filled assets), `params.rs` (smoothing), `tests/` (`mod.rs` P1 gates, `p2.rs` P2 gates).
 - Voices share one `Scratch` (engine-owned) and clear only what they use; per-sample routing exists only for filter-sourced cross-mod, otherwise routing is per source block (`route_block`), same arithmetic.
 - Web state: `state/matrix.ts` (slots + `evaluate`, the reference model the engine is tested against), `state/lfo.ts` (shapes, mirroring `lfo.rs`), `state/noise.ts` (noise sample via the tools worker → worklet 'sample' upload → LoadSample).
 - Taps: at most 8 per block. Displays call `synth.useTap(name)` while shown; `__synth.tap(name)` keeps what it reads.
 - Drag-to-modulate uses pointer events (`ui/mod/drag.ts`); knobs with `data-mod="1"` are drop targets. Alt-drag on a modulated knob changes the first routing's amount.
-- `crates/tools` + `tools-wasm`: mip builder, factory tables, resampling, previews; runs in `web/src/tools/worker.ts`.
+- `crates/tools` + `tools-wasm`: mip builder, factory tables, resampling, previews (the kernels' bit-exact reference), noise, factory IRs (`ir.rs`), IR preparation, filter responses; runs in `web/src/tools/worker.ts`.
+- Web FX state: `state/fx.ts` (racks, instances, module presets), `state/ir.ts` (convolver responses: factory at the engine's rate, or dropped files).
 - Commands carry wasm32 pointers (u32): native Rust tests must not pass real pointers through commands (load tables with `tables_mut()` instead).
 - Enum option lists in params/*.toml only grow at the end (patches will store option names).
 

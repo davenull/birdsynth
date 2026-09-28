@@ -19,6 +19,7 @@
   import MixPage from './ui/pages/MixPage.svelte';
   import MatrixPage from './ui/pages/MatrixPage.svelte';
   import GlobalPage from './ui/pages/GlobalPage.svelte';
+  import FxPage from './ui/pages/FxPage.svelte';
   import { onFrame } from './ui/frame';
 
   const synth = getContext<Synth>('synth');
@@ -33,10 +34,10 @@
   let page = $state('osc');
   let routings = $state(0);
 
-  const PAGES = [
+  const PAGES: { id: string; name: string; later?: string }[] = [
     { id: 'osc', name: 'OSC' },
     { id: 'mix', name: 'MIX' },
-    { id: 'fx', name: 'FX', later: 'P3' },
+    { id: 'fx', name: 'FX' },
     { id: 'matrix', name: 'MATRIX' },
     { id: 'global', name: 'GLOBAL' },
   ];
@@ -98,6 +99,8 @@
         <OscPage />
       {:else if page === 'mix'}
         <MixPage />
+      {:else if page === 'fx'}
+        <FxPage />
       {:else if page === 'matrix'}
         <MatrixPage />
       {:else if page === 'global'}

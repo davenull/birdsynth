@@ -5,6 +5,7 @@
 //! the frame size, and previews through the engine's warp math.
 
 pub mod factory;
+pub mod ir;
 pub mod mips;
 pub mod noise;
 pub mod preview;

@@ -53,7 +53,9 @@ export type ToWorklet =
   /** One mip-mapped frame to overwrite in an oscillator's table. */
   | { t: 'frame'; osc: number; index: number; data: ArrayBuffer }
   /** Mono f32 audio for a sample slot (0: the noise oscillator). */
-  | { t: 'sample'; slot: number; frames: number; rate: number; data: ArrayBuffer };
+  | { t: 'sample'; slot: number; frames: number; rate: number; data: ArrayBuffer }
+  /** A prepared impulse response for convolver `inst` (layout in crates/dsp/src/conv.rs). */
+  | { t: 'ir'; inst: number; taps: number; data: ArrayBuffer };
 
 /** Largest slice of an upload copied into wasm memory per render quantum. */
 export const UPLOAD_CHUNK = 512 * 1024;

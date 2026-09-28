@@ -11,6 +11,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { BLOCK_BYTES, BLOCK_FRAMES, HDR, POOL_SIZE, TAPS_AT, TEL_AT } from '../../web/src/audio/block';
 import { CmdWriter, CONST, DEBUG, TAP, TEL } from '../../web/src/gen/protocol';
 import { PARAMS } from '../../web/src/gen/params';
+import { factoryIr } from '../engine/harness';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const SR = 48_000;
@@ -229,6 +230,29 @@ describe('worklet processor', () => {
     const level = PARAMS[id('noise.level')];
     const want = 0.5 * (level.min + (level.max - level.min) * level.def) * 10 ** (-6 / 20);
     expect(Math.abs(w.L[100] - want)).toBeLessThan(1e-3);
+  });
+
+  it('uploads an impulse response and the convolver uses it', () => {
+    const w = makeWorklet();
+    w.send({ t: 'pool', bufs: Array.from({ length: POOL_SIZE }, () => new ArrayBuffer(BLOCK_BYTES)) });
+    const [taps, data] = factoryIr(0, SR);
+    w.send({ t: 'ir', inst: 0, taps, data: data.buffer });
+    w.cmd((c) => c.setChain(0, 0, 1, [11 * 256]));
+    w.resetAllocs();
+    let tel: Float32Array | null = null;
+    for (let i = 0; i < 40; i++) {
+      w.step();
+      for (let k = w.posted.length - 1; k >= 0; k--) {
+        const m = w.posted[k];
+        if (m instanceof ArrayBuffer) {
+          tel = new Float32Array(m, TEL_AT * 4, TEL.LEN).slice();
+          w.posted.splice(k, 1);
+          w.send(m);
+        }
+      }
+    }
+    expect(w.allocsInProcess()).toBe(0);
+    expect(tel![TEL.fxIr]).toBe(taps);
   });
 
   it('restarts after a trap and plays again as soon as the host resends', () => {

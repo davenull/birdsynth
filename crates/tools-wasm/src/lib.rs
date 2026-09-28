@@ -7,7 +7,9 @@ use std::alloc::{Layout, alloc_zeroed, dealloc};
 use std::cell::UnsafeCell;
 
 use wt_dsp::mip::{FRAME_LEN, FRAME_STRIDE};
-use wt_tools::{factory, mips::MipBuilder, noise, preview, resample};
+use wt_dsp::filter;
+use wt_dsp::warp::{REMAP_POINTS, Remap};
+use wt_tools::{factory, ir, mips::MipBuilder, noise, preview, resample};
 
 struct Global<T>(UnsafeCell<T>);
 
@@ -119,13 +121,15 @@ pub unsafe extern "C" fn tl_resample(src: *const f32, len: u32, dst: *mut f32) -
 }
 
 /// Preview one cycle of a raw frame through two warps into `points` samples.
+/// `remap` is the oscillator's remap table (257 floats), or null for the identity.
 ///
 /// # Safety
-/// `frame` holds 2048 floats; `dst` holds `points`.
+/// `frame` holds 2048 floats; `dst` holds `points`; a non-null `remap` holds 257.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn tl_preview(frame: *const f32, w1_mode: u32, w1_amt: f32, w2_mode: u32, w2_amt: f32, points: u32, dst: *mut f32) -> u32 {
+pub unsafe extern "C" fn tl_preview(frame: *const f32, w1_mode: u32, w1_amt: f32, w2_mode: u32, w2_amt: f32, remap: *const f32, points: u32, dst: *mut f32) -> u32 {
     let (f, d) = unsafe { (slice(frame, FRAME_LEN), slice_mut(dst, points as usize)) };
-    preview::cycle(f, (w1_mode as u8, w1_amt), (w2_mode as u8, w2_amt), d);
+    let r = if remap.is_null() { Remap::default() } else { Remap::from_values(unsafe { slice(remap, REMAP_POINTS) }) };
+    preview::cycle(f, (w1_mode as u8, w1_amt), (w2_mode as u8, w2_amt), &r, d);
     0
 }
 
@@ -155,5 +159,62 @@ pub unsafe extern "C" fn tl_noise_build(i: u32, dst: *mut f32) -> u32 {
     }
     let d = unsafe { slice_mut(dst, noise::LEN) };
     noise::build(i as usize, d);
+    0
+}
+
+/// A filter's magnitude response in dB at `points` log-spaced frequencies from f0 to f1.
+///
+/// # Safety
+/// `dst` holds `points` floats.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_filter_response(kind: u32, cutoff: f32, res: f32, var: f32, sr: f32, f0: f32, f1: f32, points: u32, dst: *mut f32) -> u32 {
+    let d = unsafe { slice_mut(dst, points as usize) };
+    let n = (points.max(2) - 1) as f32;
+    for (i, v) in d.iter_mut().enumerate() {
+        let f = f0 * (f1 / f0).powf(i as f32 / n);
+        *v = 20.0 * filter::response(kind as u8, cutoff, res, var, sr, f).max(1e-6).log10();
+    }
+    0
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn tl_ir_count() -> u32 {
+    ir::NAMES.len() as u32
+}
+
+/// Taps of factory response `i` at sample rate `sr`.
+#[unsafe(no_mangle)]
+pub extern "C" fn tl_ir_taps(i: u32, sr: f32) -> u32 {
+    ir::taps(i as usize, sr) as u32
+}
+
+/// Build factory response `i` at `sr` into `l` and `r` (tl_ir_taps floats each).
+///
+/// # Safety
+/// `l` and `r` hold tl_ir_taps(i, sr) floats.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_ir_build(i: u32, sr: f32, l: *mut f32, r: *mut f32) -> u32 {
+    let n = ir::taps(i as usize, sr);
+    let (l, r) = unsafe { (slice_mut(l, n), slice_mut(r, n)) };
+    ir::build(i as usize, sr, l, r);
+    0
+}
+
+/// Floats a prepared response of `taps` takes (both channels).
+#[unsafe(no_mangle)]
+pub extern "C" fn tl_ir_prepared_len(taps: u32) -> u32 {
+    (2 * wt_dsp::conv::channel_len((taps as usize).min(wt_dsp::conv::MAX_TAPS))) as u32
+}
+
+/// Prepare a response for the engine's convolver (layout in wt_dsp::conv).
+///
+/// # Safety
+/// `l` and `r` hold `taps` floats; `dst` holds tl_ir_prepared_len(taps).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn tl_ir_prepare(l: *const f32, r: *const f32, taps: u32, dst: *mut f32) -> u32 {
+    let taps = (taps as usize).min(wt_dsp::conv::MAX_TAPS);
+    let (l, r) = unsafe { (slice(l, taps), slice(r, taps)) };
+    let d = unsafe { slice_mut(dst, 2 * wt_dsp::conv::channel_len(taps)) };
+    wt_dsp::conv::prepare([l, r], d);
     0
 }

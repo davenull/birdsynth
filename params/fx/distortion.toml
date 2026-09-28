@@ -1,0 +1,116 @@
+# Distortion: waveshaping at 4x oversampling, with a filter before or after.
+
+[group]
+key = "fx.distortion"
+name = "Distortion"
+instances = ["1", "2", "3", "4"]
+instance_names = ["Distortion 1", "Distortion 2", "Distortion 3", "Distortion 4"]
+
+[[param]]
+key = "enable"
+name = "On"
+curve = "bool"
+default = 1
+explain = "Switches the distortion on. Off, the signal passes through untouched (the change is faded, so it never clicks)."
+
+[[param]]
+key = "mode"
+name = "Mode"
+curve = "enum"
+options = ["Tube", "Soft Clip", "Hard Clip", "Diode 1", "Diode 2", "Lin Fold", "Sin Fold", "Zero-Square", "Downsample", "Asym", "Rectify", "Sine Shaper", "Stomp", "Tape", "Overdrive"]
+default = 0
+explain = "The shape of the distortion: from warm tube saturation to hard clipping, wavefolding and bit-rate reduction."
+
+[[param]]
+key = "drive"
+name = "Drive"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.25
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "How hard the signal is pushed into the curve (up to +36 dB)."
+
+[[param]]
+key = "bias"
+name = "DC Bias"
+short = "Bias"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+unit = ""
+flags = ["mod", "smooth"]
+explain = "Shifts the signal before the curve, so the two halves distort differently (adds even harmonics). The offset is removed afterwards."
+
+[[param]]
+key = "filter"
+name = "Filter"
+curve = "enum"
+options = ["Off", "Pre", "Post"]
+default = 0
+explain = "Where the distortion's filter sits: off, before the curve (shapes what gets distorted) or after it (tames the result)."
+
+[[param]]
+key = "filter_type"
+name = "Filter Type"
+short = "Type"
+curve = "enum"
+options = ["Low", "Band", "High"]
+default = 0
+explain = "The distortion filter's shape."
+
+[[param]]
+key = "freq"
+name = "Filter Freq"
+short = "Freq"
+curve = "exp"
+min = 20.0
+max = 20000.0
+default = 1000.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "The distortion filter's cutoff."
+
+[[param]]
+key = "q"
+name = "Filter Res"
+short = "Res"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.1
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "The distortion filter's resonance."
+
+[[param]]
+key = "keytrack"
+name = "Key Track"
+short = "Key"
+curve = "bool"
+default = 0
+explain = "Moves the filter with the newest note, relative to middle C."
+
+[[param]]
+key = "mix"
+name = "Mix"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 1.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Balance between the dry signal and the distortion."
+
+[[param]]
+key = "output"
+name = "Output"
+curve = "lin"
+min = -24.0
+max = 12.0
+default = 0.0
+unit = "dB"
+flags = ["mod", "smooth"]
+explain = "Level after the distortion."

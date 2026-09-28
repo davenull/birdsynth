@@ -7,6 +7,7 @@ mod engine;
 mod env;
 mod events;
 pub mod filter;
+pub mod fx;
 pub mod lfo;
 pub mod modmatrix;
 pub mod osc;

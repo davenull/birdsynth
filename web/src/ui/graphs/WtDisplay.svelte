@@ -40,6 +40,8 @@
     let preview: Float32Array | null = null;
     let previewKey = '';
     let previewBusy = false;
+    let remapVer = 0;
+    const offRemap = synth.remap.subscribe((o) => o === osc && remapVer++);
     let stroke = '';
 
     const frameAt = (t: OscTable, pos: number, out: Float32Array) => {
@@ -127,12 +129,13 @@
         g.stroke();
       } else {
         // 2D: the current frame through the warps (computed by the tools worker)
-        const want = `${t.source}|${t.count}|${pos.toFixed(3)}|${warps.join(',')}`;
+        const want = `${t.source}|${t.count}|${pos.toFixed(3)}|${warps.join(',')}|${remapVer}`;
         if (want !== previewKey && !previewBusy) {
           previewBusy = true;
           const frame = frameAt(t, pos, new Float32Array(CONST.frameLen));
+          const remap = synth.remap.lut(osc).slice();
           tools()
-            .call({ op: 'preview', frame, w1: [warps[0], warps[1]], w2: [warps[2], warps[3]], points: 256 }, [frame.buffer])
+            .call({ op: 'preview', frame, w1: [warps[0], warps[1]], w2: [warps[2], warps[3]], points: 256, remap }, [frame.buffer, remap.buffer])
             .then((p) => {
               preview = p;
               previewKey = want;
@@ -165,6 +168,7 @@
     return () => {
       off();
       offTables();
+      offRemap();
     };
   });
 </script>

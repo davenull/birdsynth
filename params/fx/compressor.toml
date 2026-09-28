@@ -1,0 +1,201 @@
+# Compressor: evens out levels, one band or three (with upward and downward compression for the \"OTT\" sound).
+
+[group]
+key = "fx.compressor"
+name = "Compressor"
+instances = ["1", "2", "3", "4"]
+instance_names = ["Compressor 1", "Compressor 2", "Compressor 3", "Compressor 4"]
+
+[[param]]
+key = "enable"
+name = "On"
+curve = "bool"
+default = 1
+explain = "Switches the compressor on. Off, the signal passes through untouched (the change is faded, so it never clicks)."
+
+[[param]]
+key = "mode"
+name = "Mode"
+curve = "enum"
+options = ["Single", "Multiband"]
+default = 0
+explain = "Single: one compressor on the whole signal. Multiband: three bands, each compressed downward above the threshold and upward below it."
+
+[[param]]
+key = "threshold"
+name = "Threshold"
+curve = "lin"
+min = -60.0
+max = 0.0
+default = -18.0
+unit = "dB"
+flags = ["mod", "smooth"]
+explain = "Level above which the compressor turns the signal down."
+
+[[param]]
+key = "ratio"
+name = "Ratio"
+curve = "exp"
+min = 1.0
+max = 20.0
+default = 4.0
+unit = ":1"
+flags = ["mod", "smooth"]
+explain = "How strongly it turns down: at 4:1, 4 dB above the threshold comes out as 1 dB."
+
+[[param]]
+key = "attack"
+name = "Attack"
+curve = "exp"
+min = 0.1
+max = 300.0
+default = 10.0
+unit = "ms"
+flags = ["mod", "smooth"]
+explain = "How fast it reacts to rising levels."
+
+[[param]]
+key = "release"
+name = "Release"
+curve = "exp"
+min = 5.0
+max = 2000.0
+default = 120.0
+unit = "ms"
+flags = ["mod", "smooth"]
+explain = "How fast it lets go once levels fall."
+
+[[param]]
+key = "knee"
+name = "Knee"
+curve = "lin"
+min = 0.0
+max = 24.0
+default = 6.0
+unit = "dB"
+flags = ["mod", "smooth"]
+explain = "Softens the corner at the threshold."
+
+[[param]]
+key = "gain"
+name = "Makeup"
+curve = "lin"
+min = -12.0
+max = 36.0
+default = 0.0
+unit = "dB"
+flags = ["mod", "smooth"]
+explain = "Gain after compression, to bring the level back up."
+
+[[param]]
+key = "depth"
+name = "Depth"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 1.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Multiband: how much of the compression applies."
+
+[[param]]
+key = "upward"
+name = "Upward"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.5
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Multiband: how much quiet parts are brought up."
+
+[[param]]
+key = "downward"
+name = "Downward"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.5
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Multiband: how much loud parts are brought down."
+
+[[param]]
+key = "time"
+name = "Time"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.5
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Multiband: scales attack and release together, from snappy to slow."
+
+[[param]]
+key = "xover1"
+name = "Low/Mid"
+curve = "exp"
+min = 40.0
+max = 2000.0
+default = 120.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "Multiband: where the low band ends."
+
+[[param]]
+key = "xover2"
+name = "Mid/High"
+curve = "exp"
+min = 500.0
+max = 16000.0
+default = 2500.0
+unit = "Hz"
+flags = ["mod", "smooth"]
+explain = "Multiband: where the high band starts."
+
+[[param]]
+key = "low"
+name = "Low Gain"
+short = "Low"
+curve = "lin"
+min = -24.0
+max = 24.0
+default = 0.0
+unit = "dB"
+flags = ["mod", "smooth"]
+explain = "Multiband: level of the low band."
+
+[[param]]
+key = "mid"
+name = "Mid Gain"
+short = "Mid"
+curve = "lin"
+min = -24.0
+max = 24.0
+default = 0.0
+unit = "dB"
+flags = ["mod", "smooth"]
+explain = "Multiband: level of the mid band."
+
+[[param]]
+key = "high"
+name = "High Gain"
+short = "High"
+curve = "lin"
+min = -24.0
+max = 24.0
+default = 0.0
+unit = "dB"
+flags = ["mod", "smooth"]
+explain = "Multiband: level of the high band."
+
+[[param]]
+key = "mix"
+name = "Mix"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 1.0
+unit = "%"
+flags = ["mod", "smooth"]
+explain = "Balance between the dry signal and the compressed signal."

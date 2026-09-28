@@ -13,6 +13,7 @@
 
 use wt_dsp::math;
 use wt_dsp::rng::Rng;
+use wt_dsp::warp::Remap;
 
 use crate::env::{Env, EnvTimes, Stage};
 use crate::filter::{Coeffs, FilterParams, FilterState, MAX_N};
@@ -47,6 +48,8 @@ pub struct VoiceCtx<'a> {
     pub params: &'a ParamStore,
     pub matrix: &'a Matrix,
     pub tables: &'a Tables,
+    /// Each oscillator's remap curve.
+    pub remaps: &'a [Remap; OSC_COUNT],
     pub samples: &'a Samples,
     pub saw: &'a [f32],
     pub triangle: &'a [f32],
@@ -629,6 +632,8 @@ impl Voice {
                 res: res(p::FILTER_RES[f]),
                 drive: res(p::FILTER_DRIVE[f]),
                 mix: res(p::FILTER_MIX[f]),
+                var: res(p::FILTER_VAR[f]),
+                stereo: res(p::FILTER_STEREO[f]),
             };
             fcoef[f] = Some(self.filt[f].prepare(&fp, sr, len));
             let lv = res(p::FILTER_LEVEL[f]);
@@ -674,7 +679,7 @@ impl Voice {
             for o in 0..OSC_COUNT {
                 if let Some(s) = &settings[o] {
                     let (table, frames) = cx.tables.get(o);
-                    self.osc[o].render(s, table, frames, sr, st, len, cx.scalar, &mut obuf[o]);
+                    self.osc[o].render(s, table, frames, &cx.remaps[o], sr, st, len, cx.scalar, &mut obuf[o]);
                     // the matrix's audio-rate source: this block's last sample
                     self.xm_lanes[o][0] = 0.5 * (obuf[o][0][len - 1] + obuf[o][1][len - 1]);
                 }
@@ -685,7 +690,7 @@ impl Voice {
             for o in 0..OSC_COUNT {
                 if let Some(s) = &settings[o] {
                     let (table, frames) = cx.tables.get(o);
-                    kernels[o] = Some(self.osc[o].prepare(s, table, frames, sr, len));
+                    kernels[o] = Some(self.osc[o].prepare(s, table, frames, &cx.remaps[o], sr, len));
                 }
             }
             let order = osc_order(&xm, &enabled);

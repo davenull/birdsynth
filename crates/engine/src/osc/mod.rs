@@ -7,7 +7,7 @@ pub mod unison;
 
 use wt_dsp::mip;
 use wt_dsp::rng::Rng;
-use wt_dsp::warp;
+use wt_dsp::warp::{self, Remap};
 
 use kernel::Kernel;
 use unison::{Layout, MAX_LANES, UniParams};
@@ -89,7 +89,7 @@ pub fn xstretch(x: &XMod) -> f32 {
 
 /// Does this warp create harmonics that oversampling helps with?
 pub fn wants_oversampling(mode: u8, amount: f32) -> bool {
-    amount > 0.0 && (matches!(mode, warp::SYNC | warp::WINDOW_SYNC) || (17..=58).contains(&mode))
+    amount > 0.0 && (warp::aliases(mode) || (17..=45).contains(&mode))
 }
 
 // ------------------------------------------------------------ oscillator
@@ -167,7 +167,7 @@ impl OscVoice {
 
     /// Build the kernel for the next `len` samples at `sr` (and move the
     /// oscillator's pitch and position ramps on).
-    pub fn prepare<'a>(&mut self, s: &OscSettings, table: &'a [f32], frames: usize, sr: f32, len: usize) -> Kernel<'a> {
+    pub fn prepare<'a>(&mut self, s: &OscSettings, table: &'a [f32], frames: usize, remap: &'a Remap, sr: f32, len: usize) -> Kernel<'a> {
         let key = UniKey::from(&s.uni);
         if self.layout_for != Some(key) {
             self.layout = unison::layout(&s.uni, &self.random);
@@ -202,6 +202,9 @@ impl OscVoice {
             w2_mode: s.w2.0,
             w2_amt: [0.0; MAX_LANES],
             warped: false,
+            shaped: false,
+            read: warp::Read::Plain,
+            remap,
         };
         let span = (frames - 1) as f32;
         let (mut max_ratio, mut w1_max, mut w2_max) = (0.0f32, 0.0f32, 0.0f32);
@@ -219,17 +222,19 @@ impl OscVoice {
             w1_max = w1_max.max(k.w1_amt[l]);
             w2_max = w2_max.max(k.w2_amt[l]);
             k.warped |= warp::active(s.w1.0, k.w1_amt[l]) || warp::active(s.w2.0, k.w2_amt[l]);
+            k.shaped |= (warp::is_shape(s.w1.0) && k.w1_amt[l] > 0.0) || (warp::is_shape(s.w2.0) && k.w2_amt[l] > 0.0);
         }
         // band-limit for the fastest the phase can move this sub-block
-        let stretch = warp::stretch(s.w1.0, w1_max) * warp::stretch(s.w2.0, w2_max) * s.xstretch;
+        let stretch = warp::stretch(s.w1.0, w1_max, remap) * warp::stretch(s.w2.0, w2_max, remap) * s.xstretch;
         k.pick = mip::pick(inc0.max(inc1) * max_ratio * stretch, sr);
+        k.read = warp::read_mode(s.w1.0, w1_max, s.w2.0, w2_max, k.pick);
         k
     }
 
     /// Render samples `start..len` (unleveled stereo) with the block kernels.
     #[allow(clippy::too_many_arguments)]
-    pub fn render(&mut self, s: &OscSettings, table: &[f32], frames: usize, sr: f32, start: usize, len: usize, scalar: bool, out: &mut [[f32; MAX_N]; 2]) {
-        let k = self.prepare(s, table, frames, sr, len);
+    pub fn render(&mut self, s: &OscSettings, table: &[f32], frames: usize, remap: &Remap, sr: f32, start: usize, len: usize, scalar: bool, out: &mut [[f32; MAX_N]; 2]) {
+        let k = self.prepare(s, table, frames, remap, sr, len);
         let [l, r] = out;
         if scalar {
             kernel::render_scalar(&k, &mut self.phase, start, l, r);
