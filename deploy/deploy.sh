@@ -4,9 +4,12 @@
 #
 #   deploy/deploy.sh                 build here and stream the image over SSH
 #   HUB=<dockerhub-user> deploy/deploy.sh
-#                                    build, push docker.io/<user>/birdsynth, pull on the VM
+#                                    build for linux/amd64 and linux/arm64, push
+#                                    docker.io/<user>/birdsynth (:<tag> and :latest),
+#                                    pull on the VM (which takes its own platform)
 #
-# HOST overrides the target (default birdie@192.168.2.165).
+# HOST overrides the target (default birdie@192.168.2.165). PLATFORMS overrides
+# what the Docker Hub image is built for.
 # SKIP_BUILD=1 reuses the existing dist/ instead of running npm run build.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -23,7 +26,7 @@ fi
 
 if [ -n "${HUB:-}" ]; then
   REPO="docker.io/$HUB/birdsynth"
-  docker buildx build --platform linux/amd64 -f deploy/Containerfile -t "$REPO:$TAG" -t "$REPO:latest" --push .
+  docker buildx build --platform "${PLATFORMS:-linux/amd64,linux/arm64}" -f deploy/Containerfile -t "$REPO:$TAG" -t "$REPO:latest" --push .
   PULL=always
 else
   REPO="localhost/birdsynth"
