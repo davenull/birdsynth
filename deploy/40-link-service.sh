@@ -8,3 +8,9 @@
     sleep 1
   done
 ) &
+# nginx starts when this returns: give the service up to 3 s to listen first
+i=0
+while [ "$i" -lt 30 ] && ! wget -q -O /dev/null http://127.0.0.1:8002/sync/health 2>/dev/null; do
+  i=$((i + 1))
+  sleep 0.1
+done
