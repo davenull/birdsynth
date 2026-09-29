@@ -7,6 +7,7 @@
   import { getContext, onMount } from 'svelte';
   import type { Synth, SynthStatus } from './synth';
   import { installQwerty, type QwertyState } from './input/qwerty';
+  import { installSpace } from './input/space';
   import Knob from './ui/primitives/Knob.svelte';
   import Keyboard from './ui/primitives/Keyboard.svelte';
   import Meter from './ui/primitives/Meter.svelte';
@@ -74,6 +75,7 @@
     const offStatus = synth.onStatus((s) => (status = s));
     const offMatrix = synth.matrix.subscribe(() => (routings = synth.matrix.used));
     const offKeys = installQwerty({ noteOn: (n, v) => synth.noteOn(n, v), noteOff: (n) => synth.noteOff(n) }, (s) => (qwerty = s));
+    const offSpace = installSpace(() => synth.toggleTransport());
     let t = 0;
     const offFrame = onFrame((now) => {
       if (now - t < 250) return;
@@ -91,6 +93,7 @@
       offStatus();
       offMatrix();
       offKeys();
+      offSpace();
       offFrame();
       window.removeEventListener('pointerdown', unlock);
       window.removeEventListener('keydown', unlock);
@@ -189,7 +192,7 @@
         </div>
         {#if main}
           <div class="hint">
-            Keys <kbd>A</kbd>–<kbd>'</kbd> · octave <kbd>Z</kbd>/<kbd>X</kbd> (A = C{qwerty.octave}) · velocity <kbd>C</kbd>/<kbd>V</kbd> ({Math.round(qwerty.velocity * 100)}%) · drag a handle onto a knob to modulate it
+            Keys <kbd>A</kbd>–<kbd>'</kbd> · octave <kbd>Z</kbd>/<kbd>X</kbd> (A = C{qwerty.octave}) · velocity <kbd>C</kbd>/<kbd>V</kbd> ({Math.round(qwerty.velocity * 100)}%) · play/stop <kbd>Space</kbd> · drag a handle onto a knob to modulate it
           </div>
         {/if}
       </div>

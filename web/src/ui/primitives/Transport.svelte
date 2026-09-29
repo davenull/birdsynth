@@ -1,8 +1,9 @@
 <!--
   The transport, in the row above the keyboard on every page: play and
   stop, record (what you play goes into the clip picked on the CLIP page,
-  over what's there), and where the song is. While linked, play and stop
-  run everything linked (other tabs, other computers).
+  over what's there), and where the song is. The space bar plays and stops
+  too (input/space.ts). While linked, play and stop run everything linked
+  (other tabs, other computers).
 -->
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
@@ -43,7 +44,7 @@
     class:on={playing}
     aria-pressed={playing}
     aria-label={playing ? 'Stop' : 'Play'}
-    title={linked ? 'Play or stop everything linked' : 'Play or stop (clips, and the arpeggiator on the Beat retrigger)'}
+    title={linked ? 'Play or stop everything linked (Space)' : 'Play or stop (Space): clips, and the arpeggiator on the Beat retrigger'}
     onclick={() => synth.transport(!playing)}>{playing ? '■' : '▶'}</button
   >
   <button

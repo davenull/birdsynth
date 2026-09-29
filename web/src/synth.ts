@@ -771,6 +771,12 @@ export class Synth implements MidiSink {
     return (this.host?.tel[TEL.playing] ?? 0) >= 0.5;
   }
 
+  /** Play if stopped, stop if playing (the space bar). While linked it goes by the group's timeline, which a change reaches before the engine does. */
+  toggleTransport(): void {
+    const t = this.link.linked ? this.link.timeline : null;
+    this.transport(!(t ? t.playing : this.playing));
+  }
+
   /** The transport's position now, in beats (from the newest telemetry, moved on by the time since). */
   beatNow(): number {
     const h = this.host;

@@ -330,7 +330,7 @@ export const CONTENT: Record<string, Explanation> = {
   },
   transport: {
     title: 'Transport',
-    text: 'The synth’s own clock: play starts it from the first beat, stop ends every note it started. Clips, the arpeggiator on the Beat retrigger, synced LFOs and delays all follow its tempo; swing delays every second step of the arpeggiator and the clips.',
+    text: 'The synth’s own clock: play (or the space bar) starts it from the first beat, stop ends every note it started. Clips, the arpeggiator on the Beat retrigger, synced LFOs and delays all follow its tempo; swing delays every second step of the arpeggiator and the clips.',
   },
   'clip.roll': {
     title: 'Piano roll',
