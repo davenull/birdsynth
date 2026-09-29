@@ -27,6 +27,18 @@
   let velCurve = $state(0);
   let dropping = $state(false);
   let followClock = $state(synth.followClock);
+  // linking with other tabs
+  const linkState = () => ({ on: synth.link.on, linked: synth.link.linked, name: synth.link.name, nudge: synth.link.nudge, members: synth.link.members.map((m) => ({ ...m })) });
+  let link = $state(linkState());
+  const linkText = $derived(
+    !link.on
+      ? 'Plays in step with birdsynth in your other tabs: one transport, tempo and bar position for all of them, and any of them can start or stop the rest.'
+      : !link.linked
+        ? 'Linking once audio starts…'
+        : link.members.length < 2
+          ? 'Linked. Open birdsynth in another tab (with Link on there too) to play in step.'
+          : `Linked with ${link.members.length - 1} other tab${link.members.length > 2 ? 's' : ''}.`,
+  );
   // the session: whether it's kept, and a reset that asks first
   let session = $state({ state: synth.sessionState, saved: synth.sessionSaved });
   let now = $state(Date.now());
@@ -80,6 +92,7 @@
     velCurve = toPlain(vc, bank.get(vc.id));
     const offVel = bank.subscribe(vc.id, (v) => (velCurve = toPlain(vc, v)));
     const offSession = synth.onSession(() => (session = { state: synth.sessionState, saved: synth.sessionSaved }));
+    const offLink = synth.link.subscribe(() => (link = linkState()));
     const tick = setInterval(() => (now = Date.now()), 5000);
     return () => {
       offFrame();
@@ -87,6 +100,7 @@
       offLearn();
       offVel();
       offSession();
+      offLink();
       clearInterval(tick);
     };
   });
@@ -235,6 +249,28 @@
       <p>Right-click any knob and choose MIDI learn, then move a control on your controller.</p>
     {/if}
   </section>
+  <section class="panel" data-explain="link" aria-label="Link">
+    <h2>LINK</h2>
+    <div class="row">
+      <button class="clock" aria-pressed={link.on} onclick={() => synth.link.setOn(!link.on)}>Link tabs</button>
+      <input class="lname" value={link.name} aria-label="This tab's name in the link" onchange={(e) => synth.link.setName(e.currentTarget.value)} />
+    </div>
+    <p role="status">{linkText}</p>
+    {#if link.on}
+      <label class="nudge" title="If this tab sounds early or late against the others (Bluetooth speakers, some embedded browsers delay the sound without saying so), move it until they line up by ear"
+        >Nudge <input type="range" min="-300" max="300" step="1" value={link.nudge} aria-label="Nudge this tab later or earlier, in ms" oninput={(e) => synth.link.setNudge(Number(e.currentTarget.value))} /><span
+          >{link.nudge > 0 ? `+${link.nudge}` : link.nudge} ms</span
+        ></label
+      >
+    {/if}
+    {#if link.members.length > 1}
+      <ul class="members">
+        {#each link.members as m (m.id)}
+          <li class:self={m.self}>{m.name}{m.self ? ' (this tab)' : ''}{#if m.keeper}<span class="keeper" title="Keeps time for the group; if it closes, the next one takes over"> · keeps time</span>{/if}</li>
+        {/each}
+      </ul>
+    {/if}
+  </section>
   <section class="panel" data-explain="session" aria-label="Session">
     <h2>SESSION</h2>
     <p role="status">{sessionText}</p>
@@ -323,6 +359,43 @@
   button:disabled {
     color: var(--text-faint);
     cursor: default;
+  }
+  .lname {
+    font: 11px var(--font-ui);
+    color: var(--text);
+    background: var(--glass);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 3px 6px;
+    min-width: 0;
+    flex: 1;
+  }
+  .nudge {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 48px;
+    gap: 6px;
+    align-items: center;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .nudge span {
+    font: 11px var(--font-num);
+    text-align: right;
+  }
+  .members {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 2px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .members .self {
+    color: var(--text);
+  }
+  .keeper {
+    color: var(--macro);
   }
   .danger.confirm {
     color: #fff;

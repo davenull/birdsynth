@@ -137,6 +137,8 @@ pub struct Engine {
     keys: Vec<(u8, u32, u8)>,
     /// The CPU guard's level (see SetGuard).
     guard: u8,
+    /// The transport's beat at the start of the sub-block being rendered.
+    sub_beat: f64,
     /// The parameters the playing clip automates, each with the value the
     /// host last set it to, which it returns to when the automation stops.
     auto_base: [(u16, f32); proto::CLIP_LANES],
@@ -200,6 +202,7 @@ impl Engine {
             keys: Vec::with_capacity(KEYS_DOWN),
             auto_base: [(NO_AUTO, 0.0); proto::CLIP_LANES],
             guard: 0,
+            sub_beat: 0.0,
             fx: Fx::new(sample_rate),
             out: [vec![0.0; MAX_BLOCK], vec![0.0; MAX_BLOCK]],
             taps: (0..tap::COUNT).map(|_| vec![0.0; MAX_BLOCK]).collect(),
@@ -597,7 +600,12 @@ impl Engine {
                 break;
             }
             let ev = self.queue.pop_front().unwrap();
-            self.event(ev.cmd, 0);
+            if let Command::SetTimeline { beat, rate, playing } = ev.cmd {
+                // late (its frame has passed): still anchored where it was meant to be
+                self.timeline(ev.frame as i64 - t0 as i64, beat, rate, playing);
+            } else {
+                self.event(ev.cmd, 0);
+            }
         }
         let t1 = t0 + N as u64;
         let mut i = 0;
@@ -605,7 +613,8 @@ impl Engine {
             if ev.frame >= t1 {
                 break;
             }
-            if matches!(ev.cmd, Command::NoteOn { .. }) {
+            // note-ons and timeline anchors land on their exact frame; the rest on the grid
+            if matches!(ev.cmd, Command::NoteOn { .. } | Command::SetTimeline { .. }) {
                 let ev = self.queue.remove(i).unwrap();
                 self.event(ev.cmd, (ev.frame - t0) as usize);
             } else {
@@ -649,6 +658,7 @@ impl Engine {
             },
             Command::ChannelPressure { value, .. } => self.aftertouch = value.clamp(0.0, 1.0),
             Command::SetGuard { level } => self.guard = level.min(UNISON_CAP.len() as u8 - 1),
+            Command::SetTimeline { beat, rate, playing } => self.timeline(offset as i64, beat, rate, playing),
             Command::NoteExpression { kind, value, note_id } => {
                 let k = kind as usize;
                 if k < 3 && note_id != 0 {
@@ -751,6 +761,7 @@ impl Engine {
 
     /// The sequencer's work for the next sub-block: its notes, then the playing clip's automation.
     fn sequence(&mut self) {
+        self.sub_beat = self.seq.beat_at(0);
         let sp = self.seq_params();
         self.sev.n = 0;
         self.seq.advance(&sp, N, self.sr, &mut self.sev);
@@ -773,6 +784,15 @@ impl Engine {
             }
             self.params.set(id as usize, v);
         }
+    }
+
+    /// Anchor the sequencer's clock to a shared timeline, `delta` frames from this sub-block's start
+    /// (negative for a command that arrived after its frame).
+    fn timeline(&mut self, delta: i64, beat: f64, rate: f64, playing: u8) {
+        self.sev.n = 0;
+        let frame = (self.seq.frame() as i64 + delta).max(0) as u64;
+        self.seq.set_timeline(frame, beat, rate, playing != 0, &mut self.sev);
+        self.play_seq_events();
     }
 
     fn play_seq_events(&mut self) {
@@ -1050,7 +1070,10 @@ impl Engine {
         let bpm = self.params.plain(p::GLOBAL_BPM);
         let lfo_rate = self.params.plain(p::GLOBAL_LFO_RATE);
         let dt = N as f32 / self.sr;
-        let beat = t0 as f64 / self.sr as f64 * bpm as f64 / 60.0;
+        // tempo-synced LFOs and effects keep time with the transport: its beat is
+        // continuous through tempo changes and shared by linked instances
+        let _ = t0;
+        let beat = self.sub_beat;
 
         // shared LFOs
         for i in 0..LFOS {

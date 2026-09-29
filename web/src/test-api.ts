@@ -345,6 +345,14 @@ export function installTestApi(synth: Synth): void {
         stolen: t[TEL.grainsStolen],
       };
     },
+    /** Linked instances (tabs of this browser): the shared timeline and who's in the group. */
+    link: {
+      state: () => ({ on: synth.link.on, linked: synth.link.linked, id: synth.link.id, name: synth.link.name, keeping: synth.link.keeping, members: synth.link.members.map((m) => ({ ...m })), timeline: synth.link.timeline && { ...synth.link.timeline }, anchor: synth.link.lastAnchor && { ...synth.link.lastAnchor } }),
+      on: (on = true) => synth.link.setOn(on),
+      name: (name: string) => synth.link.setName(name),
+      nudge: (ms: number) => synth.link.setNudge(ms),
+      corrections: () => ({ count: synth.link.corrections, lastMs: synth.link.lastCorrectionMs }),
+    },
     /** The working state kept between visits. */
     session: {
       state: () => ({ state: synth.sessionState, saved: synth.sessionSaved, preset: synth.presetId, dirty: synth.history.dirty }),

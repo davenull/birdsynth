@@ -30,6 +30,7 @@
   let lane = $state(0);
   let version = $state(0);
   let message = $state('');
+  let linked = $state(synth.link.linked);
 
   const plain = (k: string) => toPlain(PARAMS[PARAM_ID[k as ParamKey]], synth.bank.get(PARAM_ID[k as ParamKey]));
   const setPlain = (k: string, v: number) => {
@@ -43,6 +44,7 @@
     const offs = [
       synth.bank.subscribe(PARAM_ID['clip.slot'], read),
       synth.clips.subscribe(() => version++),
+      synth.link.subscribe(() => (linked = synth.link.linked)),
       onFrame(() => {
         const t = synth.host?.tel;
         if (!t) return;
@@ -112,6 +114,7 @@
         onclick={() => (synth.recording ? synth.stopRecording() : synth.record(slot))}>●</button
       >
       <span class="pos">{bars(beat)}</span>
+      {#if linked}<span class="linked" title="Linked with other tabs: Play and Stop start and stop them all">LINK</span>{/if}
       <Knob param="global.bpm" size={26} {color} />
       <Knob param="global.swing" size={26} {color} />
     </div>
@@ -222,6 +225,14 @@
     color: #fff;
     background: var(--clip);
     border-color: var(--clip);
+  }
+  .linked {
+    font: 600 9px var(--font-ui);
+    letter-spacing: 0.08em;
+    color: #111;
+    background: var(--ctl);
+    border-radius: 3px;
+    padding: 1px 4px;
   }
   .pos {
     font: 12px var(--font-num);

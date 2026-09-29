@@ -343,6 +343,16 @@ doc = "The CPU guard's level, set by the host when the load runs high: 0 none, 1
 fields = [{ name = "level", type = "u8" }]
 
 [[command]]
+name = "SetTimeline"
+op = 43
+doc = "Follow a shared timeline (linked instances): at this command's frame the transport is at `beat` and playing or not, and its clock runs at `rate` × the tempo (a small trim that keeps it locked to another machine's). Starting mid-way joins the clip at the song position."
+fields = [
+  { name = "beat", type = "f64" },
+  { name = "rate", type = "f64" },
+  { name = "playing", type = "u8" },
+]
+
+[[command]]
 name = "ClearMod"
 op = 25
 doc = "Clear every modulation slot."

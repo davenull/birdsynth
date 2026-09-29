@@ -271,6 +271,10 @@ export const CONTENT: Record<string, Explanation> = {
     title: 'Tempo and rates',
     text: 'The tempo that synced LFOs, envelopes and delays follow, and two knobs that speed up or slow down every envelope or every LFO at once.',
   },
+  link: {
+    title: 'Link',
+    text: 'Link plays several birdsynths in step: switch it on in each tab and they share one transport, one tempo and the same bar position, so clips, arpeggios and tempo-synced LFOs line up. Play, Stop or the tempo knob in any of them changes all of them, a moment later, at the same instant everywhere. One tab quietly keeps time for the group; if it closes, the next one carries on without a hiccup.',
+  },
   session: {
     title: 'Your session',
     text: 'Whatever you do to the sound is kept in this browser a moment after you do it: parameters, modulation, effects, wavetables and recordings, clips and arp patterns, and which preset it came from. Come back tomorrow and it’s as you left it. Reset goes back to the Init sound; your saved presets, MIDI mappings, tuning and settings stay. (Saving a preset is still the way to keep a sound for good, or to share it.)',

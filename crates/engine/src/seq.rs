@@ -242,6 +242,13 @@ pub struct Seq {
     pub clip_playing: Option<usize>,
     clip_start: f64,
     pending: Option<(usize, f64)>,
+    /// The beat the transport just started at: the clip starts with it (at the song position,
+    /// if that's mid-way), rather than waiting for the launch quantize.
+    song_start: Option<f64>,
+    /// No clip note before this beat plays (a start mid-way through a sub-block).
+    play_from: f64,
+    /// The clock's rate against the tempo (1 but for the small trim that keeps a linked instance locked).
+    rate: f64,
     /// A strummed chord's later notes, until their frames come: (beat, note, velocity, off beat).
     strum: [(f64, u8, f32, f64); STRUM_QUEUE],
     nstrum: usize,
@@ -283,6 +290,9 @@ impl Default for Seq {
             clip_playing: None,
             clip_start: 0.0,
             pending: None,
+            song_start: None,
+            play_from: f64::NEG_INFINITY,
+            rate: 1.0,
             ledger: [Sounding { id: 0, note: 0, off: 0.0, owner: Owner::Arp }; LEDGER],
             nledger: 0,
             next_id: 1,
@@ -429,7 +439,45 @@ impl Seq {
         if self.spb <= 0.0 {
             return self.beat;
         }
-        self.base_beat + (self.frame + offset as u64 - self.base_frame) as f64 / self.spb
+        self.base_beat + ((self.frame + offset as u64) as i64 - self.base_frame as i64) as f64 / self.spb
+    }
+
+    /// Frames the sequencer has run (the start of the coming sub-block).
+    pub fn frame(&self) -> u64 {
+        self.frame
+    }
+
+    /// Follow a shared timeline: at `frame` the beat is `beat`, running at
+    /// `rate` × the tempo, and the transport plays or not. Joining one that's
+    /// already playing starts the clip at once, at the song position, as if it
+    /// had been playing from the top.
+    pub fn set_timeline(&mut self, frame: u64, beat: f64, rate: f64, playing: bool, out: &mut Events) {
+        let rate = if rate.is_finite() { rate.clamp(0.5, 2.0) } else { 1.0 };
+        let beat = if beat.is_finite() { beat } else { 0.0 };
+        if playing && !self.playing {
+            self.playing = true;
+            self.clip_playing = None;
+            self.pending = None;
+            self.song_start = Some(beat);
+            if self.running {
+                // the arp's grid stays on the song's beats
+                self.origin = 0.0;
+                self.next = 0;
+            }
+        } else if !playing && self.playing {
+            self.playing = false;
+            self.release(out, 0, Some(Owner::Clip));
+            self.clip_playing = None;
+            self.pending = None;
+        }
+        // re-anchor (a tempo change re-anchors again at the next sub-block, from here)
+        if self.spb > 0.0 {
+            self.spb *= self.rate / rate;
+        }
+        self.rate = rate;
+        self.base_frame = frame;
+        self.base_beat = beat;
+        self.beat = self.beat_at(0);
     }
 
     /// Sequencer notes sounding now.
@@ -481,6 +529,7 @@ impl Seq {
             self.beat = 0.0;
             self.base_beat = 0.0;
             self.base_frame = self.frame;
+            self.song_start = Some(0.0);
             self.clip_playing = None;
             self.pending = None;
             if self.running {
@@ -553,12 +602,12 @@ impl Seq {
 
     /// Everything due in the next sub-block of `frames` frames at `sr`, into `out` (offsets in frames).
     pub fn advance(&mut self, p: &SeqParams, frames: usize, sr: f32, out: &mut Events) {
-        let spb = 60.0 * sr as f64 / p.bpm.max(1.0) as f64;
+        let spb = 60.0 * sr as f64 / (p.bpm.max(1.0) as f64 * self.rate);
         let f0 = self.frame;
         if spb != self.spb {
             // a new tempo: carry on from where the clock is now
             if self.spb > 0.0 {
-                self.base_beat += (f0 - self.base_frame) as f64 / self.spb;
+                self.base_beat += (f0 as i64 - self.base_frame as i64) as f64 / self.spb;
             }
             self.base_frame = f0;
             self.spb = spb;
@@ -686,12 +735,19 @@ impl Seq {
                 self.clip_playing = None;
             }
             self.pending = None;
+            // a clip switched on later waits for the launch quantize as usual
+            self.song_start = None;
             return;
         }
         let want = (p.clip_slot as usize).clamp(1, CLIP_SLOTS) - 1;
+        let song_start = self.song_start.take();
         if self.clip_playing != Some(want) && self.pending.is_none_or(|(s, _)| s != want) {
             let q = QUANTIZE[(p.quantize as usize).min(QUANTIZE.len() - 1)];
-            let start = if q == 0.0 || self.clip_playing.is_none() && b0 < 1e-9 { b0 } else { (b0 / q - 1e-9).ceil() * q };
+            let start = match song_start {
+                Some(beat) => beat,
+                None if q == 0.0 => b0,
+                None => (b0 / q - 1e-9).ceil() * q,
+            };
             self.pending = Some((want, start));
         }
         if let Some((s, start)) = self.pending
@@ -703,6 +759,13 @@ impl Seq {
             }
             self.clip_playing = Some(s);
             self.clip_start = start;
+            self.play_from = start;
+            if song_start.is_some() {
+                // with the transport: where it would be had it played from the top (the song's
+                // beat 0), so instances that join mid-way play in step
+                let len = (self.clips[s].length as f64).max(1e-3);
+                self.clip_start = (start / len + 1e-9).floor() * len;
+            }
             self.pending = None;
         }
         let Some(slot) = self.clip_playing else { return };
@@ -713,7 +776,7 @@ impl Seq {
         // note is then kept if its frame falls in the block
         let eps = 0.5 / c.spb;
         let swing = p.swing.clamp(0.0, 1.0) as f64 * SWING_MAX;
-        let (p0, p1) = ((b0 - eps - swing).max(self.clip_start) - self.clip_start, b1 + eps - self.clip_start);
+        let (p0, p1) = ((b0 - eps - swing).max(self.clip_start).max(self.play_from) - self.clip_start, b1 + eps - self.clip_start);
         if p1 <= 0.0 {
             return;
         }

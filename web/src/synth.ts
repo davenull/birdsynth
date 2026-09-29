@@ -32,6 +32,7 @@ import { MpeChannels, MPE_X, MPE_Y, MPE_Y_CC, MPE_Z } from './input/mpe';
 import { CpuGuard } from './audio/guard';
 import { phraseFor } from './state/preview';
 import { hybridize, type HybridOptions } from './state/hybrid';
+import { Link } from './sync/link';
 
 export type SynthStatus = 'idle' | 'starting' | 'running' | 'suspended' | 'error';
 
@@ -105,6 +106,10 @@ export class Synth implements MidiSink {
    */
   private assetRefs = new WeakMap<object, unknown>();
   private assetGen = 0;
+  /** Linked with other instances: a shared transport and tempo (see sync/). */
+  readonly link: Link;
+  /** The frame a parameter change lands on in the engine (0: as soon as it can); see setParamAt. */
+  private paramFrame = 0;
   /** Eases the engine's load when it runs too high (a setting of this browser; on unless switched off). */
   readonly guard = new CpuGuard();
   guardOn = readSetting('birdsynth.cpu-guard') !== '0';
@@ -138,7 +143,11 @@ export class Synth implements MidiSink {
   constructor() {
     this.target = { bank: this.bank, matrix: this.matrix, lfo: this.lfo, remap: this.remap, fx: this.fx, arp: this.arp, clips: this.clips };
     this.history = new History(this.target);
-    this.bank.onAny((id, v) => this.host?.send((w) => w.setParam(0, id, v)));
+    this.bank.onAny((id, v) => {
+      const frame = this.paramFrame;
+      this.host?.send((w) => w.setParam(frame, id, v));
+    });
+    this.link = new Link(this);
     const mpeOn = () => {
       const on = this.bank.get(PARAM_ID['voice.mpe']) >= 0.5;
       if (on !== this.mpe.on) this.mpe.reset();
@@ -244,6 +253,7 @@ export class Synth implements MidiSink {
         host.ctx.addEventListener('statechange', follow);
         this.resync();
         this.guardTimer ??= setInterval(() => this.checkLoad(), 250);
+        this.link.join();
         if (host.ctx.state !== 'running') await host.ctx.resume().catch(() => {});
         follow();
         // every oscillator starts on the factory saw (the engine's built-in
@@ -734,11 +744,22 @@ export class Synth implements MidiSink {
   }
 
   // ---------------------------------------------------------- transport
-  /** Start or stop the transport (clips play while it runs). */
+  /** Start or stop the transport (clips play while it runs); while linked, for the whole group. */
   transport(play: boolean): void {
-    this.host?.send((w) => w.transport(0, play ? 1 : 0));
+    if (this.link.linked) this.link.request({ kind: play ? 'play' : 'stop' });
+    else this.host?.send((w) => w.transport(0, play ? 1 : 0));
     if (!play) this.stopRecording();
     for (const fn of this.transportSubs) fn();
+  }
+
+  /** Set a parameter so it lands in the engine at `frame` (a linked tempo change, on the timeline's moment). */
+  setParamAt(frame: number, key: ParamKey, plain: number): void {
+    this.paramFrame = frame;
+    try {
+      this.setParam(key, toNorm(PARAMS[PARAM_ID[key]], plain));
+    } finally {
+      this.paramFrame = 0;
+    }
   }
 
   onTransport(fn: () => void): () => void {
