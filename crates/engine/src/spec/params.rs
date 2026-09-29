@@ -2,7 +2,7 @@
 
 use crate::params::{Curve, ParamInfo};
 
-pub const COUNT: usize = 1042;
+pub const COUNT: usize = 1044;
 
 pub const ARP_ENABLE: u16 = 0;
 pub const ARP_SHAPE: u16 = 1;
@@ -330,7 +330,9 @@ pub const VOICE_GLIDE_CURVE: u16 = 1037;
 pub const VOICE_STEAL: u16 = 1038;
 pub const VOICE_BEND_UP: u16 = 1039;
 pub const VOICE_BEND_DOWN: u16 = 1040;
-pub const VOICE_VEL_CURVE: u16 = 1041;
+pub const VOICE_MPE: u16 = 1041;
+pub const VOICE_MPE_RANGE: u16 = 1042;
+pub const VOICE_VEL_CURVE: u16 = 1043;
 
 pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "arp.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
@@ -1374,5 +1376,7 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "voice.steal", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
     ParamInfo { key: "voice.bend_up", curve: Curve::Int, min: 0.0, max: 48.0, default: 0.041666668, flags: 0 },
     ParamInfo { key: "voice.bend_down", curve: Curve::Int, min: 0.0, max: 48.0, default: 0.041666668, flags: 0 },
+    ParamInfo { key: "voice.mpe", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "voice.mpe_range", curve: Curve::Int, min: 1.0, max: 96.0, default: 0.49473685, flags: 0 },
     ParamInfo { key: "voice.vel_curve", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 0 },
 ];

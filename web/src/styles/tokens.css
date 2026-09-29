@@ -12,7 +12,8 @@
   --glass: #0d0f12;
   --text: #e7e9ee;
   --text-dim: #9aa1ad;
-  --text-faint: #666d79;
+  /* 4.5:1 on the panels, for the small hint text */
+  --text-faint: #858c97;
 
   --knob-face: #262a33;
   --knob-track: #353b47;

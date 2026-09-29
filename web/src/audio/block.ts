@@ -16,7 +16,7 @@
 import { TEL } from '../gen/protocol';
 
 export const BLOCK_FRAMES = 1024;
-export const BLOCK_MAX_TAPS = 8;
+export const BLOCK_MAX_TAPS = 16;
 export const POOL_SIZE = 8;
 
 export const HDR = {

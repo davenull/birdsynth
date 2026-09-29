@@ -111,7 +111,7 @@
     line-height: 1;
   }
   .name {
-    width: 180px;
+    width: 150px;
     display: flex;
     align-items: center;
     gap: 3px;

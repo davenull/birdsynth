@@ -1,7 +1,8 @@
 <!--
   A row of bars to draw values on (step lanes, Voice Control): drag across
   to set them. Bipolar rows grow from the middle. The highlighted column is
-  the step playing now.
+  the step playing now. From the keyboard: Left/Right pick a step,
+  Up/Down change it (Shift: finely), Home/End set its lowest or highest.
 -->
 <script lang="ts">
   import { fitCanvas } from '../frame';
@@ -33,11 +34,16 @@
   } = $props();
 
   let canvas = $state<HTMLCanvasElement>();
+  /** The step the keyboard edits (shown while focused). */
+  let cur = $state(0);
+  let focused = $state(false);
 
   $effect(() => {
     void values;
     void active;
     void count;
+    void cur;
+    void focused;
     const c = canvas;
     if (!c) return;
     const g = c.getContext('2d');
@@ -66,7 +72,44 @@
       g.fillStyle = 'rgba(255,255,255,0.2)';
       g.fillRect(0, zero, w, dpr);
     }
+    if (focused) {
+      g.strokeStyle = '#fff';
+      g.lineWidth = dpr;
+      g.strokeRect(cur * bw + dpr / 2, dpr / 2, bw - dpr, h - dpr);
+    }
   });
+
+  // integer lanes (degree, bend) step by one; the others by a twentieth of the range
+  const whole = $derived(max - min >= 8);
+  function onkeydown(e: KeyboardEvent): void {
+    const n = values.length;
+    const step = whole ? 1 : (max - min) / (e.shiftKey ? 100 : 20);
+    const v = values[cur];
+    const put = (x: number) => onchange(cur, Math.min(max, Math.max(min, x)));
+    switch (e.key) {
+      case 'ArrowLeft':
+        cur = (cur + n - 1) % n;
+        break;
+      case 'ArrowRight':
+        cur = (cur + 1) % n;
+        break;
+      case 'ArrowUp':
+        put(v + step);
+        break;
+      case 'ArrowDown':
+        put(v - step);
+        break;
+      case 'Home':
+        put(min);
+        break;
+      case 'End':
+        put(max);
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+  }
 
   let last: [number, number] | null = null;
   function set(e: PointerEvent): void {
@@ -90,7 +133,16 @@
     bind:this={canvas}
     style:height={`${height}px`}
     style:--c={color}
-    aria-label={`${label}: ${Array.from(values, format).join(', ')}`}
+    tabindex="0"
+    role="slider"
+    aria-label={`${label}, step ${cur + 1}`}
+    aria-valuemin={min}
+    aria-valuemax={max}
+    aria-valuenow={values[cur]}
+    aria-valuetext={`Step ${cur + 1}: ${format(values[cur])}. All: ${Array.from(values, format).join(', ')}`}
+    {onkeydown}
+    onfocus={() => (focused = true)}
+    onblur={() => (focused = false)}
     onpointerdown={(e) => {
       canvas!.setPointerCapture(e.pointerId);
       last = null;

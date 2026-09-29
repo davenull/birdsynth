@@ -94,6 +94,24 @@ unit = "st"
 explain = "How far the pitch wheel bends down at full travel."
 
 [[param]]
+key = "mpe"
+name = "MPE"
+curve = "bool"
+default = 0
+explain = "For MPE controllers: each note arrives on its own channel, so its pitch bend (X), slide (Y, CC 74) and pressure (Z) shape that note alone. Channel 1 still bends every note. The MPE X, Y and Z sources carry the three anywhere else."
+
+[[param]]
+key = "mpe_range"
+name = "MPE Bend Range"
+short = "MPE Bend"
+curve = "int"
+min = 1
+max = 96
+default = 48
+unit = "st"
+explain = "How far a note bends at the end of its X travel, up or down. MPE controllers expect 48 semitones."
+
+[[param]]
 key = "vel_curve"
 name = "Velocity Curve"
 short = "Vel Curve"

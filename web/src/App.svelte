@@ -22,6 +22,7 @@
   import FxPage from './ui/pages/FxPage.svelte';
   import ArpPage from './ui/pages/ArpPage.svelte';
   import ClipPage from './ui/pages/ClipPage.svelte';
+  import FlowPage from './ui/pages/FlowPage.svelte';
   import PresetBar from './ui/browser/PresetBar.svelte';
   import Browser from './ui/browser/Browser.svelte';
   import { browse } from './ui/browser/browse.svelte';
@@ -36,6 +37,7 @@
   import SampleEditor from './sampler/SampleEditor.svelte';
   import { sampleEditor } from './sampler/sampler.svelte';
   import { onFrame } from './ui/frame';
+  import { guardText } from './audio/guard';
 
   const synth = getContext<Synth>('synth');
   const W = 1280;
@@ -47,6 +49,7 @@
   let cpu = $state(0);
   let scale = $state(1);
   let routings = $state(0);
+  let guard = $state(0);
 
   // the modulation strip (envelopes, LFOs, macros, voicing) is on the OSC page only; the other pages and views get its room
   const main = $derived(nav.page === 'osc' && !browse.open && editorView.osc === null && sampleEditor.osc === null);
@@ -59,6 +62,7 @@
     { id: 'arp', name: 'ARP' },
     { id: 'clip', name: 'CLIP' },
     { id: 'global', name: 'GLOBAL' },
+    { id: 'flow', name: 'FLOW' },
   ];
 
   onMount(() => {
@@ -75,6 +79,7 @@
       const tel = synth.telemetry();
       voices = tel.voicesActive;
       cpu = tel.cpuPct;
+      guard = synth.guard.level;
     });
     const unlock = () => synth.resume();
     window.addEventListener('pointerdown', unlock);
@@ -117,7 +122,7 @@
       <button class="help explain-ui" aria-pressed={explainMode.on} title="Explain mode (?): click any part of the synth to learn what it does" onclick={() => explainMode.toggle()}>?</button>
       <div class="readout" aria-live="polite">
         <span>{voices} voice{voices === 1 ? '' : 's'}</span>
-        <span>CPU {cpu.toFixed(1)}%</span>
+        <span class:guarded={guard > 0} title={guard ? `CPU guard: ${guardText(guard)} while the load is high` : 'Share of real time the engine takes'}>CPU {cpu.toFixed(1)}%{guard ? ' ⚠' : ''}</span>
         <span class="state {status}" title={`Audio ${status}`} aria-label={`Audio ${status}`}>{status === 'running' ? '●' : status}</span>
       </div>
       <div class="master" data-explain="master">
@@ -147,6 +152,8 @@
         <ClipPage />
       {:else if nav.page === 'global'}
         <GlobalPage />
+      {:else if nav.page === 'flow'}
+        <FlowPage />
       {/if}
     </main>
 
@@ -209,7 +216,7 @@
   .topbar {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     padding: 0 12px;
     background: var(--panel);
     border: 1px solid var(--line);
@@ -231,7 +238,7 @@
     background: transparent;
     border: 0;
     border-bottom: 2px solid transparent;
-    padding: 6px 8px;
+    padding: 6px 6px;
     cursor: pointer;
   }
   .tabs button.on {
@@ -266,6 +273,9 @@
     font: 11px var(--font-num);
     color: var(--text-dim);
     margin-left: auto;
+  }
+  .guarded {
+    color: #ffb142;
   }
   .state.running {
     color: #2ecc71;

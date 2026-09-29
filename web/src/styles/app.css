@@ -17,6 +17,12 @@ button {
   font: inherit;
 }
 
+/* a clear ring for keyboard focus (pointer clicks don't show it) */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 /* drag-to-modulate: the chip under the pointer, and the knobs it can land on */
 .mod-ghost {
   position: fixed;

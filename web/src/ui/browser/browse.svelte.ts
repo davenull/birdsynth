@@ -5,8 +5,19 @@ import { emptyQuery, search, type Entry, type Library, type Query } from '../../
 
 export type TagMode = 'all' | 'any';
 
+const AUTOPLAY_KEY = 'birdsynth.autoplay';
+const readAutoplay = () => {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(AUTOPLAY_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
 class Browse {
   open = $state(false);
+  /** Play each preset's preview phrase as it loads (a setting of this browser). */
+  autoplay = $state(readAutoplay());
   query = $state<Query>(emptyQuery());
   /** Tags ticked to include (matched per `mode`) or excluded. */
   include = $state<string[]>([]);
@@ -34,6 +45,16 @@ class Browse {
       this.exclude = this.exclude.filter((t) => t !== tag);
     } else {
       this.include = [...this.include, tag];
+    }
+  }
+
+  setAutoplay(on: boolean): void {
+    this.autoplay = on;
+    try {
+      if (on) localStorage.setItem(AUTOPLAY_KEY, '1');
+      else localStorage.removeItem(AUTOPLAY_KEY);
+    } catch {
+      // private mode: for this session only
     }
   }
 

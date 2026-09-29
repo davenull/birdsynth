@@ -156,7 +156,7 @@
     <rect x="-50" y="-16" width="100" height="32" rx="6" style:stroke="var(--text)" style:--glow={glow[NODE.out.tap] ?? 0} />
     <text text-anchor="middle" dy="4">{NODE.out.name}</text>
   </g>
-  <text class="note" x={NODE.bus2.x + 60} y={H - 4}>FX racks arrive in P3: the buses go straight to the master for now</text>
+  <text class="note" x={NODE.bus2.x + 60} y={H - 4}>Main, Bus 1 and Bus 2 run through their FX racks on the way (the FLOW page shows every stage)</text>
 </svg>
 
 <style>

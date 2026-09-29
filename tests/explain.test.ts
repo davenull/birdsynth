@@ -28,6 +28,7 @@ const EXPANSIONS: Record<string, string[]> = {
   '`${s.key}`': ['osc.a', 'osc.b', 'osc.c', 'sub', 'noise'],
   "k === 'f1' ? 'filter.1' : 'filter.2'": ['filter.1', 'filter.2'],
   '`fx.${FX_TYPES[r.type].key}`': FX_TYPES.map((t) => `fx.${t.key}`),
+  'n.explain': ['osc.a', 'osc.b', 'osc.c', 'sub', 'noise', 'filter.1', 'filter.2', 'flow.amp', 'flow.buses', 'fx', 'master'], // the FLOW page's nodes
   param: [], // knobs, selects and toggles: parameter keys, checked below
 };
 

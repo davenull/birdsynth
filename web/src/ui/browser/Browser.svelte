@@ -12,6 +12,8 @@
   import { exportFile, type PatchMeta } from '../../state/patch';
   import { browse } from './browse.svelte';
   import { download, fileName, pick } from './files';
+  import Knob from '../primitives/Knob.svelte';
+  import type { ParamKey } from '../../gen/params';
 
   const synth = getContext<Synth>('synth');
   let lib = $state<Library | null>(null);
@@ -22,6 +24,12 @@
   let message = $state('');
   let confirmDelete = $state(false);
   let list = $state<HTMLElement>();
+  let previewing = $state(false);
+  let partner = $state('');
+  let blend = $state(0);
+  let seed = $state(1);
+  /** The two parents of the hybrid now loaded (so Roll again makes another of the same two). */
+  let parents = $state<[string, string] | null>(null);
 
   onMount(() => {
     let offLib = () => {};
@@ -29,6 +37,7 @@
       lib = l;
       offLib = l.subscribe(() => version++);
     });
+    const offPreview = synth.onPreview(() => (previewing = synth.previewing));
     const offPatch = synth.onPatch(() => {
       current = synth.presetId;
       meta = { ...synth.meta, tags: [...synth.meta.tags] };
@@ -36,9 +45,18 @@
       confirmDelete = false;
     });
     queueMicrotask(() => document.querySelector<HTMLInputElement>('.browser .search')?.focus());
+    // Escape goes back to the synth (unless explain mode, a menu or a field's own Escape is using it)
+    const onkey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || document.body.classList.contains('explaining')) return;
+      browse.open = false;
+    };
+    window.addEventListener('keydown', onkey);
     return () => {
       offLib();
       offPatch();
+      offPreview();
+      synth.stopPreview();
+      window.removeEventListener('keydown', onkey);
     };
   });
 
@@ -66,10 +84,24 @@
     }, 4000);
   }
 
-  async function load(e: Entry): Promise<void> {
+  async function load(e: Entry, play = browse.autoplay): Promise<void> {
+    synth.stopPreview();
     const w = await synth.loadEntry(e.id);
+    parents = null;
     if (w.length) say(w.join('; '));
+    if (play) synth.preview();
     queueMicrotask(() => list?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' }));
+  }
+
+  async function hybrid(again = false): Promise<void> {
+    const pair: [string, string] | null = again && parents ? parents : current && partner ? [current, partner] : null;
+    if (!pair) return;
+    seed = again ? seed + 1 : Math.floor(Math.random() * 1e6);
+    synth.stopPreview();
+    const w = await synth.loadHybrid(pair[0], pair[1], { seed, blend });
+    parents = pair;
+    say(w.length ? w.join('; ') : `A new hybrid (roll ${seed}); save it to keep it`);
+    if (browse.autoplay) synth.preview();
   }
 
   function onlistkey(e: KeyboardEvent): void {
@@ -178,6 +210,9 @@
   <div class="results">
     <div class="bar">
       <span>{results.length} preset{results.length === 1 ? '' : 's'}</span>
+      <label class="auto" title="Play a short phrase with each preset as it loads"
+        ><input type="checkbox" checked={browse.autoplay} onchange={(e) => browse.setAutoplay(e.currentTarget.checked)} /> Auto-play</label
+      >
       <label
         >Sort
         <select bind:value={browse.query.sort} aria-label="Sort presets">
@@ -205,6 +240,15 @@
               >
             {/each}
           </span>
+          <button
+            class="play"
+            aria-label={`Preview ${e.patch.meta.name}`}
+            title="Load and play its preview"
+            onclick={(ev) => {
+              ev.stopPropagation();
+              void load(e, true);
+            }}>▶</button
+          >
           <span class="pname">{e.patch.meta.name}</span>
           <span class="pcat">{e.patch.meta.category}</span>
           <span class="ptags">{e.patch.meta.tags.join(' · ')}</span>
@@ -225,7 +269,25 @@
       {#each categories as [c] (c)}<option value={c}></option>{/each}
     </datalist>
     <label>Tags <input bind:value={tagText} placeholder="comma, separated" aria-label="Preset tags" onchange={() => edit({ tags: tagText.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean) })} /></label>
-    <label>Notes <textarea rows="3" value={meta.notes} aria-label="Preset notes" oninput={(e) => edit({ notes: e.currentTarget.value })}></textarea></label>
+    <label>Notes <textarea rows="2" value={meta.notes} aria-label="Preset notes" oninput={(e) => edit({ notes: e.currentTarget.value })}></textarea></label>
+    <div class="head">Preview</div>
+    <div class="actions">
+      <button class:on={previewing} aria-pressed={previewing} onclick={() => (previewing ? synth.stopPreview() : synth.preview())}>{previewing ? '■ Stop' : '▶ Play preview'}</button>
+      <span class="faint">its first clip, or a phrase for its category</span>
+    </div>
+    <div class="macros" data-explain="macro" aria-label="Macros">
+      {#each [1, 2, 3, 4, 5, 6, 7, 8] as i (i)}<Knob param={`macro.${i}.value` as ParamKey} label={`M${i}`} size={22} color="var(--macro)" compact />{/each}
+    </div>
+    <div class="head">Hybridize</div>
+    <div class="hybrid" data-explain="hybrid">
+      <select bind:value={partner} aria-label="Hybridize with">
+        <option value="">with…</option>
+        {#each all.filter((e) => e.id !== current) as e (e.id)}<option value={e.id}>{e.patch.meta.name}</option>{/each}
+      </select>
+      <label title="How far continuous values also move toward the other preset">Blend <input type="range" min="0" max="1" step="0.05" bind:value={blend} aria-label="Hybrid blend" /></label>
+      <button disabled={!partner || !current} onclick={() => hybrid()}>Hybridize</button>
+      <button disabled={!parents} onclick={() => hybrid(true)} title="Another hybrid of the same two">Roll again</button>
+    </div>
     <div class="actions">
       <button class="primary" onclick={() => save(false)}>{isUser ? 'Save' : 'Save copy'}</button>
       <button onclick={() => save(true)}>Save as new</button>
@@ -240,7 +302,7 @@
       <p class="warn">This browser won't let the page store data, so presets you save last until you close the tab. Export the ones you want to keep.</p>
     {/if}
     {#if message}<p class="msg" role="status">{message}</p>{/if}
-    <button class="close" onclick={() => (browse.open = false)}>Back to the synth</button>
+    <button class="close" onclick={() => (browse.open = false)}>Back to the synth (Esc)</button>
   </div>
 </section>
 
@@ -392,7 +454,7 @@
   }
   .row {
     display: grid;
-    grid-template-columns: 72px 1.3fr 0.6fr 1.4fr 48px;
+    grid-template-columns: 72px 20px 1.3fr 0.6fr 1.4fr 48px;
     gap: 8px;
     align-items: center;
     padding: 4px 8px;
@@ -402,6 +464,56 @@
   }
   .row:hover {
     background: var(--panel);
+  }
+  .play {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    font-size: 9px;
+    color: var(--text-dim);
+    border-radius: 50%;
+  }
+  .play:hover {
+    color: var(--text);
+    border-color: var(--accent);
+  }
+  .auto {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    margin-right: 10px;
+    color: var(--text-dim);
+  }
+  .auto input {
+    width: auto;
+  }
+  .macros {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    justify-items: center;
+    row-gap: 2px;
+  }
+  .hybrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    align-items: center;
+  }
+  .hybrid select {
+    width: 100%;
+    grid-column: 1 / -1;
+  }
+  .hybrid label {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .hybrid input[type='range'] {
+    padding: 0;
   }
   .row[aria-selected='true'] {
     background: color-mix(in srgb, var(--accent) 18%, transparent);

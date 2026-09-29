@@ -28,6 +28,10 @@ import { parseMidi, type MidiSink } from './input/midi';
 import { MidiLearn } from './input/learn';
 import { WebMidi } from './input/webmidi';
 import { MidiClock } from './input/clock';
+import { MpeChannels, MPE_X, MPE_Y, MPE_Y_CC, MPE_Z } from './input/mpe';
+import { CpuGuard } from './audio/guard';
+import { phraseFor } from './state/preview';
+import { hybridize, type HybridOptions } from './state/hybrid';
 
 export type SynthStatus = 'idle' | 'starting' | 'running' | 'suspended' | 'error';
 
@@ -80,6 +84,15 @@ export class Synth implements MidiSink {
   readonly learn = new MidiLearn(this.bank);
   readonly midi = new WebMidi((bytes, time) => parseMidi(bytes, this, time));
   private readonly clock = new MidiClock();
+  /** Per-note expression from MPE controllers (on with the voice.mpe parameter). */
+  readonly mpe = new MpeChannels();
+  /** Eases the engine's load when it runs too high (a setting of this browser; on unless switched off). */
+  readonly guard = new CpuGuard();
+  guardOn = readSetting('birdsynth.cpu-guard') !== '0';
+  private guardTimer: ReturnType<typeof setInterval> | null = null;
+  /** Underruns counted so far (null until the first reading), and readings taken. */
+  private underruns: number | null = null;
+  private loadChecks = 0;
   /** Whether incoming MIDI clock sets the tempo and runs the transport (a setting of this browser, not the patch). */
   followClock = readSetting('birdsynth.midi-clock') === '1';
   /** Whether the oscillators band-limit (always, except in the aliasing tour). */
@@ -107,6 +120,13 @@ export class Synth implements MidiSink {
     this.target = { bank: this.bank, matrix: this.matrix, lfo: this.lfo, remap: this.remap, fx: this.fx, arp: this.arp, clips: this.clips };
     this.history = new History(this.target);
     this.bank.onAny((id, v) => this.host?.send((w) => w.setParam(0, id, v)));
+    const mpeOn = () => {
+      const on = this.bank.get(PARAM_ID['voice.mpe']) >= 0.5;
+      if (on !== this.mpe.on) this.mpe.reset();
+      this.mpe.on = on;
+    };
+    mpeOn();
+    this.bank.subscribe(PARAM_ID['voice.mpe'], mpeOn);
     this.matrix.attach((i, s) => this.host?.send((w) => writeSlot(w, i, s)));
     this.remap.attach((osc, lut) => this.host?.send((w) => w.setOscCurve(0, osc, lut.length, lut)));
     this.fx.attach((chain, refs) =>
@@ -179,6 +199,7 @@ export class Synth implements MidiSink {
         };
         host.ctx.addEventListener('statechange', follow);
         this.resync();
+        this.guardTimer ??= setInterval(() => this.checkLoad(), 250);
         if (host.ctx.state !== 'running') await host.ctx.resume().catch(() => {});
         follow();
         // every oscillator starts on the factory saw (the engine's built-in
@@ -195,6 +216,29 @@ export class Synth implements MidiSink {
     return this.starting;
   }
 
+  /** Four times a second: the CPU guard's reading (the worklet measures the load over the same quarter second). */
+  private checkLoad(): void {
+    const h = this.host;
+    if (!h || h.ctx.state !== 'running') return;
+    const stats = (h.ctx as unknown as { playbackStats?: { underrunEvents?: number } }).playbackStats;
+    const n = stats?.underrunEvents ?? 0;
+    const underran = this.underruns !== null && n > this.underruns;
+    this.underruns = n;
+    // the first seconds include the warm-up render and the context starting
+    if (!this.guardOn || ++this.loadChecks <= 12) return;
+    const level = this.guard.update(h.cpuPct, 0.25, underran);
+    if (level !== null) h.send((w) => w.setGuard(0, level));
+  }
+
+  setGuardOn(on: boolean): void {
+    this.guardOn = on;
+    writeSetting('birdsynth.cpu-guard', on ? null : '0');
+    if (!on && this.guard.level) {
+      this.guard.reset();
+      this.host?.send((w) => w.setGuard(0, 0));
+    }
+  }
+
   /** Browsers start audio suspended until a user gesture; call from one. */
   resume(): void {
     if (this.host && this.host.ctx.state !== 'running') void this.host.ctx.resume();
@@ -209,6 +253,7 @@ export class Synth implements MidiSink {
       const v = this.bank.values;
       for (let id = 0; id < v.length; id++) w.setParam(0, id, v[id]);
       w.clearMod(0);
+      w.setGuard(0, this.guard.level);
     });
     this.matrix.resync();
     this.lfo.resync();
@@ -225,7 +270,10 @@ export class Synth implements MidiSink {
     this.noise.resync();
     host.send((w) => {
       if (!this.bandlimit) w.debug(0, DEBUG.NoBandlimit, 1);
-      for (const [noteId, n] of this.held) w.noteOn(0, n.note, n.channel, n.velocity, noteId);
+      for (const [noteId, n] of this.held) {
+        w.noteOn(0, n.note, n.channel, n.velocity, noteId);
+        if (this.mpe.member(n.channel)) this.mpe.get(n.channel).forEach((v, k) => w.noteExpression(0, k, v, noteId));
+      }
     });
   }
 
@@ -410,6 +458,62 @@ export class Synth implements MidiSink {
     this.emitPatch();
   }
 
+  // ----------------------------------------------------------- previews
+  private previewTimers: ReturnType<typeof setTimeout>[] = [];
+  private previewNotes = new Set<number>();
+  private readonly previewSubs = new Set<() => void>();
+
+  /** Whether a preview phrase is playing. */
+  get previewing(): boolean {
+    return this.previewTimers.length > 0;
+  }
+
+  onPreview(fn: () => void): () => void {
+    this.previewSubs.add(fn);
+    return () => this.previewSubs.delete(fn);
+  }
+
+  /**
+   * Play the current preset's preview phrase (its first clip, or a phrase for
+   * its category) on a channel of its own, so it never takes a key you hold.
+   */
+  preview(): void {
+    this.stopPreview();
+    const phrase = phraseFor({ meta: this.meta, clips: this.clips.clips });
+    const beat = 60_000 / toPlain(PARAMS[PARAM_ID['global.bpm']], this.bank.get(PARAM_ID['global.bpm']));
+    const at = (fn: () => void, beats: number) => this.previewTimers.push(setTimeout(fn, beats * beat));
+    for (const nt of phrase.notes) {
+      at(() => {
+        this.noteOn(nt.key, nt.velocity, PREVIEW_CHANNEL);
+        this.previewNotes.add(nt.key);
+      }, nt.at);
+      at(() => {
+        this.noteOff(nt.key, PREVIEW_CHANNEL);
+        this.previewNotes.delete(nt.key);
+      }, nt.at + nt.len);
+    }
+    at(() => this.stopPreview(), phrase.beats + 0.5);
+    for (const fn of this.previewSubs) fn();
+  }
+
+  stopPreview(): void {
+    if (!this.previewTimers.length) return;
+    for (const t of this.previewTimers) clearTimeout(t);
+    this.previewTimers = [];
+    for (const k of this.previewNotes) this.noteOff(k, PREVIEW_CHANNEL);
+    this.previewNotes.clear();
+    for (const fn of this.previewSubs) fn();
+  }
+
+  /** Load a hybrid of two library presets (see state/hybrid.ts); unsaved, like an edit. */
+  async loadHybrid(idA: string, idB: string, opt: HybridOptions): Promise<string[]> {
+    const lib = await this.openLibrary();
+    const a = lib.entry(idA);
+    const b = lib.entry(idB);
+    if (!a || !b) return [`there's no preset ${a ? idB : idA}`];
+    return this.loadPatch(hybridize(a.patch, b.patch, opt), (h) => lib.asset(h));
+  }
+
   // ---------------------------------------------------------- transport
   /** Start or stop the transport (clips play while it runs). */
   transport(play: boolean): void {
@@ -518,7 +622,11 @@ export class Synth implements MidiSink {
     const ids = this.byKey.get(k);
     if (ids) ids.push(id);
     else this.byKey.set(k, [id]);
-    this.host?.send((w) => w.noteOn(0, note, channel, velocity, id));
+    this.host?.send((w) => {
+      w.noteOn(0, note, channel, velocity, id);
+      // an MPE note starts with its channel's expression (controllers send it just before the note)
+      if (this.mpe.member(channel)) this.mpe.get(channel).forEach((v, k) => w.noteExpression(0, k, v, id));
+    });
     if (this.recording) this.recording.open.set(`${channel}:${note}`, { start: this.clipBeatNow(this.recording.slot), beat: this.beatNow(), velocity });
     return id;
   }
@@ -567,7 +675,15 @@ export class Synth implements MidiSink {
   }
 
   // ---------------------------------------------- MidiSink (the rest)
+  /** One MPE channel's expression: to every note held on it. */
+  private expression(channel: number, kind: number, value: number): void {
+    this.mpe.set(channel, kind, value);
+    const ids = [...this.held].filter(([, h]) => h.channel === channel).map(([id]) => id);
+    if (ids.length) this.host?.send((w) => ids.forEach((id) => w.noteExpression(0, kind, value, id)));
+  }
+
   pitchBend(channel: number, value: number): void {
+    if (this.mpe.member(channel)) return this.expression(channel, MPE_X, value);
     this.wheels.bend = value;
     this.emitWheels();
     this.host?.send((w) => w.pitchBend(0, channel, value));
@@ -575,6 +691,7 @@ export class Synth implements MidiSink {
 
   controller(channel: number, cc: number, value: number): void {
     if (cc === 123) return this.allNotesOff();
+    if (cc === MPE_Y_CC && this.mpe.member(channel)) return this.expression(channel, MPE_Y, value);
     this.learn.controller(channel, cc, value);
     if (cc === 1) {
       this.wheels.mod = value;
@@ -594,6 +711,7 @@ export class Synth implements MidiSink {
   }
 
   channelPressure(channel: number, value: number): void {
+    if (this.mpe.member(channel)) return this.expression(channel, MPE_Z, value);
     this.host?.send((w) => w.channelPressure(0, channel, value));
   }
 
@@ -653,6 +771,9 @@ function writeSlot(w: CmdWriter, i: number, s: ModSlot | null): void {
   if (s) w.setModSlot(0, i, s.source, s.aux, slotFlags(s), s.dest, s.amount, s.curve, s.output);
   else w.setModSlot(0, i, 0, 0, 0, 0, 0, 0, 1);
 }
+
+/** Preview phrases play on their own MIDI channel (16). */
+const PREVIEW_CHANNEL = 15;
 
 /** A setting of this browser (localStorage, which may be missing or refuse). */
 function readSetting(key: string): string | null {

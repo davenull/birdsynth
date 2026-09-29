@@ -4,7 +4,9 @@
   right end to change its length; Alt-click (or double-click) removes it;
   scroll over a note to change its velocity, anywhere else to move up and
   down the keyboard. Notes snap to the grid (Shift: free). The playhead
-  shows where the clip is playing.
+  shows where the clip is playing. From the keyboard: the arrows move a
+  cursor (Shift+Up/Down an octave), Enter adds or removes a note there,
+  Shift+Left/Right shortens or lengthens it, Delete removes it.
 -->
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
@@ -20,6 +22,9 @@
   // the keys in view: `rows` of them from `low`, fitted to a clip's notes when it's picked
   let low = $state(51);
   let rows = $state(19);
+  /** The keyboard's cursor (beat, key), drawn while the roll has focus. */
+  let cursor = $state({ beat: 0, key: 60 });
+  let focused = $state(false);
   const high = $derived(low + rows - 1);
   const fit = (s: number) => {
     const keys = synth.clips.clips[s].notes.map((n) => n.key);
@@ -56,6 +61,8 @@
     void grid;
     void low;
     void high;
+    void cursor;
+    void focused;
     draw();
   });
 
@@ -98,6 +105,11 @@
     if (t && t[TEL.clipPlaying] === slot) {
       g.fillStyle = '#fff';
       g.fillRect(X(t[TEL.clipPos]), 0, dpr, h);
+    }
+    if (focused && cursor.key >= low && cursor.key <= high) {
+      g.strokeStyle = '#fff';
+      g.lineWidth = 1.5 * dpr;
+      g.strokeRect(X(cursor.beat), Y(cursor.key), Math.max(2 * dpr, X(grid)), kh);
     }
     g.fillStyle = 'rgba(255,255,255,0.35)';
     g.font = `${9 * dpr}px JetBrains Mono, monospace`;
@@ -159,6 +171,55 @@
     const i = hit(at(e));
     if (i >= 0) synth.clips.edit(slot, (c) => c.notes.splice(i, 1));
   }
+  const under = () => clip().notes.findIndex((n) => n.key === cursor.key && cursor.beat >= n.start - 1e-9 && cursor.beat < n.start + n.length - 1e-9);
+  const noteName = (k: number) => `${['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'][k % 12]}${Math.floor(k / 12) - 1}`;
+  function onkeydown(e: KeyboardEvent): void {
+    const len = clip().length;
+    const i = under();
+    const move = (beat: number, key: number) => {
+      cursor = { beat: Math.max(0, Math.min(len - grid, beat)), key: Math.max(0, Math.min(127, key)) };
+      if (cursor.key < low) low = cursor.key;
+      if (cursor.key > high) low = Math.min(128 - rows, cursor.key - rows + 1);
+    };
+    switch (e.key) {
+      case 'ArrowLeft':
+      case 'ArrowRight': {
+        const d = e.key === 'ArrowLeft' ? -grid : grid;
+        if (e.shiftKey && i >= 0) synth.clips.edit(slot, (c) => (c.notes[i].length = Math.max(grid, Math.min(len - c.notes[i].start, c.notes[i].length + d))));
+        else move(cursor.beat + d, cursor.key);
+        break;
+      }
+      case 'ArrowUp':
+      case 'ArrowDown':
+        move(cursor.beat, cursor.key + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 12 : 1));
+        break;
+      case 'Enter':
+      case ' ':
+        if (i >= 0) synth.clips.edit(slot, (c) => c.notes.splice(i, 1));
+        else {
+          synth.clips.edit(slot, (c) => c.notes.push({ start: cursor.beat, length: grid, key: cursor.key, velocity: 0.8, chance: 1, bend: 0 }));
+          synth.noteOn(cursor.key, 0.8);
+          const k = cursor.key;
+          setTimeout(() => synth.noteOff(k), 150);
+        }
+        break;
+      case 'Delete':
+      case 'Backspace':
+        if (i >= 0) synth.clips.edit(slot, (c) => c.notes.splice(i, 1));
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  const label = () => {
+    void version;
+    const c = clip();
+    return `Clip ${slot + 1}: ${c.notes.length} notes over ${c.length} beats. Cursor at beat ${cursor.beat + 1}, ${noteName(cursor.key)}${under() >= 0 ? ', on a note' : ''}. Arrows move, Enter adds or removes a note.`;
+  };
+
   let scrolled = 0;
   function onwheel(e: WheelEvent): void {
     e.preventDefault();
@@ -175,21 +236,26 @@
   }
 </script>
 
-<canvas
-  bind:this={canvas}
-  class="roll"
-  style:--c={color}
-  data-low={low}
-  data-rows={rows}
-  aria-label={`Clip ${slot + 1}: ${clip().notes.length} notes over ${clip().length} beats`}
-  {onpointerdown}
-  {onpointermove}
-  onpointerup={() => (drag = null)}
-  {ondblclick}
-  {onwheel}
-></canvas>
+<!-- an application region: a custom keyboard-driven editor (keys in the header comment) -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+<div
+  class="wrap"
+  tabindex="0"
+  role="application"
+  aria-roledescription="piano roll"
+  aria-label={label()}
+  {onkeydown}
+  onfocus={() => (focused = true)}
+  onblur={() => (focused = false)}
+>
+  <canvas bind:this={canvas} class="roll" style:--c={color} data-low={low} data-rows={rows} {onpointerdown} {onpointermove} onpointerup={() => (drag = null)} {ondblclick} {onwheel}></canvas>
+</div>
 
 <style>
+  .wrap {
+    position: absolute;
+    inset: 0;
+  }
   .roll {
     position: absolute;
     inset: 0;

@@ -327,6 +327,22 @@ fields = [
 tail = { type = "f32" }
 
 [[command]]
+name = "NoteExpression"
+op = 41
+doc = "Per-note (MPE) expression for the note `noteId`: kind 0 is X (its own pitch bend, -1..1), 1 is Y (slide, CC 74, 0..1), 2 is Z (pressure, 0..1)."
+fields = [
+  { name = "kind", type = "u8" },
+  { name = "value", type = "f32" },
+  { name = "noteId", type = "u32" },
+]
+
+[[command]]
+name = "SetGuard"
+op = 42
+doc = "The CPU guard's level, set by the host when the load runs high: 0 none, 1 no oversampling, 2–4 also unison capped at 8, 4 and 2 voices. Patches are untouched."
+fields = [{ name = "level", type = "u8" }]
+
+[[command]]
 name = "ClearMod"
 op = 25
 doc = "Clear every modulation slot."
@@ -444,6 +460,8 @@ name = "clipPlaying"  # the clip slot playing (-1: none)
 name = "clipPos"      # where it is, in beats
 [[telemetry]]
 name = "seqNotes"     # notes the arp and clips have sounding now
+[[telemetry]]
+name = "guard"        # the CPU guard's level in effect (0: none; see SetGuard)
 
 # Taps: signals the engine can record for scopes and the explainer.
 [[tap]]
@@ -468,3 +486,17 @@ name = "focus.filter2" # after Filter 2, mono
 name = "focus.sub"
 [[tap]]
 name = "focus.noise"
+[[tap]]
+name = "bus.main"     # every voice on the main bus (after the filters), mono, before the Main rack
+[[tap]]
+name = "bus.direct"   # the direct bus (sources that skip the filters and FX), mono
+[[tap]]
+name = "bus.1"        # what the sources send to FX bus 1, mono, before its rack
+[[tap]]
+name = "bus.2"
+[[tap]]
+name = "fx.bus1"      # Bus 1's rack output, mono
+[[tap]]
+name = "fx.bus2"
+[[tap]]
+name = "fx.main"      # the Main rack's output (with any buses sent straight to the master), mono, before the direct bus and the volume"

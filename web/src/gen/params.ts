@@ -1066,7 +1066,9 @@ export const PARAMS: readonly ParamInfo[] = [
   { id: 1038, key: "voice.steal", group: "voice", instance: null, local: "steal", name: "Steal Priority", short: "Steal", curve: { kind: 'enum', options: ["Oldest","Newest","Lowest","Highest","Velocity"] }, min: 0, max: 4, def: 0, unit: "", flags: 0, explain: "Which voice gives way when every voice is busy: the oldest note, the newest, the lowest, the highest, or the softest." },
   { id: 1039, key: "voice.bend_up", group: "voice", instance: null, local: "bend_up", name: "Bend Up", short: "Bend Up", curve: { kind: 'int' }, min: 0, max: 48, def: 0.0416666679084301, unit: "st", flags: 0, explain: "How far the pitch wheel bends up at full travel." },
   { id: 1040, key: "voice.bend_down", group: "voice", instance: null, local: "bend_down", name: "Bend Down", short: "Bend Down", curve: { kind: 'int' }, min: 0, max: 48, def: 0.0416666679084301, unit: "st", flags: 0, explain: "How far the pitch wheel bends down at full travel." },
-  { id: 1041, key: "voice.vel_curve", group: "voice", instance: null, local: "vel_curve", name: "Velocity Curve", short: "Vel Curve", curve: { kind: 'lin' }, min: -1, max: 1, def: 0.5, unit: "", flags: 0, explain: "Shapes how hard you play turns into velocity: positive values make soft playing count for more, negative values need a firmer touch." },
+  { id: 1041, key: "voice.mpe", group: "voice", instance: null, local: "mpe", name: "MPE", short: "MPE", curve: { kind: 'bool' }, min: 0, max: 1, def: 0, unit: "", flags: 0, explain: "For MPE controllers: each note arrives on its own channel, so its pitch bend (X), slide (Y, CC 74) and pressure (Z) shape that note alone. Channel 1 still bends every note. The MPE X, Y and Z sources carry the three anywhere else." },
+  { id: 1042, key: "voice.mpe_range", group: "voice", instance: null, local: "mpe_range", name: "MPE Bend Range", short: "MPE Bend", curve: { kind: 'int' }, min: 1, max: 96, def: 0.49473685026168823, unit: "st", flags: 0, explain: "How far a note bends at the end of its X travel, up or down. MPE controllers expect 48 semitones." },
+  { id: 1043, key: "voice.vel_curve", group: "voice", instance: null, local: "vel_curve", name: "Velocity Curve", short: "Vel Curve", curve: { kind: 'lin' }, min: -1, max: 1, def: 0.5, unit: "", flags: 0, explain: "Shapes how hard you play turns into velocity: positive values make soft playing count for more, negative values need a firmer touch." },
 ];
 
 export const PARAM_KEYS = [
@@ -2111,6 +2113,8 @@ export const PARAM_KEYS = [
   "voice.steal",
   "voice.bend_up",
   "voice.bend_down",
+  "voice.mpe",
+  "voice.mpe_range",
   "voice.vel_curve",
 ] as const;
 
@@ -3158,5 +3162,7 @@ export const PARAM_ID: Readonly<Record<ParamKey, number>> = {
   "voice.steal": 1038,
   "voice.bend_up": 1039,
   "voice.bend_down": 1040,
-  "voice.vel_curve": 1041,
+  "voice.mpe": 1041,
+  "voice.mpe_range": 1042,
+  "voice.vel_curve": 1043,
 };

@@ -294,7 +294,7 @@
     padding: 4px 0 3px;
   }
   .knob:focus-visible {
-    box-shadow: 0 0 0 1px var(--knob-color);
+    box-shadow: 0 0 0 2px var(--knob-color);
   }
   .knob {
     position: relative;

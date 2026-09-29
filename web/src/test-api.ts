@@ -12,6 +12,8 @@ import { explain } from './explain/content';
 import { explainMode } from './explain/explain.svelte';
 import { inharmonicDbc } from './explain/measure';
 import { tours } from './explain/tour.svelte';
+import { TOURS } from './explain/tours';
+import { checkStep } from './explain/check';
 import { nav, type PageId } from './ui/nav.svelte';
 import { editorView } from './editor/editor.svelte';
 import type { Scope } from './editor/model';
@@ -374,6 +376,30 @@ export function installTestApi(synth: Synth): void {
       stopRecording: () => synth.stopRecording(),
     },
     tour: {
+      list: () => TOURS.map((t) => ({ id: t.id, title: t.title, steps: t.steps.length })),
+      /** Measure what the current step expects (see explain/check.ts). */
+      check: async () => {
+        const s = tours.step;
+        return s?.expect ? checkStep(synth, s.expect) : { ok: true, checks: [] };
+      },
+      /** Run tours start to finish, checking every step after it settles; a report per step. */
+      runAll: async (ids?: string[], settle = 1200) => {
+        const report: { tour: string; step: number; title: string; ok: boolean; checks: unknown[]; shown: boolean }[] = [];
+        for (const t of TOURS.filter((t) => !ids || ids.includes(t.id))) {
+          await tours.start(synth, t.id);
+          for (let i = 0; i < t.steps.length; i++) {
+            await tours.settled();
+            await new Promise((r) => setTimeout(r, settle));
+            const st = tours.step!;
+            const shown = !st.target || !!document.querySelector(`[data-explain="${st.target}"]`);
+            const r = st.expect ? await checkStep(synth, st.expect) : { ok: true, checks: [] };
+            report.push({ tour: t.id, step: i + 1, title: st.title, ok: r.ok && shown, checks: r.checks, shown });
+            await tours.next();
+          }
+          await tours.settled();
+        }
+        return { ok: report.every((r) => r.ok), failed: report.filter((r) => !r.ok), steps: report.length };
+      },
       start: (id: string) => tours.start(synth, id),
       next: () => tours.next(),
       back: () => tours.back(),

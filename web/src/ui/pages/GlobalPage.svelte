@@ -10,7 +10,11 @@
   import Knob from '../primitives/Knob.svelte';
   import Select from '../primitives/Select.svelte';
   import MidiButton from '../primitives/MidiButton.svelte';
+  import Toggle from '../primitives/Toggle.svelte';
+  import SourceHandle from '../mod/SourceHandle.svelte';
+  import { SOURCE } from '../../state/matrix';
   import { pick } from '../browser/files';
+  import { guardText } from '../../audio/guard';
   import { onFrame } from '../frame';
 
   const synth = getContext<Synth>('synth');
@@ -23,11 +27,14 @@
   let velCurve = $state(0);
   let dropping = $state(false);
   let followClock = $state(synth.followClock);
+  let guardOn = $state(synth.guardOn);
+  let guard = $state(0);
 
   onMount(() => {
     const offFrame = onFrame(() => {
       const t = synth.host?.tel;
       if (t && t[TEL.oversample] !== os) os = t[TEL.oversample];
+      if (t && t[TEL.guard] !== guard) guard = t[TEL.guard];
     });
     const readTuning = () => {
       tuningName = synth.tuning.name;
@@ -78,6 +85,9 @@
     <h2>QUALITY</h2>
     <Select param="global.quality" wide />
     <p>Oversampling runs only while a warp that needs it (sync, FM, PD, AM, RM) is in use. Now: <b>{os}×</b></p>
+    <label class="check" title="When the engine takes over 70% of real time, turn oversampling off and then cap unison until the load falls again"
+      ><input type="checkbox" checked={guardOn} onchange={(e) => synth.setGuardOn((guardOn = e.currentTarget.checked))} /> CPU guard{guard ? ` (now: ${guardText(guard)})` : ''}</label
+    >
   </section>
   <section class="panel" data-explain="global.tempo" aria-label="Tempo">
     <h2>TEMPO</h2>
@@ -151,6 +161,17 @@
       <Select param="voice.steal" wide />
     </div>
   </section>
+  <section class="panel" data-explain="mpe" aria-label="MPE">
+    <h2>MPE</h2>
+    <div class="row">
+      <Toggle param="voice.mpe" label="MPE" color="var(--mpe)" power />
+      <Knob param="voice.mpe_range" size={30} color="var(--mpe)" />
+      <SourceHandle source={SOURCE['MPE X']} label="X" />
+      <SourceHandle source={SOURCE['MPE Y']} label="Y" />
+      <SourceHandle source={SOURCE['MPE Z']} label="Z" />
+    </div>
+    <p>For MPE controllers: each note bends (X), slides (Y) and presses (Z) on its own. Drag X, Y or Z onto a knob.</p>
+  </section>
   <section class="panel" data-explain="midi" aria-label="MIDI">
     <h2>MIDI</h2>
     <div class="row">
@@ -220,6 +241,13 @@
   }
   .error {
     color: var(--clip);
+  }
+  .check {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    font-size: 11px;
+    color: var(--text-dim);
   }
   .tuning {
     display: grid;

@@ -343,7 +343,8 @@ class WtProcessor extends AudioWorkletProcessor {
       this.recover(e);
     }
     this.cpuFrames += n;
-    if (this.cpuFrames >= sampleRate) {
+    // a quarter-second window: the CPU guard reacts within about half a second
+    if (this.cpuFrames >= sampleRate / 4) {
       this.cpuPct = (this.cpuMs / ((this.cpuFrames / sampleRate) * 1000)) * 100;
       this.cpuMs = 0;
       this.cpuFrames = 0;

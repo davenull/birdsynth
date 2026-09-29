@@ -52,6 +52,8 @@ const BEND_MS: f32 = 6.0;
 const KEYS_DOWN: usize = 64;
 /// An `auto_base` entry not in use.
 const NO_AUTO: u16 = u16::MAX;
+/// Unison voices allowed at each CPU-guard level.
+const UNISON_CAP: [usize; 5] = [16, 16, 8, 4, 2];
 const MAX_HELD: usize = 128;
 /// Bus channels that are decimated: main, direct, bus 1, bus 2 (L and R each).
 const DEC_CH: usize = 8;
@@ -133,6 +135,8 @@ pub struct Engine {
     /// transpose and scale), so each key-up finds its own note however the
     /// keyboard settings changed meanwhile.
     keys: Vec<(u8, u32, u8)>,
+    /// The CPU guard's level (see SetGuard).
+    guard: u8,
     /// The parameters the playing clip automates, each with the value the
     /// host last set it to, which it returns to when the automation stops.
     auto_base: [(u16, f32); proto::CLIP_LANES],
@@ -195,6 +199,7 @@ impl Engine {
             sev: Box::default(),
             keys: Vec::with_capacity(KEYS_DOWN),
             auto_base: [(NO_AUTO, 0.0); proto::CLIP_LANES],
+            guard: 0,
             fx: Fx::new(sample_rate),
             out: [vec![0.0; MAX_BLOCK], vec![0.0; MAX_BLOCK]],
             taps: (0..tap::COUNT).map(|_| vec![0.0; MAX_BLOCK]).collect(),
@@ -643,6 +648,16 @@ impl Engine {
                 _ => {}
             },
             Command::ChannelPressure { value, .. } => self.aftertouch = value.clamp(0.0, 1.0),
+            Command::SetGuard { level } => self.guard = level.min(UNISON_CAP.len() as u8 - 1),
+            Command::NoteExpression { kind, value, note_id } => {
+                let k = kind as usize;
+                if k < 3 && note_id != 0 {
+                    let v = if k == 0 { value.clamp(-1.0, 1.0) } else { value.clamp(0.0, 1.0) };
+                    for voice in self.voices.iter_mut().filter(|v| v.active && v.note_id == note_id) {
+                        voice.mpe[k] = if v.is_nan() { 0.0 } else { v };
+                    }
+                }
+            }
             Command::PolyPressure { note, channel, value, note_id } => {
                 let hit = |v: &Voice| v.active && if note_id != 0 { v.note_id == note_id } else { v.note == note && v.channel == channel };
                 for v in self.voices.iter_mut().filter(|v| hit(v)) {
@@ -1011,6 +1026,9 @@ impl Engine {
     /// Oversampling for this sub-block: the Quality factor, when an enabled
     /// oscillator uses a warp that benefits.
     fn pick_os(&self) -> usize {
+        if self.guard >= 1 {
+            return 1;
+        }
         let pr = &self.params;
         let factor = [1, 2, 4][(pr.plain(p::GLOBAL_QUALITY) as usize).min(2)];
         if factor == 1 {
@@ -1066,6 +1084,9 @@ impl Engine {
             beat,
             bend: bend_semis,
             bend_raw: self.bend,
+            mpe_range: if self.params.plain(p::VOICE_MPE) >= 0.5 { self.params.plain(p::VOICE_MPE_RANGE) } else { 0.0 },
+            mpe_coef: self.bend_coef,
+            unison_cap: UNISON_CAP[(self.guard as usize).min(UNISON_CAP.len() - 1)],
             modwheel: self.modwheel,
             aftertouch: self.aftertouch,
             active_voices: active,
@@ -1125,7 +1146,22 @@ impl Engine {
         let note = self.focus.map_or(60.0, |i| self.voices[i].pitch());
         let fcx = fx::Ctx::new(self.sr, bpm, beat, note, &self.params, &self.matrix, &self.global_off);
         let [mut main, direct, mut bus1, mut bus2] = bus;
+        let m = self.tap_mask;
+        let mut mono_tap = |t: usize, b: &[[f32; N]; 2]| {
+            if m & (1 << t) != 0 {
+                for i in 0..N {
+                    self.taps[t][off + i] = 0.5 * (b[0][i] + b[1][i]);
+                }
+            }
+        };
+        mono_tap(tap::BUS_MAIN, &main);
+        mono_tap(tap::BUS_DIRECT, &direct);
+        mono_tap(tap::BUS_1, &bus1);
+        mono_tap(tap::BUS_2, &bus2);
         self.fx.process(&fcx, &mut main, &mut bus1, &mut bus2);
+        mono_tap(tap::FX_BUS1, &bus1);
+        mono_tap(tap::FX_BUS2, &bus2);
+        mono_tap(tap::FX_MAIN, &main);
         let mut mix = main;
         for ch in 0..2 {
             for i in 0..N {
@@ -1145,7 +1181,6 @@ impl Engine {
             self.out[1][off + i] = mix[1][i] * g;
         }
 
-        let m = self.tap_mask;
         for (t, ch) in [(tap::MASTER_L, 0), (tap::MASTER_R, 1)] {
             if m & (1 << t) != 0 {
                 let src: [f32; N] = self.out[ch][off..off + N].try_into().unwrap();
@@ -1218,6 +1253,7 @@ impl Engine {
         t[tel::CLIP_PLAYING] = self.seq.clip_playing.map_or(-1.0, |s| s as f32);
         t[tel::CLIP_POS] = self.seq.clip_pos() as f32;
         t[tel::SEQ_NOTES] = self.seq.sounding() as f32;
+        t[tel::GUARD] = self.guard as f32;
         t[tel::GRAINS_STOLEN] = self.shared.pool.stolen as f32;
         t[tel::PEAK_L] = peak[0];
         t[tel::PEAK_R] = peak[1];

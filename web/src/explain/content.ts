@@ -154,6 +154,19 @@ export const CONTENT: Record<string, Explanation> = {
     text: 'Transpose moves every key you play (from the screen, the computer keyboard or MIDI). Pick a scale and a root and every key lands on the nearest note of that scale, so any key sounds right; the arpeggiator and clips then play those notes.',
     tries: [{ label: 'Play only C minor pentatonic', run: setAll({ 'keys.scale': 11, 'keys.root': 0 }) }],
   },
+  mpe: {
+    title: 'MPE (per-note expression)',
+    text: 'An MPE controller (a Seaboard, a Linnstrument, an Osmose…) sends every note on its own MIDI channel, so each finger can bend its own note (X), slide up and down (Y) and press (Z) without touching the others. Turn MPE on, then route MPE X, Y and Z anywhere: Y to a filter or a wavetable position is the classic. Channel 1 still bends every note.',
+    tries: [
+      {
+        label: 'Slide opens the filter',
+        run: (s) => {
+          setAll({ 'voice.mpe': 1, 'filter.1.enable': 1, 'filter.1.cutoff': 300 })(s);
+          s.matrix.add(SOURCE['MPE Y'], PARAM_ID['filter.1.cutoff'], 0.6);
+        },
+      },
+    ],
+  },
   midi: {
     title: 'MIDI',
     text: 'Plays from any MIDI controller in Chrome, Edge and Firefox (Safari has no Web MIDI). MIDI learn ties a controller knob to any parameter: right-click a knob, choose MIDI learn, move the control. Mappings stay across presets and reloads. Sync to MIDI clock follows a drum machine or DAW sending clock: its tempo becomes the BPM, and its start and stop run the transport.',
@@ -257,6 +270,24 @@ export const CONTENT: Record<string, Explanation> = {
   'global.tempo': {
     title: 'Tempo and rates',
     text: 'The tempo that synced LFOs, envelopes and delays follow, and two knobs that speed up or slow down every envelope or every LFO at once.',
+  },
+  hybrid: {
+    title: 'Hybridize',
+    text: 'Makes a new preset out of two: the one loaded and the one you pick. Each part (an oscillator with its wavetable, a filter, an envelope, an LFO, the effects, the matrix) comes whole from one or the other, by a roll of the dice, so the result still hangs together. Blend also moves the knobs part of the way toward the other preset. Roll again for another mix of the same two; save the ones you like.',
+  },
+  flow: {
+    title: 'Signal flow',
+    text: 'The whole synth as one picture, running: each box is a scope on that point of the path. Sources feed the filters (or skip them), every voice goes through its amp, the voices add up on the buses, the buses run through their FX racks, and everything meets at the master. Wires show where the sound actually goes now; dim boxes have nothing routed through them.',
+  },
+  'flow.amp': {
+    title: 'The amp',
+    text: 'Where each voice gets its volume shape: Envelope 1 multiplies everything the voice plays, whichever bus it goes to. The scope shows the newest voice after its amp, so it swells and fades with each note.',
+    view: 'scope',
+    tap: 'focus.out',
+  },
+  'flow.buses': {
+    title: 'Buses',
+    text: 'Every voice adds into the buses. Main goes through the Main FX rack; Direct skips all the effects; Bus 1 and Bus 2 carry the sends, each through its own rack and then into Main or straight to the master (set in the FX page). Unlike the boxes to their left, these scopes show all the voices together.',
   },
   arp: {
     title: 'Arpeggiator',

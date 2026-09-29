@@ -66,6 +66,11 @@ pub struct VoiceCtx<'a> {
     /// Pitch bend in semitones, and the raw wheel position (-1..1).
     pub bend: f32,
     pub bend_raw: f32,
+    /// Semitones a note's own MPE X bends it at full travel (0 with MPE off), and the smoothing per sub-block.
+    pub mpe_range: f32,
+    pub mpe_coef: f32,
+    /// Most unison voices an oscillator may use (the CPU guard lowers it).
+    pub unison_cap: usize,
     pub modwheel: f32,
     pub aftertouch: f32,
     pub active_voices: f32,
@@ -217,6 +222,9 @@ pub struct Voice {
     pub velocity: f32,
     pub release_vel: f32,
     pub poly_at: f32,
+    /// MPE expression as the host last set it (X -1..1, Y and Z 0..1), and as smoothed.
+    pub mpe: [f32; 3],
+    mpe_s: [f32; 3],
     /// Start order; higher is newer.
     pub age: u64,
     pub released: bool,
@@ -331,6 +339,8 @@ impl Voice {
         self.velocity = velocity;
         self.released = false;
         self.sustained = false;
+        // the new note's own expression follows (from the host), gliding from where this one was
+        self.mpe = [0.0; 3];
         for e in 0..4 {
             if retrigger[e] {
                 if from_zero[e] {
@@ -343,6 +353,12 @@ impl Voice {
     }
 
     /// Restart the LFOs that retrigger with notes (mono legato re-strikes).
+    /// The note's MPE expression now, smoothed (tests).
+    #[cfg(test)]
+    pub(crate) fn mpe_now(&self) -> [f32; 3] {
+        self.mpe_s
+    }
+
     pub fn retrigger_lfos(&mut self, lfo: &[Option<LfoSettings>; LFOS], rng: &mut Rng) {
         for (i, set) in lfo.iter().enumerate() {
             if let Some(set) = set {
@@ -427,10 +443,16 @@ impl Voice {
 
         // envelopes use their own (possibly modulated) times, so they're
         // advanced after the matrix; the matrix sees last sub-block's values
+        for k in 0..3 {
+            self.mpe_s[k] += (self.mpe[k] - self.mpe_s[k]) * cx.mpe_coef;
+        }
         let mut src: Sources = [0.0; source::COUNT];
         for e in 0..4 {
             src[source::ENV_1 as usize + e] = self.env[e].level;
         }
+        src[source::MPE_X as usize] = self.mpe_s[0];
+        src[source::MPE_Y as usize] = self.mpe_s[1];
+        src[source::MPE_Z as usize] = self.mpe_s[2];
         src[source::VELOCITY as usize] = self.velocity;
         src[source::NOTE as usize] = ((self.pitch - 60.0) / 60.0).clamp(-1.0, 1.0);
         src[source::MOD_WHEEL as usize] = cx.modwheel;
@@ -521,7 +543,8 @@ impl Voice {
             let t = env_times(cx, &res, e);
             *lv = self.env[e].advance(n as f32, &t);
         }
-        let pitch = self.advance_glide(n) + cx.bend + cx.tune;
+        let bend = cx.bend + self.mpe_s[0] * cx.mpe_range;
+        let pitch = self.advance_glide(n) + bend + cx.tune;
 
         // --- sub and noise (block)
         let sub_on = res(p::SUB_ENABLE) >= 0.5;
@@ -568,7 +591,7 @@ impl Voice {
                 // a recording: tuned in semitones; its warps and wavetable settings don't apply
                 tuning[o] = base_st + semi;
                 uni[o] = UniParams {
-                    voices: res(p::OSC_UNISON[o]) as usize,
+                    voices: (res(p::OSC_UNISON[o]) as usize).min(cx.unison_cap),
                     detune: res(p::OSC_DETUNE[o]),
                     blend: res(p::OSC_BLEND[o]),
                     width: res(p::OSC_WIDTH[o]),
@@ -593,7 +616,7 @@ impl Voice {
                 pos: res(p::OSC_WT_POS[o]),
                 smooth: res(p::OSC_WT_SMOOTH[o]) >= 0.5,
                 uni: UniParams {
-                    voices: res(p::OSC_UNISON[o]) as usize,
+                    voices: (res(p::OSC_UNISON[o]) as usize).min(cx.unison_cap),
                     detune: res(p::OSC_DETUNE[o]),
                     blend: res(p::OSC_BLEND[o]),
                     width: res(p::OSC_WIDTH[o]),
@@ -739,7 +762,7 @@ impl Voice {
                     held: !self.released,
                     pitch: opitch[o],
                     tuning: tuning[o],
-                    bend: cx.bend,
+                    bend,
                     sr,
                     layout: self.osc[o].layout(&uni[o]),
                     res: &res,
