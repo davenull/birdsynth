@@ -3,6 +3,7 @@ name = "wt-dsp"
 description = "Shared DSP building blocks for the engine and the tools"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 publish.workspace = true
 
 [dependencies]
