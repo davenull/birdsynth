@@ -9,7 +9,7 @@ no imports. It runs inside an AudioWorklet. The UI is Svelte 5 + TypeScript.
 
 **Play it:** https://birdsynth.abusing.technology
 
-![birdsynth's OSC page playing the Choir Pad preset: two oscillators on a vowel wavetable, shown in 3D, through a formant filter, with the envelopes, LFOs, macros and keyboard below](docs/screenshot.png)
+![birdsynth's OSC page playing the Choir Pad preset: two oscillators on a vowel wavetable, shown in 3D, through a formant filter, with the envelopes, LFOs, macros, transport and keyboard below](docs/screenshot.png)
 
 ## What's in it
 
@@ -21,14 +21,46 @@ no imports. It runs inside an AudioWorklet. The UI is Svelte 5 + TypeScript.
   - spectral: resynthesis with time and pitch independent
 
   Each has unison up to 16 and two warp slots: sync, bend, PWM, FM, PD, AM and RM from other sources, distortion and remap. There are also a sub oscillator and a noise oscillator.
-- **Filters:** two, in series or parallel, with 63 types on shared cores (SVF, ladders, diode, Sallen-Key, combs, phasers, formants, EQ shapes).
+
+  ![The OSC page's sources: the sub and noise oscillators, a wavetable oscillator in 3D, a granular oscillator on a recording of hits with its position and length pad, and a spectral oscillator showing its analysis](docs/screenshots/oscillators.png)
+
+- **Filters:** two, in series or parallel, with 63 types on shared cores (SVF, ladders, diode, Sallen-Key, combs, phasers, formants, EQ shapes). Each source goes into Filter 1 or Filter 2, with a Split that sends a share to the other.
+
+  ![The MIX page with the filters in parallel: osc A into Filter 1, osc B into Filter 2 with 30% split back to Filter 1, the noise direct, and the diagram drawing where each goes](docs/screenshots/filters.png)
+
 - **Modulation:** 4 envelopes, 10 LFOs (drawn, XY path, chaos, sample and hold), 8 macros, a 64-slot matrix with curves and aux sources, drag-to-modulate, Voice Control and MPE.
+
+  ![The modulation matrix with six routings from LFOs, an envelope, velocity, a macro and the mod wheel, each with its curve, amount, destination and live value](docs/screenshots/modulation.png)
+
 - **Effects:** three racks (Main, Bus 1, Bus 2) of hyper/dimension, distortion, flanger, phaser, chorus, delay, compressor (single and multiband), five reverbs, EQ, filter, frequency shifter, zero-latency convolution, utility and splitters.
-- **Sequencing:** an arpeggiator with step lanes, twelve clips with a piano roll, automation and recording, and MIDI file import and export. Also transport, swing and MIDI clock-in.
+
+  ![The FX page: the main rack of chorus, distortion, chorus, reverb and compressor, with the reverb open](docs/screenshots/effects.png)
+
+- **Sequencing:** an arpeggiator with step lanes, twelve clips with a piano roll, automation and recording, and MIDI file import and export. Also transport (the space bar plays and stops), swing and MIDI clock-in.
+
+  ![The CLIP page playing a 41-bar clip, with its notes in the piano roll and a lane automating the reverb](docs/screenshots/sequencing.png)
+
+- **Link:** several birdsynths in step: your other tabs and, with Network on, other computers on the same network (or anywhere, given the same group code). One transport, tempo and bar position for all of them; any of them can start or stop the rest. See [docs/sync.md](docs/sync.md).
+
+  <img src="docs/screenshots/link.png" width="320" alt="The LINK section: this computer linked over the network with another, directly, 0.6 ms away, which keeps time for the two">
+
 - **Wavetable editor:** draw tools, harmonics, a formula language, process and morph functions, and import from audio.
+
+  ![The wavetable editor on a 64-frame formant table: one frame's waveform, its harmonics' magnitudes and phases, the formula bar and the frames](docs/screenshots/editor.png)
+
 - **Presets:** a library in IndexedDB with tags, ratings and search, 31 factory presets, previews and Hybridize.
+
+  ![The preset browser: categories, tags and ratings to filter by, the list of presets, and the selected one's details, preview and Hybridize](docs/screenshots/presets.png)
+
 - **Other:** your sound is kept between visits (Reset is on the GLOBAL page), MIDI and MIDI learn, microtuning (.scl/.kbm/.tun), undo, and a CPU guard.
+
+  ![The GLOBAL page: quality and the CPU guard, tempo, tuning, keyboard, velocity, pitch bend, voices, MPE, MIDI, Link, session and master](docs/screenshots/global.png)
+
 - **Explainer:** explain mode (click anything), six guided tours, and a FLOW page that shows the whole signal path as live scopes.
+
+  <img src="docs/screenshots/explainer.png" width="570" alt="Explain mode on Filter 1: a note on what it does, a live scope of the focused voice after the filter, and a button to try closing it with resonance">
+
+  ![The FLOW page with every path in use: each box is a live scope, from the oscillators through the filters and amp to the buses, their FX racks and the master](docs/screenshots/flow.png)
 
 [docs/plan.md](docs/plan.md) has the design, each phase's numeric acceptance gates and the measurements that met them.
 
@@ -53,6 +85,7 @@ no imports. It runs inside an AudioWorklet. The UI is Svelte 5 + TypeScript.
 | `npm run gen` | Regenerates the codecs from `params/` and `schema/`. |
 | `npm run check` | svelte-check type checking. |
 | `deploy/deploy.sh` | Builds the site and runs it as a container on the host named in the script (port 8001). |
+| `node tools/screenshots.mjs` | Retakes this README's screenshots in headless Chrome (`--url http://localhost:4173` for a local build; name shots to retake only those). |
 
 ## Playing
 
