@@ -92,7 +92,10 @@ started by `deploy/40-link-service.sh`, with nginx forwarding `/sync` to
 
 **Introductions.**
 - Instances from the same address see each other: the IPv4 address, or the
-  IPv6 /64. Behind Cloudflare, that's `CF-Connecting-IP`.
+  IPv6 /64. nginx passes it on as `X-Forwarded-For`, taking it from the
+  proxy in front when that's on a private address (the Cloudflare tunnel, or
+  the HTTPS proxy of a self-hosted copy). `CF-Connecting-IP` isn't read: any
+  visitor could send it.
 - Private and loopback addresses count as one local network.
 - A group code puts together everyone who gives it, from any network.
 

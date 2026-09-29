@@ -1,0 +1,22 @@
+# birdsynth on your own machine: the site and its link service, from the
+# image on Docker Hub (docker.io/djbird/birdsynth, linux/amd64 and linux/arm64).
+#
+#   docker compose up -d                           then open http://localhost:8080
+#   docker compose pull && docker compose up -d    to update
+#   docker compose down                            to stop
+#
+# Browsers only start the synth's audio on https:// pages or on localhost, so
+# from other computers, reach it through an HTTPS proxy (see the README).
+# BIRDSYNTH_PORT changes the port; BIRDSYNTH_IMAGE pins a release, e.g.
+# docker.io/djbird/birdsynth:20260929-005314.
+name: birdsynth
+
+services:
+  birdsynth:
+    image: ${BIRDSYNTH_IMAGE:-docker.io/djbird/birdsynth:latest}
+    ports:
+      - "${BIRDSYNTH_PORT:-8080}:8080"
+    restart: unless-stopped
+    # it runs as an unprivileged user and needs no extra rights
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]

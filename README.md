@@ -74,6 +74,46 @@ no imports. It runs inside an AudioWorklet. The UI is Svelte 5 + TypeScript.
   builds use it.
 - Docker with buildx, for deploying.
 
+## Running your own
+
+No build tools needed: the site and its link service come as one image on
+Docker Hub, [djbird/birdsynth](https://hub.docker.com/r/djbird/birdsynth), for
+linux/amd64 and linux/arm64. With Docker and Compose, fetch
+[compose.yaml](compose.yaml) and start it:
+
+```bash
+curl -O https://raw.githubusercontent.com/davenull/birdsynth/main/compose.yaml
+```
+
+```bash
+docker compose up -d
+```
+
+Then open http://localhost:8080 on the same computer. To update, run
+`docker compose pull` and then `docker compose up -d` again; `docker compose down`
+stops it. Without Compose, `docker run -d -p 8080:8080 --restart unless-stopped djbird/birdsynth`
+does the same.
+
+- **Other computers and phones:** browsers only start the synth's audio on
+  secure pages, `https://` or `localhost`. Opened as plain
+  `http://<server>:8080`, the page says the engine needs a secure page. Put it
+  behind an HTTPS reverse proxy with a certificate your devices trust, for
+  example [Caddy](https://caddyserver.com) on the same host, with a domain
+  name pointing at it: `caddy reverse-proxy --from synth.example.com --to localhost:8080`.
+  The proxy has to pass WebSockets through for `/sync` (Caddy and Traefik do
+  by default).
+- **Port and version:** `BIRDSYNTH_PORT=9000 docker compose up -d` serves it on
+  another port (8080 is a popular one). `BIRDSYNTH_IMAGE=docker.io/djbird/birdsynth:<tag>`
+  pins a release; the tags on Docker Hub are the release dates.
+- **Link:** the container runs its own link service at `/sync`, so linking over
+  the network works on your copy too. It puts together the visitors who come
+  from the same network: their address, or the `X-Forwarded-For` a proxy on a
+  private address sends (Caddy, Traefik and nginx's usual setup all send it).
+  Visitors who give the same group code link from anywhere.
+- **Your data:** presets, your session and your settings live in each
+  browser, not in the container, so updating or removing it loses nothing.
+  The container stores nothing and runs as an unprivileged user.
+
 ## Commands
 
 | Command | What it does |

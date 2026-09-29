@@ -1,6 +1,6 @@
 // The link service: introduces birdsynth instances to each other so they can
 // link over the local network. Instances coming from the same network (the
-// same public address as Cloudflare reports it; for IPv6, the same /64) see
+// same public address; for IPv6, the same /64) see
 // each other, and so do instances that give the same group code, wherever
 // they are. The service passes their connection setup (WebRTC offers,
 // answers and candidates) between them, and carries their messages itself
@@ -81,10 +81,14 @@ export function networkKey(ip: string): string {
   return g.slice(0, 4).join(':') + '::/64';
 }
 
-/** The address a connection comes from: Cloudflare's client address, else the proxy's, else the socket's. */
+/**
+ * The address a connection comes from: X-Forwarded-For as nginx sets it in
+ * front of the service (the visitor, found behind any proxy on a private
+ * address; nothing the visitor sends), else the socket's (the dev servers).
+ * CF-Connecting-IP isn't read: on a copy that isn't behind Cloudflare, any
+ * visitor could set it.
+ */
 export function clientAddress(req: IncomingMessage): string {
-  const cf = req.headers['cf-connecting-ip'];
-  if (typeof cf === 'string' && cf) return cf;
   const xff = req.headers['x-forwarded-for'];
   if (typeof xff === 'string' && xff) return xff.split(',')[0];
   return req.socket.remoteAddress ?? '';

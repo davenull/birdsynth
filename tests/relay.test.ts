@@ -13,9 +13,9 @@ class Client {
   inbox: FromRelay[] = [];
   private wake: (() => void)[] = [];
 
-  constructor(url: string, ip?: string, origin?: string) {
-    const headers: Record<string, string> = {};
-    if (ip) headers['cf-connecting-ip'] = ip;
+  constructor(url: string, ip?: string, origin?: string, extra: Record<string, string> = {}) {
+    const headers: Record<string, string> = { ...extra };
+    if (ip) headers['x-forwarded-for'] = ip;
     if (origin) headers.origin = origin;
     this.ws = new WebSocket(url, { headers });
     this.ws.on('message', (d) => {
@@ -106,6 +106,14 @@ describe('link service', () => {
     expect(la).toMatchObject({ you: 'aaaa1', code: '', peers: [{ id: 'bbbb2', name: 'n-bbbb2' }] });
     await b.peers(['aaaa1']);
     await c.peers([]);
+
+    // a visitor can't pick another network by claiming Cloudflare's header: it isn't read
+    const spoof = new Client(url, undefined, undefined, { 'cf-connecting-ip': '203.0.113.7' });
+    clients.push(spoof);
+    await spoof.opened();
+    spoof.send({ t: 'hello', id: 'eeee5', name: 'n-eeee5' });
+    await spoof.peers([]);
+    expect((await a.quiet()).filter((m) => m.t === 'peers' && m.peers.some((p) => p.id === 'eeee5'))).toEqual([]);
 
     // a closes: b hears it's gone
     a.ws.close();

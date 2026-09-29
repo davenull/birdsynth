@@ -5,6 +5,12 @@
 #   docker build -f deploy/Containerfile .
 FROM nginxinc/nginx-unprivileged:stable-alpine
 
+LABEL org.opencontainers.image.title="birdsynth" \
+      org.opencontainers.image.description="A wavetable synthesizer in the browser (Rust/WebAssembly engine, Svelte UI) with an explainer layer, and its link service" \
+      org.opencontainers.image.source="https://github.com/davenull/birdsynth" \
+      org.opencontainers.image.url="https://birdsynth.abusing.technology" \
+      org.opencontainers.image.licenses="BSD-3-Clause"
+
 USER root
 RUN apk add --no-cache nodejs
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
@@ -15,3 +21,4 @@ COPY dist/ /usr/share/nginx/html/
 USER 101
 
 EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1:8080/ && wget -q -O /dev/null http://127.0.0.1:8080/sync/health || exit 1
