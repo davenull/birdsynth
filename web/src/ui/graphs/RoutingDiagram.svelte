@@ -76,10 +76,11 @@
     });
     const fc = 'var(--filter)';
     if (f1On || f2On) {
-      // a filter that's off passes its input through
+      // a filter that's off passes its input through (dim: nothing filtered on that wire),
+      // but in series Filter 1's output carries on through Filter 2 to the main bus either way
       if (serial) ws.push({ from: L(NODE.f1.x + 50, NODE.f1.y), to: L(NODE.f2.x + 20, NODE.f2.y - 14), color: fc, w: f1On ? 0.8 : 0.3 });
       else ws.push({ from: L(NODE.f1.x + 50, NODE.f1.y), to: L(NODE.main.x - 44, NODE.main.y), color: fc, w: f1On ? 0.8 : 0.3 });
-      ws.push({ from: L(NODE.f2.x + 50, NODE.f2.y), to: L(NODE.main.x - 44, NODE.main.y), color: fc, w: f2On ? 0.8 : 0.3 });
+      ws.push({ from: L(NODE.f2.x + 50, NODE.f2.y), to: L(NODE.main.x - 44, NODE.main.y), color: fc, w: f2On || (serial && f1On) ? 0.8 : 0.3 });
     }
     for (const b of [NODE.main, NODE.direct, NODE.bus1, NODE.bus2]) ws.push({ from: L(b.x + 44, b.y), to: L(NODE.out.x - 50, NODE.out.y), color: 'var(--text-dim)', w: 0.6 });
     wires = ws;
