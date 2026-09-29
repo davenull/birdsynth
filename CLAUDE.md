@@ -10,6 +10,7 @@ Link, several birdsynths in step over tabs and the network (`docs/sync.md`).
 - `npm test` runs everything: it builds the wasm, then `cargo test --workspace`, then vitest.
 - Dev server: `preview_start {name: "birdsynth"}` (from `.claude/launch.json`) on :5173. The Vite plugin rebuilds `engine.wasm` when `.rs`/`.toml` files change. The dev and preview servers also host the link service at `/sync`.
 - `npm run build` also bundles the link service (`server/` → `dist-server/relay.cjs`, esbuild); `npm run relay` runs it on its own (:8002).
+- Switching branches under a running dev server can leave Vite restarted on the old `vite.config.ts` (no `/sync`: `/sync/health` returns the page). Restart the server after a checkout.
 - After editing `params/` or `schema/`, run `npm run gen`. A test fails if the generated files are stale. Never hand-edit `crates/engine/src/spec/*` or `web/src/gen/*`.
 
 ## Layout notes
