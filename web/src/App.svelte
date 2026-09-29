@@ -192,7 +192,7 @@
         </div>
         {#if main}
           <div class="hint">
-            Keys <kbd>A</kbd>–<kbd>'</kbd> · octave <kbd>Z</kbd>/<kbd>X</kbd> (A = C{qwerty.octave}) · velocity <kbd>C</kbd>/<kbd>V</kbd> ({Math.round(qwerty.velocity * 100)}%) · play/stop <kbd>Space</kbd> · drag a handle onto a knob to modulate it
+            Keys <kbd>A</kbd>–<kbd>'</kbd> · octave <kbd>Z</kbd>/<kbd>X</kbd> (A = C{qwerty.octave}) · vel <kbd>C</kbd>/<kbd>V</kbd> ({Math.round(qwerty.velocity * 100)}%) · play/stop <kbd>Space</kbd> · drag a chip onto a knob to modulate
           </div>
         {/if}
       </div>
@@ -353,11 +353,12 @@
     align-items: center;
     gap: 12px;
   }
+  /* the chips and transport keep their line; the hint gives way (an ellipsis) if the row is short */
   .lead {
     display: flex;
     align-items: center;
     gap: 10px;
-    min-width: 0;
+    flex: none;
   }
   .keys {
     display: grid;
@@ -376,6 +377,9 @@
     font-size: 10.5px;
     color: var(--text-dim);
     white-space: nowrap;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   kbd {
     font: 10px var(--font-num);
