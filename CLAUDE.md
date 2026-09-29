@@ -64,6 +64,7 @@ Link, several birdsynths in step over tabs and the network (`docs/sync.md`).
 - Measure pitch with a least-squares fit through all rising zero crossings of `master.l` (as `pitch()` in `tests/engine/harness.ts` does). First/last crossings alone scatter ±0.01 Hz on 8192 frames.
 
 ## Deploy
+- Deploy with `HUB=djbird deploy/deploy.sh`: it pushes `docker.io/djbird/birdsynth:<tag>` and `:latest` (public on Docker Hub, since 2026-09-29) and the VM pulls from there. Plain `deploy/deploy.sh` streams the image over SSH instead, leaving Docker Hub behind. In zsh, write `${REPO}:latest`, never `$REPO:latest` (zsh reads `:l` as its lowercase modifier and makes `…atest`).
 - `deploy/deploy.sh` streams the image to birdie@192.168.2.165 over SSH. It runs as compose project `birdsynth` in `~/birdsynth`, container `birdsynth`, on port **8001**. It only works from the 192.168.2.x network.
 - Public URL: **https://birdsynth.abusing.technology** (route added by the user 2026-09-28). It goes through the Cloudflare tunnel, which is managed in the dashboard (token-based cloudflared on the VM), so route changes are the user's step.
 - Through Cloudflare, hashed JS keeps our 1-year immutable cache-control (edge HIT), the wasm passes through uncached (`DYNAMIC`), and HTTP gets a 301 to HTTPS.
