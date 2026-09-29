@@ -63,4 +63,5 @@ are in `docs/plan.md`. P0–P8 are all done and the site is public.
 
 ## Conventions
 - Our own name, visuals and content: no Serum assets and no Vital (GPL) code.
-- Commit locally at the end of each phase. Don't push unless asked.
+- Public on GitHub at https://github.com/davenull/birdsynth (`origin`), licensed BSD 3-Clause (`LICENSE`; every crate and package.json declare it). Keep dependencies permissive.
+- Commit locally at the end of each piece of work. Don't push unless asked.
