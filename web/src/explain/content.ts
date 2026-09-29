@@ -273,7 +273,7 @@ export const CONTENT: Record<string, Explanation> = {
   },
   link: {
     title: 'Link',
-    text: 'Link plays several birdsynths in step: switch it on in each tab and they share one transport, one tempo and the same bar position, so clips, arpeggios and tempo-synced LFOs line up. Play, Stop or the tempo knob in any of them changes all of them, a moment later, at the same instant everywhere. One tab quietly keeps time for the group; if it closes, the next one carries on without a hiccup.',
+    text: 'Link plays several birdsynths in step: switch it on in each and they share one transport, one tempo and the same bar position, so clips, arpeggios and tempo-synced LFOs line up. Play, Stop or the tempo knob in any of them changes all of them, a moment later, at the same instant everywhere. Tabs of this browser link by themselves; with Network on, so do other computers on the same network (the site introduces them, then they talk directly and measure how far apart their clocks are), or any that give the same group code. One of them quietly keeps time for the group; if it goes, the next one carries on without a hiccup. If one sounds a little early or late (Bluetooth speakers), Nudge it.',
   },
   session: {
     title: 'Your session',

@@ -15,5 +15,5 @@
     "noUnusedLocals": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["web/src/**/*.ts", "web/src/**/*.svelte", "tests/**/*.ts", "vite.config.ts", "vitest.config.ts"]
+  "include": ["web/src/**/*.ts", "web/src/**/*.svelte", "tests/**/*.ts", "server/**/*.ts", "vite.config.ts", "vitest.config.ts"]
 }

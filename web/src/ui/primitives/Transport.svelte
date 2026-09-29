@@ -2,7 +2,7 @@
   The transport, in the row above the keyboard on every page: play and
   stop, record (what you play goes into the clip picked on the CLIP page,
   over what's there), and where the song is. While linked, play and stop
-  run every linked tab.
+  run everything linked (other tabs, other computers).
 -->
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
@@ -43,7 +43,7 @@
     class:on={playing}
     aria-pressed={playing}
     aria-label={playing ? 'Stop' : 'Play'}
-    title={linked ? 'Play or stop every linked tab' : 'Play or stop (clips, and the arpeggiator on the Beat retrigger)'}
+    title={linked ? 'Play or stop everything linked' : 'Play or stop (clips, and the arpeggiator on the Beat retrigger)'}
     onclick={() => synth.transport(!playing)}>{playing ? '■' : '▶'}</button
   >
   <button
@@ -55,7 +55,7 @@
     onclick={() => (synth.recording ? synth.stopRecording() : synth.record(slot()))}>●</button
   >
   <span class="pos" aria-label={`Song position ${pos}`}>{pos}</span>
-  {#if linked}<span class="linked" title="Linked with other tabs: play and stop run them all">LINK</span>{/if}
+  {#if linked}<span class="linked" title="Linked: play, stop and the tempo run every linked birdsynth">LINK</span>{/if}
 </div>
 
 <style>

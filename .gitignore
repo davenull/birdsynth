@@ -1,6 +1,7 @@
 /target/
 /node_modules/
 /dist/
+/dist-server/
 /web/wasm/
 .DS_Store
 *.log

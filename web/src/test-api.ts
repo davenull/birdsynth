@@ -345,13 +345,35 @@ export function installTestApi(synth: Synth): void {
         stolen: t[TEL.grainsStolen],
       };
     },
-    /** Linked instances (tabs of this browser): the shared timeline and who's in the group. */
+    /** Linked instances (tabs of this browser, and over the network): the shared timeline and who's in the group. */
     link: {
-      state: () => ({ on: synth.link.on, linked: synth.link.linked, id: synth.link.id, name: synth.link.name, keeping: synth.link.keeping, members: synth.link.members.map((m) => ({ ...m })), timeline: synth.link.timeline && { ...synth.link.timeline }, anchor: synth.link.lastAnchor && { ...synth.link.lastAnchor } }),
+      state: () => ({
+        on: synth.link.on,
+        net: synth.link.net,
+        netState: synth.link.netState,
+        code: synth.link.code,
+        linked: synth.link.linked,
+        id: synth.link.id,
+        name: synth.link.name,
+        keeping: synth.link.keeping,
+        members: synth.link.members.map((m) => ({ ...m })),
+        timeline: synth.link.timeline && { ...synth.link.timeline },
+        anchor: synth.link.lastAnchor && { ...synth.link.lastAnchor },
+        deferred: synth.link.deferred !== null,
+      }),
       on: (on = true) => synth.link.setOn(on),
+      net: (on = true) => synth.link.setNet(on),
+      code: (code: string) => synth.link.setCode(code),
       name: (name: string) => synth.link.setName(name),
       nudge: (ms: number) => synth.link.setNudge(ms),
-      corrections: () => ({ count: synth.link.corrections, lastMs: synth.link.lastCorrectionMs }),
+      corrections: () => ({ count: synth.link.corrections, lastMs: synth.link.lastCorrectionMs, log: synth.link.correctionLog.map((c) => ({ ...c })) }),
+      /** The audio clock against this one's: the frame heard now (ms), and the browser's output timestamp it comes from. */
+      heard: () => {
+        const h = synth.host;
+        if (!h) return null;
+        const ts = h.ctx.getOutputTimestamp();
+        return { heardMs: (h.heardFrame() / h.ctx.sampleRate) * 1000, now: performance.timeOrigin + performance.now(), contextTime: ts.contextTime, performanceTime: ts.performanceTime, currentTime: h.ctx.currentTime, outputLatency: h.ctx.outputLatency };
+      },
     },
     /** The working state kept between visits. */
     session: {

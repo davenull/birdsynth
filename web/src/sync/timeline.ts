@@ -20,6 +20,28 @@ export type Request = { kind: 'play' } | { kind: 'stop' } | { kind: 'tempo'; bpm
 export const MIN_BPM = 20;
 export const MAX_BPM = 999;
 
+/** Whether something from another instance is a timeline (anything can arrive over a network). */
+export function isTimeline(t: unknown): t is Timeline {
+  const x = t as Timeline;
+  return (
+    !!x &&
+    typeof x.playing === 'boolean' &&
+    Number.isFinite(x.bpm) &&
+    x.bpm >= MIN_BPM &&
+    x.bpm <= MAX_BPM &&
+    Number.isFinite(x.at) &&
+    Math.abs(x.beat) < 1e9 &&
+    Number.isSafeInteger(x.version) &&
+    x.version >= 0 &&
+    typeof x.keeper === 'string'
+  );
+}
+
+export function isRequest(r: unknown): r is Request {
+  const x = r as Request;
+  return !!x && (x.kind === 'play' || x.kind === 'stop' || (x.kind === 'tempo' && Number.isFinite(x.bpm)));
+}
+
 export function beatAt(t: Timeline, time: number): number {
   return t.beat + ((time - t.at) * t.bpm) / 60_000;
 }

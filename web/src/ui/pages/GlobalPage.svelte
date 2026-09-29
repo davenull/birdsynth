@@ -27,18 +27,50 @@
   let velCurve = $state(0);
   let dropping = $state(false);
   let followClock = $state(synth.followClock);
-  // linking with other tabs
-  const linkState = () => ({ on: synth.link.on, linked: synth.link.linked, name: synth.link.name, nudge: synth.link.nudge, members: synth.link.members.map((m) => ({ ...m })) });
+  // linking with other tabs and, over the network, other computers
+  const linkState = () => ({
+    on: synth.link.on,
+    net: synth.link.net,
+    code: synth.link.code,
+    netState: synth.link.netState,
+    linked: synth.link.linked,
+    name: synth.link.name,
+    nudge: synth.link.nudge,
+    waiting: synth.link.deferred !== null,
+    members: synth.link.members.map((m) => ({ ...m })),
+  });
   let link = $state(linkState());
+  const others = $derived(link.members.filter((m) => !m.self).length);
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   const linkText = $derived(
     !link.on
-      ? 'Plays in step with birdsynth in your other tabs: one transport, tempo and bar position for all of them, and any of them can start or stop the rest.'
+      ? 'Plays in step with other birdsynths: your other tabs and, with Network on, other computers. One transport, tempo and bar position for all of them, and any of them can start or stop the rest.'
       : !link.linked
         ? 'Linking once audio starts…'
-        : link.members.length < 2
-          ? 'Linked. Open birdsynth in another tab (with Link on there too) to play in step.'
-          : `Linked with ${link.members.length - 1} other tab${link.members.length > 2 ? 's' : ''}.`,
+        : link.waiting
+          ? 'Measuring how far this computer’s clock is from the one keeping time…'
+          : !link.net
+            ? others
+              ? `Linked with ${plural(others, 'other tab', 'other tabs')}.`
+              : 'Linked. Open birdsynth in another tab (with Link on there too) to play in step, or switch Network on to find other computers.'
+            : link.netState === 'offline'
+              ? `Can’t reach the link service; trying again.${others ? ` Still linked with ${plural(others, 'other', 'others')} (this browser’s tabs, and any computer already connected directly).` : ''}`
+              : link.netState === 'connecting'
+                ? 'Looking for birdsynth on this network…'
+                : others
+                  ? `Linked with ${plural(others, 'other', 'others')}.`
+                  : link.code
+                    ? `No one else with the code ${link.code} yet.`
+                    : 'No one else on this network yet: open birdsynth on another computer here with Link and Network on. (Not finding each other? Give each the same group code.)',
   );
+  const via = (m: (typeof link.members)[number]) =>
+    m.self
+      ? 'this tab'
+      : m.via === 'tab'
+        ? 'tab'
+        : `${m.via === 'direct' ? 'direct' : 'through the service'}${m.rtt !== null ? ` · ${m.rtt < 10 ? m.rtt.toFixed(1) : Math.round(m.rtt)} ms` : ''}`;
+  const clockNote = (m: (typeof link.members)[number]) =>
+    m.self || m.via === 'tab' ? 'Same computer, same clock' : m.offset === null ? 'Measuring its clock…' : `Its clock is ${Math.abs(m.offset).toFixed(1)} ms ${m.offset >= 0 ? 'ahead of' : 'behind'} this one’s`;
   // the session: whether it's kept, and a reset that asks first
   let session = $state({ state: synth.sessionState, saved: synth.sessionSaved });
   let now = $state(Date.now());
@@ -252,9 +284,29 @@
   <section class="panel" data-explain="link" aria-label="Link">
     <h2>LINK</h2>
     <div class="row">
-      <button class="clock" aria-pressed={link.on} onclick={() => synth.link.setOn(!link.on)}>Link tabs</button>
+      <button class="clock" aria-pressed={link.on} onclick={() => synth.link.setOn(!link.on)}>Link</button>
       <input class="lname" value={link.name} aria-label="This tab's name in the link" onchange={(e) => synth.link.setName(e.currentTarget.value)} />
     </div>
+    {#if link.on}
+      <div class="row">
+        <button
+          class="clock"
+          aria-pressed={link.net}
+          title="Also link with birdsynth on other computers on this network: the site introduces them, then they talk directly"
+          onclick={() => synth.link.setNet(!link.net)}>Network</button
+        >
+        <input
+          class="lname"
+          value={link.code}
+          placeholder="Group code (optional)"
+          disabled={!link.net}
+          maxlength="16"
+          aria-label="Group code: link with birdsynth giving the same code, on any network"
+          title="Computers giving the same code link wherever they are; without one, the ones on this network do"
+          onchange={(e) => synth.link.setCode(e.currentTarget.value)}
+        />
+      </div>
+    {/if}
     <p role="status">{linkText}</p>
     {#if link.on}
       <label class="nudge" title="If this tab sounds early or late against the others (Bluetooth speakers, some embedded browsers delay the sound without saying so), move it until they line up by ear"
@@ -266,7 +318,11 @@
     {#if link.members.length > 1}
       <ul class="members">
         {#each link.members as m (m.id)}
-          <li class:self={m.self}>{m.name}{m.self ? ' (this tab)' : ''}{#if m.keeper}<span class="keeper" title="Keeps time for the group; if it closes, the next one takes over"> · keeps time</span>{/if}</li>
+          <li class:self={m.self} title={clockNote(m)}>
+            <span class="mname">{m.name}</span><span class="via">{via(m)}</span>{#if m.keeper}<span class="keeper" title="Keeps time for the group; if it goes, the next one takes over"
+                >keeps time</span
+              >{/if}
+          </li>
         {/each}
       </ul>
     {/if}
@@ -370,6 +426,12 @@
     min-width: 0;
     flex: 1;
   }
+  .lname:disabled {
+    color: var(--text-faint);
+  }
+  .lname::placeholder {
+    color: var(--text-faint);
+  }
   .nudge {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) 48px;
@@ -391,10 +453,27 @@
     font-size: 11px;
     color: var(--text-dim);
   }
+  .members li {
+    display: flex;
+    gap: 6px;
+    min-width: 0;
+  }
   .members .self {
     color: var(--text);
   }
+  .mname {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .via {
+    flex: none;
+    color: var(--text-faint);
+  }
   .keeper {
+    flex: none;
+    margin-left: auto;
     color: var(--macro);
   }
   .danger.confirm {

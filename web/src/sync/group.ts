@@ -1,17 +1,24 @@
 // A group of linked instances. One of them, the timekeeper, owns the shared
 // timeline: every member's play, stop and tempo go to it as requests, it
 // applies them one at a time and sends out each new version, scheduled a
-// little ahead so every member switches on the same moment. The timekeeper
-// is the member that joined first; when it goes quiet or leaves, the next
-// oldest takes over and carries the timeline on as it stands, so nothing is
-// heard to change. Conflicts settle the same way everywhere: the highest
-// version wins, ties to the lower keeper id.
+// little ahead so every member switches on the same moment. The first member
+// keeps time and goes on keeping it while it's there; when it goes quiet or
+// leaves, the oldest member left takes over and carries the timeline on as
+// it stands, so nothing is heard to change. Conflicts (two groups meeting)
+// settle the same way everywhere: the highest version wins, ties to the
+// lower keeper id. Every heartbeat carries the sender's timeline, so a
+// member that missed a change catches up within one.
+//
+// Instances on different machines have different clocks. A timeline's times
+// are in its keeper's clock, and each member converts them with its estimate
+// of how far that clock is from its own (`offset`); a new keeper converts
+// the timeline it takes over into its own clock.
 //
 // The group runs over any channel that delivers each message to every other
-// member (BroadcastChannel between tabs; a network link later), and needs
-// only a shared clock, `now()`.
+// member at most once and in order (channel.ts: the tabs of this browser and
+// the network), and needs only a clock, `now()`.
 
-import { change, newer, type Request, type Timeline } from './timeline';
+import { change, isRequest, isTimeline, newer, type Request, type Timeline } from './timeline';
 
 export interface Channel {
   post(m: Message): void;
@@ -20,7 +27,7 @@ export interface Channel {
 }
 
 export type Message =
-  | { t: 'here'; from: string; name: string; joined: number }
+  | { t: 'here'; from: string; name: string; joined: number; timeline: Timeline }
   | { t: 'bye'; from: string }
   | { t: 'timeline'; from: string; timeline: Timeline }
   | { t: 'request'; from: string; req: Request };
@@ -36,7 +43,7 @@ export interface Member {
 export interface GroupOptions {
   id: string;
   name: string;
-  /** The shared clock, ms. */
+  /** This member's clock, ms. */
   now(): number;
   /** How far ahead (ms) a change is scheduled, so every member hears of it in time. */
   lead?: number;
@@ -44,12 +51,16 @@ export interface GroupOptions {
   bpm: number;
   onTimeline(t: Timeline): void;
   onMembers?(members: Member[]): void;
+  /** How far a member's clock is ahead of this one's (ms). Without it, every clock is taken to agree. */
+  offset?(id: string): number;
+  /** Whether this member knows enough of the group yet to keep time if nobody else does (the network may still be introducing the others). */
+  ready?(): boolean;
 }
 
 export const HEARTBEAT_MS = 500;
 /** A member not heard from for this long has gone (a closed tab, a sleeping laptop). */
 export const EXPIRE_MS = 3000;
-/** A newcomer listens this long for an older member before it may keep time itself. */
+/** A newcomer listens this long for a timeline before it may keep time itself. */
 export const LISTEN_MS = 600;
 /** A request not answered by a new timeline in this long is sent again (to whoever keeps time by then). */
 export const RETRY_MS = 400;
@@ -62,11 +73,14 @@ interface Peer {
 }
 
 export class SyncGroup {
+  /** The newest timeline heard, in its keeper's clock. A new member's own (version 0) is never sent on. */
   timeline: Timeline;
   private readonly peers = new Map<string, Peer>();
   private readonly joined: number;
+  private name: string;
   private lastHere = -Infinity;
   private keptTime = false;
+  private wasReady = false;
   private pending: { req: Request; version: number; sent: number } | null = null;
   private readonly off: () => void;
 
@@ -76,6 +90,7 @@ export class SyncGroup {
   ) {
     const now = o.now();
     this.joined = now;
+    this.name = o.name;
     this.timeline = { playing: false, bpm: o.bpm, at: now, beat: 0, version: 0, keeper: o.id };
     this.off = ch.listen((m) => this.receive(m));
     this.tick();
@@ -85,8 +100,14 @@ export class SyncGroup {
     return this.o.id;
   }
 
-  /** The member keeping time: the first to join (ties to the lower id), of those heard from lately. */
+  /**
+   * The member keeping time: the timeline's keeper while it's heard from;
+   * otherwise (or before anyone has kept time) the one that joined first
+   * (by their own clocks' reckoning; ties to the lower id).
+   */
   keeperId(): string {
+    const k = this.timeline.keeper;
+    if (this.timeline.version > 0 && (k === this.o.id || this.peers.has(k))) return k;
     let id = this.o.id;
     let joined = this.joined;
     for (const [pid, p] of this.peers)
@@ -97,16 +118,24 @@ export class SyncGroup {
     return id;
   }
 
-  /** Whether this member keeps time now (not while it's still listening for an older one). */
+  /** Whether this member keeps time now (not while it's still listening for the others). */
   get keeping(): boolean {
-    return this.keeperId() === this.o.id && this.o.now() - this.joined >= LISTEN_MS;
+    if (this.keeperId() !== this.o.id || this.o.now() - this.joined < LISTEN_MS) return false;
+    if (!this.wasReady) this.wasReady = this.o.ready?.() ?? true;
+    return this.wasReady;
   }
 
   members(): Member[] {
     const keeper = this.keeperId();
-    const out: Member[] = [{ id: this.o.id, name: this.o.name, joined: this.joined, self: true, keeper: keeper === this.o.id }];
+    const out: Member[] = [{ id: this.o.id, name: this.name, joined: this.joined, self: true, keeper: keeper === this.o.id }];
     for (const [id, p] of this.peers) out.push({ id, name: p.name, joined: p.joined, self: false, keeper: keeper === id });
     return out.sort((a, b) => a.joined - b.joined || (a.id < b.id ? -1 : 1));
+  }
+
+  /** A timeline's times in this member's clock. */
+  local(t: Timeline): Timeline {
+    const off = t.keeper === this.o.id ? 0 : (this.o.offset?.(t.keeper) ?? 0);
+    return off ? { ...t, at: t.at - off } : t;
   }
 
   /** Play, stop or a tempo: applied here if this member keeps time, else sent to the one that does. */
@@ -114,6 +143,13 @@ export class SyncGroup {
     if (this.keeping) return this.decide(req);
     this.pending = { req, version: this.timeline.version, sent: this.o.now() };
     this.ch.post({ t: 'request', from: this.o.id, req });
+  }
+
+  /** A new name, sent with the next heartbeat. */
+  rename(name: string): void {
+    this.name = name;
+    this.here(this.o.now());
+    this.o.onMembers?.(this.members());
   }
 
   /** Call often (each audio block): heartbeats, forgetting the silent, taking over, re-sending a request. */
@@ -128,8 +164,8 @@ export class SyncGroup {
       }
     const keeping = this.keeping;
     if (keeping && !this.keptTime) {
-      // this member keeps time now: carry the timeline on as it stands, under its own name
-      this.publish({ ...this.timeline, version: this.timeline.version + 1, keeper: this.o.id });
+      // this member keeps time now: carry the timeline on as it stands, in its own clock and under its own name
+      this.publish({ ...this.local(this.timeline), version: this.timeline.version + 1, keeper: this.o.id });
       changed = true;
     }
     this.keptTime = keeping;
@@ -154,11 +190,11 @@ export class SyncGroup {
 
   private here(now: number): void {
     this.lastHere = now;
-    this.ch.post({ t: 'here', from: this.o.id, name: this.o.name, joined: this.joined });
+    this.ch.post({ t: 'here', from: this.o.id, name: this.name, joined: this.joined, timeline: this.timeline });
   }
 
   private decide(req: Request): void {
-    const t = change(this.timeline, req, this.o.now() + (this.o.lead ?? LEAD_MS), this.o.id);
+    const t = change(this.local(this.timeline), req, this.o.now() + (this.o.lead ?? LEAD_MS), this.o.id);
     if (t) this.publish(t);
   }
 
@@ -168,21 +204,35 @@ export class SyncGroup {
     this.o.onTimeline(t);
   }
 
+  private heard(t: Timeline): void {
+    // a member's own starting timeline isn't one to follow
+    if (!isTimeline(t) || t.version === 0 || !newer(t, this.timeline)) return;
+    this.timeline = t;
+    if (this.pending && t.version > this.pending.version) this.pending = null;
+    this.o.onTimeline(t);
+  }
+
   private receive(m: Message): void {
-    if (m.from === this.o.id) return;
+    if (typeof m?.from !== 'string' || m.from === this.o.id) return;
     const now = this.o.now();
     const peer = this.peers.get(m.from);
     if (peer) peer.seen = now;
     switch (m.t) {
-      case 'here':
+      case 'here': {
+        if (!Number.isFinite(m.joined)) return;
+        const name = String(m.name).slice(0, 40);
         if (!peer) {
-          this.peers.set(m.from, { name: m.name, joined: m.joined, seen: now });
-          // someone new: answer at once, with the timeline if this member keeps it
+          this.peers.set(m.from, { name, joined: m.joined, seen: now });
+          // someone new: answer at once (with this member's timeline)
           this.here(now);
-          if (this.keeping) this.ch.post({ t: 'timeline', from: this.o.id, timeline: this.timeline });
+          this.o.onMembers?.(this.members());
+        } else if (peer.name !== name) {
+          peer.name = name;
           this.o.onMembers?.(this.members());
         }
+        this.heard(m.timeline);
         break;
+      }
       case 'bye':
         if (this.peers.delete(m.from)) {
           this.o.onMembers?.(this.members());
@@ -190,14 +240,10 @@ export class SyncGroup {
         }
         break;
       case 'timeline':
-        if (newer(m.timeline, this.timeline)) {
-          this.timeline = m.timeline;
-          if (this.pending && m.timeline.version > this.pending.version) this.pending = null;
-          this.o.onTimeline(m.timeline);
-        }
+        this.heard(m.timeline);
         break;
       case 'request':
-        if (this.keeping) this.decide(m.req);
+        if (isRequest(m.req) && this.keeping) this.decide(m.req);
         break;
     }
   }

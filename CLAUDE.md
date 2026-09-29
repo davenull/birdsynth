@@ -2,12 +2,14 @@
 
 A Serum 2-style wavetable synth. The Rust engine is compiled to wasm and runs in
 an AudioWorklet; the UI is Svelte 5 + TS. The roadmap and each phase's gates
-are in `docs/plan.md`. P0–P8 are all done and the site is public.
+are in `docs/plan.md`. P0–P8 are all done and the site is public. After P8:
+Link, several birdsynths in step over tabs and the network (`docs/sync.md`).
 
 ## Commands
 - The shell may lack `~/.cargo/bin`; use `. "$HOME/.cargo/env"` or `node tools/cargo.mjs …`.
 - `npm test` runs everything: it builds the wasm, then `cargo test --workspace`, then vitest.
-- Dev server: `preview_start {name: "birdsynth"}` (from `.claude/launch.json`) on :5173. The Vite plugin rebuilds `engine.wasm` when `.rs`/`.toml` files change.
+- Dev server: `preview_start {name: "birdsynth"}` (from `.claude/launch.json`) on :5173. The Vite plugin rebuilds `engine.wasm` when `.rs`/`.toml` files change. The dev and preview servers also host the link service at `/sync`.
+- `npm run build` also bundles the link service (`server/` → `dist-server/relay.cjs`, esbuild); `npm run relay` runs it on its own (:8002).
 - After editing `params/` or `schema/`, run `npm run gen`. A test fails if the generated files are stale. Never hand-edit `crates/engine/src/spec/*` or `web/src/gen/*`.
 
 ## Layout notes
@@ -38,6 +40,7 @@ are in `docs/plan.md`. P0–P8 are all done and the site is public.
 - IndexedDB (`state/library.ts`) is opened without a version, never upgraded: an upgrade waits for every other tab that has the database open (older builds never let go), and until then the library can't be read, which looks like every preset vanished. Add new records to the existing stores (as the session does, in `prefs`) instead of new stores.
 - Session (kept between visits): `Synth.restoreSession()` at startup puts back the last working state from the library (a `prefs` record, id `session`), then `touchSession()` saves it 700 ms after any change (assets stored once by hash; only new ones are copied). Leaving the page also writes a quick save to localStorage (`birdsynth.session-tail`: the patch without assets, naming them by the hashes of their last save); the next start prefers it when newer. Tours hold the session (`holdSession`), so their teaching patches are never kept. `resetSession()` goes back to Init. The library's clean-up (`collectGarbage`, at startup, reset and preset delete) deletes assets no stored record uses, reading the records rather than this tab's lists. The page shown is kept too (`birdsynth.page`).
 - The modulation strip (Env/LFO/Macro/Voicing panels) is on the OSC page only (`main` in `App.svelte`); which envelope and LFO it shows lives in `ui/strip.svelte.ts`. Other pages get compact ENV/LFO/MACRO handles in the footer (`SourceChips panels`).
+- Link (`web/src/sync/`, `server/`; `docs/sync.md`): `SyncGroup` (group.ts) over one `LinkChannel` (channel.ts: tabs by BroadcastChannel plus `NetLink`, net.ts; numbered, first copy only, in order). A timeline's `at` is in its keeper's clock (`SyncGroup.local()` converts with the measured offset; tabs of one browser count as offset 0). The keeper sticks while it's heard; heartbeats carry the timeline. Ticks ride `host.onUpdate`, never timers. The engine side is `SetTimeline` (frame-exact). The service groups by `CF-Connecting-IP` (IPv4, IPv6 /64, private = one local network) or a group code; it only introduces, signals and relays.
 - Canvases inside grid or flex cells sit `position: absolute` in a relative wrapper: a canvas sized from its own pixels otherwise grows the row it's measured from. Long content (the frame strip) needs `min-width: 0` up the chain; the stage has one `minmax(0, 1fr)` column.
 - The faceplate's `.viewport` uses `overflow: clip`, not hidden: a hidden box still scrolls on focus() or scrollIntoView and slides the panel sideways.
 
@@ -52,6 +55,7 @@ are in `docs/plan.md`. P0–P8 are all done and the site is public.
 ## Verifying in the Browser pane
 - In the pane the AudioContext runs without a gesture, and MIDI is denied: use `__synth.midiIn([...])`.
 - `__synth.telemetry()`, `__synth.telemetryAll()`, `__synth.tap('master.l', n)`, `__synth.matrix()` and `__synth.stats()` (with `underrunEvents`) are the proof points. Presets: `presets()`, `loadPreset(name)`, `savePatch()`/`loadPatch(text)`, `undo()`, `commit()`. MIDI: `learn(key)` then `midiIn([0xB0, cc, v])`, `learned()`. Explainer: `explain.missing()` per page (`page('fx')`), `explain.open(key)`, `explain.inharmonic()`; tours: `tour.start('aliasing')`, `tour.next()`, `tour.settled()`, `tour.state()` (each step's `expect`). Editor: `editor.open(0)`, `editor.formula(src)`, `editor.draw(points)`, `editor.morph(mode, n)`, `editor.importTone(hz, secs, mode)`, `editor.latency()` (pen → tap ms). Recordings: `recording.tone(osc, hz, secs, rate)`, `recording.hits(osc, times)`, `recording.picture(osc)`, `multi.factory(osc, name)`, `oscAssets()` (playheads, grains, what each osc has loaded). Sequencer: `seq.play(on)`, `seq.state()` (playing, beat, arp step, clip playing and position), `seq.setClip(slot, notes, length)`, `seq.setLane(slot, lane, key, points)`, `seq.importMidi(slot, bytes)`, `seq.arpStep(bank, lane, step, v)`, `seq.record(slot)`/`stopRecording()`. Tours: `tour.list()`, `tour.check()` (the current step), `tour.runAll(ids?, settleMs)`. `__synth.setPlain(key, value)` sets a parameter in its own unit. Find knobs by their ARIA name, e.g. `find("Osc A Level")`.
+- Link: `link.state()` (members with `via` and clock `offset`, timeline, anchor, `deferred`), `link.on()`, `link.net()`, `link.code(c)`, `link.corrections()` (with a `log` of re-anchors), `link.heard()`. `http://localhost:5173` and `http://[::1]:5173` are different origins (no shared BroadcastChannel or storage), so two tabs on them can only link over the network; the Vite server doesn't listen on 127.0.0.1. Page reloads make a tab leave and rejoin (with a new id).
 - Pane coordinates: the screenshot frame is smaller than the CSS viewport (e.g. 800 × 758 for 1101 × 1044); convert with the ratio before `left_click_drag`. Viewport emulation (`resize_window`) skews drag coordinates further, so test drags at the pane's own size.
 - Smoothed parameters glide for about 0.2 s (12 ms time constant) before they snap to the target; tests that compare against exact values render ~0.5 s first.
 - Measure pitch with a least-squares fit through all rising zero crossings of `master.l` (as `pitch()` in `tests/engine/harness.ts` does). First/last crossings alone scatter ±0.01 Hz on 8192 frames.
@@ -61,7 +65,8 @@ are in `docs/plan.md`. P0–P8 are all done and the site is public.
 - Public URL: **https://birdsynth.abusing.technology** (route added by the user 2026-09-28). It goes through the Cloudflare tunnel, which is managed in the dashboard (token-based cloudflared on the VM), so route changes are the user's step.
 - Through Cloudflare, hashed JS keeps our 1-year immutable cache-control (edge HIT), the wasm passes through uncached (`DYNAMIC`), and HTTP gets a 301 to HTTPS.
 - nginx serves `/assets/*` as immutable and `index.html` as no-cache. The site is public since P4 (no noindex; `robots.txt` allows all).
-- Checking a deploy: `node tools/smoke.mjs` (page, headers, wasm types and imports, http→https, robots), then load it in a fresh pane tab, play a preset and read the console.
+- The container also runs the link service: `deploy/40-link-service.sh` (in `/docker-entrypoint.d/`) starts `node /opt/birdsynth/relay.cjs` on 127.0.0.1:8002 and restarts it if it stops; nginx forwards `/sync` (WebSocket upgrade, `Host $http_host` for the service's Origin check). Node comes from Alpine (`apk add nodejs`). `.dockerignore` lets in only what the image needs. The healthcheck also asks `/sync/health`.
+- Checking a deploy: `node tools/smoke.mjs` (page, headers, wasm types and imports, http→https, robots, the link service's health and a WebSocket hello), then load it in a fresh pane tab, play a preset and read the console.
 
 ## Conventions
 - Our own name, visuals and content: no Serum assets and no Vital (GPL) code.

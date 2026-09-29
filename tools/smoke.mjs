@@ -7,7 +7,8 @@
 // It checks: the page loads and isn't marked noindex; index.html isn't
 // cached; the JS and engine.wasm are served with the right types, immutable,
 // and compressed; security headers are set; plain http redirects to https;
-// robots.txt allows crawling. (Playing a note with a clean console is
+// robots.txt allows crawling; the link service (/sync) answers its health
+// check and a WebSocket hello. (Playing a note with a clean console is
 // checked in the browser: see CLAUDE.md, "Checking a deploy".)
 
 const base = (process.argv[2] ?? 'https://birdsynth.abusing.technology').replace(/\/$/, '');
@@ -71,6 +72,24 @@ ok([301, 302, 307, 308].includes(http.status) && (http.headers.get('location') ?
 
 const robots = await get(`${base}/robots.txt`);
 ok(robots.status === 200 && /Allow: \//.test(await robots.text()), 'robots.txt allows crawling');
+
+// the link service: its health check, and a WebSocket through to it (a hello gets the peer list)
+const health = await get(`${base}/sync/health`);
+ok(health.status === 200 && /^ok /.test(await health.text()), 'link service is up', `${health.status}`);
+ok(/no-store/.test(health.headers.get('cache-control') ?? ''), 'link service is not cached', health.headers.get('cache-control') ?? 'none');
+const peers = await new Promise((resolve) => {
+  const ws = new WebSocket(`${base.replace(/^http/, 'ws')}/sync`);
+  const done = (v) => {
+    clearTimeout(timer);
+    ws.close();
+    resolve(v);
+  };
+  const timer = setTimeout(() => done('no answer in 5 s'), 5000);
+  ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', id: `smoke${Date.now().toString(36)}`, name: 'smoke test', code: `SMOKE${Math.random().toString(36).slice(2, 8)}` }));
+  ws.onmessage = (e) => done(JSON.parse(String(e.data)));
+  ws.onerror = () => done('connection failed');
+});
+ok(typeof peers === 'object' && peers.t === 'peers' && peers.peers.length === 0, 'link service WebSocket answers', typeof peers === 'string' ? peers : `${peers.t} (group ${peers.code})`);
 
 console.log(failed ? `\n${failed} check(s) failed` : '\nall checks passed');
 process.exit(failed ? 1 : 0);

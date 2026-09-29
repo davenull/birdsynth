@@ -1,9 +1,17 @@
-# birdsynth: the static Vite build (dist/) served by unprivileged nginx on 8080.
-# Build from the repo root after `npm run build`:
+# birdsynth: the static Vite build (dist/) served by unprivileged nginx on
+# 8080, and the link service (dist-server/relay.cjs, bundled from server/)
+# beside it on 127.0.0.1:8002, which nginx forwards /sync to. Build from the
+# repo root after `npm run build` (it makes both):
 #   docker build -f deploy/Containerfile .
 FROM nginxinc/nginx-unprivileged:stable-alpine
 
+USER root
+RUN apk add --no-cache nodejs
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+# the image's entrypoint runs this before nginx starts
+COPY --chmod=755 deploy/40-link-service.sh /docker-entrypoint.d/40-link-service.sh
+COPY dist-server/relay.cjs /opt/birdsynth/relay.cjs
 COPY dist/ /usr/share/nginx/html/
+USER 101
 
 EXPOSE 8080

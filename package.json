@@ -12,7 +12,9 @@
     "gen:check": "node tools/gen-schema.mjs --check",
     "build:wasm": "node tools/build-wasm.mjs",
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && npm run build:relay",
+    "build:relay": "esbuild server/main.ts --bundle --platform=node --format=cjs --target=node20 --outfile=dist-server/relay.cjs --external:bufferutil --external:utf-8-validate --log-level=warning",
+    "relay": "node server/main.ts",
     "preview": "vite preview",
     "test": "node tools/build-wasm.mjs && node tools/cargo.mjs test --workspace --quiet && vitest run",
     "test:js": "vitest run",
@@ -26,6 +28,7 @@
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tsconfig/svelte": "^5.0.8",
     "@types/node": "^26.6.3",
+    "@types/ws": "^8.18.1",
     "esbuild": "^0.28.2",
     "fake-indexeddb": "^6.2.5",
     "smol-toml": "^1.9.0",
@@ -33,6 +36,7 @@
     "svelte-check": "^4.7.6",
     "typescript": "^6.0.3",
     "vite": "^8.3.1",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.2",
+    "ws": "^8.22.0"
   }
 }

@@ -19,6 +19,7 @@ if [ -z "${SKIP_BUILD:-}" ]; then
   npm run build
 fi
 [ -f dist/index.html ] || { echo "dist/ is empty; run npm run build" >&2; exit 1; }
+[ -f dist-server/relay.cjs ] || { echo "dist-server/relay.cjs is missing; run npm run build" >&2; exit 1; }
 
 if [ -n "${HUB:-}" ]; then
   REPO="docker.io/$HUB/birdsynth"
@@ -61,5 +62,6 @@ js=$(curl -fsS "http://127.0.0.1:$port/$wasm" | grep -o 'assets/engine-[A-Za-z0-
 echo "wasm:   $js"
 curl -fsSI -H 'Accept-Encoding: gzip' "http://127.0.0.1:$port/$js" | grep -iE '^(content-type|cache-control|content-encoding)' | tr -d '\r' | sed 's/^/        /'
 echo "http→https behind Cloudflare: $(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -H 'CF-Visitor: {"scheme":"http"}' -H 'Host: birdsynth.example' "http://127.0.0.1:$port/")"
+echo "link:   $(curl -fsS "http://127.0.0.1:$port/sync/health" || echo 'not answering')"
 CHECK
 echo "Deployed $REPO:$TAG to $HOST:$PORT"

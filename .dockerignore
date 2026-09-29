@@ -1,4 +1,6 @@
 # Only what the image serves goes into the build context.
 *
 !dist
+!dist-server/relay.cjs
 !deploy/nginx.conf
+!deploy/40-link-service.sh

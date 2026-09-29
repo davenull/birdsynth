@@ -1,8 +1,10 @@
 import { spawn } from 'node:child_process';
+import type { Server as HttpServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, type Connect, type Plugin } from 'vite';
 import { svelte, vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import { createRelay } from './server/relay.ts';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 
@@ -54,10 +56,33 @@ function engineWasm(): Plugin {
   };
 }
 
+// The link service (server/relay.ts) at /sync on the dev and preview
+// servers, as nginx has it in production.
+function linkService(): Plugin {
+  const attach = (http: HttpServer | null | undefined, middlewares: Connect.Server) => {
+    if (!http) return;
+    const relay = createRelay();
+    http.on('upgrade', (req, socket, head) => relay.upgrade(req, socket, head));
+    http.on('close', () => relay.close());
+    middlewares.use((req, res, next) => {
+      if (!relay.http(req, res)) next();
+    });
+  };
+  return {
+    name: 'birdsynth-link-service',
+    configureServer(server) {
+      attach(server.httpServer as HttpServer | null, server.middlewares);
+    },
+    configurePreviewServer(server) {
+      attach(server.httpServer as HttpServer, server.middlewares);
+    },
+  };
+}
+
 export default defineConfig({
   root: 'web',
   publicDir: 'public',
-  plugins: [engineWasm(), svelte({ configFile: false, preprocess: vitePreprocess() })],
+  plugins: [engineWasm(), linkService(), svelte({ configFile: false, preprocess: vitePreprocess() })],
   worker: { format: 'es' },
   build: {
     outDir: '../dist',
