@@ -9,6 +9,8 @@ no imports. It runs inside an AudioWorklet. The UI is Svelte 5 + TypeScript.
 
 **Play it:** https://birdsynth.abusing.technology
 
+![birdsynth's OSC page playing the Choir Pad preset: two oscillators on a vowel wavetable, shown in 3D, through a formant filter, with the envelopes, LFOs, macros and keyboard below](docs/screenshot.png)
+
 ## What's in it
 
 - **Oscillators:** three main oscillators, each one of five types:
