@@ -460,9 +460,12 @@ impl Engine {
     /// samples, the matrix and LFO shapes are kept.
     pub fn reset(&mut self) {
         self.queue.clear();
-        for v in &mut self.voices {
+        for (i, v) in self.voices.iter_mut().enumerate() {
+            // each keeps its slot: the grain pool and spectral voices are found by it
             *v = Voice::default();
+            v.slot = i as u16;
         }
+        self.shared.pool = crate::osc::granular::GrainPool::default();
         self.focus = None;
         self.held.clear();
         self.last_pitch = None;

@@ -92,3 +92,27 @@ fn spectral_notes_sound_from_their_note_on_frame() {
     assert!(render(&mut e, 256).iter().any(|v| v.abs() > 0.05), "and heard");
     assert_eq!(e.telemetry()[tel::OSC_ASSETS + 2], (x.len().div_ceil(512) + 3) as f32);
 }
+
+#[test]
+fn grains_stay_their_voice_s_own_after_a_reset() {
+    // the worklet resets the engine when it starts: voices must keep their slots,
+    // or every voice would play (and age) every grain
+    let mut e = engine(SR);
+    e.command(Command::Reset, 0.0);
+    e.assets_mut().recs[0] = Some(recording(&sine(220.0, 48_000.0, 2.0), 48_000.0));
+    set(&mut e, p::OSC_TYPE[0], TYPE_GRANULAR as f32);
+    render(&mut e, 24_000);
+    for n in 0..4 {
+        on(&mut e, 48 + 7 * n as u8, n + 1);
+    }
+    let mut low = f32::MAX;
+    render(&mut e, 4800);
+    for _ in 0..100 {
+        render(&mut e, 128);
+        low = low.min(e.telemetry()[tel::GRAINS]);
+    }
+    // 100 ms grains every 40 ms: two or three per voice at every moment
+    assert!(low >= 8.0, "as few as {low} grains for four voices");
+    let slots: std::collections::BTreeSet<u16> = e.voices().iter().map(|v| v.slot).collect();
+    assert_eq!(slots.len(), e.voices().len());
+}
