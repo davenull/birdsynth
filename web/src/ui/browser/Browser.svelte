@@ -255,7 +255,11 @@
           <span class="psrc">{e.factory ? 'factory' : 'mine'}</span>
         </div>
       {:else}
-        <div class="empty">Nothing matches. <button onclick={() => browse.clear()}>Clear filters</button></div>
+        {#if lib}
+          <div class="empty">Nothing matches. <button onclick={() => browse.clear()}>Clear filters</button></div>
+        {:else}
+          <div class="empty" role="status">Opening your presets…</div>
+        {/if}
       {/each}
     </div>
   </div>

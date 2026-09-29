@@ -32,7 +32,12 @@ interface PrefRecord {
   rating: number;
 }
 
-/** The working state, kept between visits (one record, id "current"). */
+/**
+ * The working state, kept between visits: one record in the prefs store, id
+ * "session". (Builds of 2026-09-28 21:25–21:40 kept it in a store of its own,
+ * "session", id "current", which needed a database upgrade; a record found
+ * there is moved over.)
+ */
 interface SessionRecord {
   id: string;
   patch: Patch;
@@ -49,6 +54,9 @@ export interface Session {
   dirty: boolean;
   saved: number;
 }
+
+/** The session record's id in the prefs store. */
+const SESSION = 'session';
 
 type StoreName = 'patches' | 'assets' | 'prefs' | 'session';
 
@@ -92,41 +100,48 @@ const req = <T>(r: IDBRequest<T>) =>
 export class IdbBackend implements Backend {
   private constructor(private readonly db: IDBDatabase) {}
 
-  /** `onBlocked`: an older version's tab has the database open, so the upgrade waits for it to close. */
-  static async open(name: string, idb: IDBFactory = indexedDB, onBlocked?: () => void): Promise<IdbBackend> {
-    // version 2 added the session store
-    const r = idb.open(name, 2);
-    r.onblocked = () => onBlocked?.();
+  /**
+   * Open the library's database at whatever version this browser has, never
+   * asking for an upgrade: an upgrade has to wait for every other tab with the
+   * database open (an older build's never lets go), and until then the
+   * library can't be read at all. A new database starts at version 1 with the
+   * three stores; version 2 (briefly, above) added a "session" store, which
+   * is read if it's there.
+   */
+  static async open(name: string, idb: IDBFactory = indexedDB): Promise<IdbBackend> {
+    const r = idb.open(name);
     r.onupgradeneeded = () => {
       const db = r.result;
       if (!db.objectStoreNames.contains('patches')) db.createObjectStore('patches', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('assets')) db.createObjectStore('assets', { keyPath: 'hash' });
       if (!db.objectStoreNames.contains('prefs')) db.createObjectStore('prefs', { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('session')) db.createObjectStore('session', { keyPath: 'id' });
     };
     const db = await req(r);
-    // a newer build opening the database in another tab: step aside rather than block it
+    // should a later build ever need an upgrade, step aside for it rather than block it
     db.onversionchange = () => db.close();
     return new IdbBackend(db);
   }
 
+  private has(name: StoreName): boolean {
+    return this.db.objectStoreNames.contains(name);
+  }
   private store(name: StoreName, mode: IDBTransactionMode): IDBObjectStore {
     return this.db.transaction(name, mode).objectStore(name);
   }
-  all<T>(store: StoreName): Promise<T[]> {
-    return req(this.store(store, 'readonly').getAll()) as Promise<T[]>;
+  async all<T>(store: StoreName): Promise<T[]> {
+    return this.has(store) ? ((await req(this.store(store, 'readonly').getAll())) as T[]) : [];
   }
   async keys(store: StoreName): Promise<string[]> {
-    return (await req(this.store(store, 'readonly').getAllKeys())) as string[];
+    return this.has(store) ? ((await req(this.store(store, 'readonly').getAllKeys())) as string[]) : [];
   }
-  get<T>(store: StoreName, key: string): Promise<T | undefined> {
-    return req(this.store(store, 'readonly').get(key)) as Promise<T | undefined>;
+  async get<T>(store: StoreName, key: string): Promise<T | undefined> {
+    return this.has(store) ? ((await req(this.store(store, 'readonly').get(key))) as T | undefined) : undefined;
   }
   async put(store: StoreName, value: object): Promise<void> {
     await req(this.store(store, 'readwrite').put(value));
   }
   async delete(store: StoreName, key: string): Promise<void> {
-    await req(this.store(store, 'readwrite').delete(key));
+    if (this.has(store)) await req(this.store(store, 'readwrite').delete(key));
   }
 }
 
@@ -215,11 +230,11 @@ export class Library {
     readonly durable: boolean,
   ) {}
 
-  static async open(name = 'birdsynth', onBlocked?: () => void): Promise<Library> {
+  static async open(name = 'birdsynth'): Promise<Library> {
     let lib: Library;
     try {
       if (typeof indexedDB === 'undefined') throw new Error('no IndexedDB');
-      lib = new Library(await IdbBackend.open(name, indexedDB, onBlocked), true);
+      lib = new Library(await IdbBackend.open(name), true);
     } catch {
       lib = new Library(new MemoryBackend(), false);
     }
@@ -307,8 +322,7 @@ export class Library {
     const used = new Set<string>();
     try {
       for (const r of await this.db.all<PatchRecord>('patches')) for (const h of hashesOf(migrate(r.patch))) used.add(h);
-      const s = await this.db.get<SessionRecord>('session', 'current');
-      if (s) for (const h of hashesOf(migrate(s.patch))) used.add(h);
+      for (const s of [await this.db.get<SessionRecord>('prefs', SESSION), await this.db.get<SessionRecord>('session', 'current')]) if (s) for (const h of hashesOf(migrate(s.patch))) used.add(h);
     } catch {
       return 0;
     }
@@ -358,24 +372,35 @@ export class Library {
 
   // ---------------------------------------------------------------- session
 
-  /** The working state saved last time, or null. */
-  async loadSession(): Promise<Session | null> {
-    const r = await this.db.get<SessionRecord>('session', 'current');
-    if (!r) return null;
-    return { patch: migrate(r.patch), presetId: r.presetId, dirty: r.dirty, saved: r.saved };
+  /** The working state saved last time, or null (a record in the short-lived session store is moved to prefs). */
+  loadSession(): Promise<Session | null> {
+    return this.serial(async () => {
+      let r = await this.db.get<SessionRecord>('prefs', SESSION);
+      const legacy = await this.db.get<SessionRecord>('session', 'current');
+      if (legacy) {
+        if (!r || legacy.saved > r.saved) {
+          r = { ...legacy, id: SESSION };
+          await this.db.put('prefs', r);
+        }
+        await this.db.delete('session', 'current');
+      }
+      if (!r) return null;
+      return { patch: migrate(r.patch), presetId: r.presetId, dirty: r.dirty, saved: r.saved };
+    });
   }
 
   /** Keep the working state: its assets (the new ones), then the record. */
   saveSession(patch: Patch, assets: Map<string, ArrayBuffer | (() => ArrayBuffer)>, presetId: string, dirty: boolean): Promise<void> {
     return this.serial(async () => {
       await this.putAssets(assets);
-      await this.db.put('session', { id: 'current', patch, presetId, dirty, saved: Date.now() } satisfies SessionRecord);
+      await this.db.put('prefs', { id: SESSION, patch, presetId, dirty, saved: Date.now() } satisfies SessionRecord);
     });
   }
 
   /** Forget the working state (after a reset, the next visit starts fresh). */
   clearSession(): Promise<void> {
     return this.serial(async () => {
+      await this.db.delete('prefs', SESSION);
       await this.db.delete('session', 'current');
       await this.collect();
     });

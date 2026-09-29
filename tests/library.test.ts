@@ -113,15 +113,47 @@ describe('library', () => {
       r.onsuccess = () => (r.result.close(), ok());
       r.onerror = () => fail(r.error);
     });
-    const backend = await IdbBackend.open('old', idb);
+    // an older build's tab still has it open: opening mustn't wait for that tab (no upgrade is asked for)
+    const oldTab = await new Promise<IDBDatabase>((ok) => {
+      const r = idb.open('old', 1);
+      r.onsuccess = () => ok(r.result);
+    });
+    const backend = await Promise.race([IdbBackend.open('old', idb), new Promise<never>((_, fail) => setTimeout(() => fail(new Error('blocked')), 1000))]);
     const lib = await Library.over(backend);
     expect(lib.entry('user:1')?.patch.meta.name).toBe('Old one');
     expect(await lib.loadSession()).toBeNull();
+    // the session lives in prefs, so it works on this old database as it is
+    await lib.saveSession(capture(stores(), emptyMeta('Now')), new Map(), '', false);
+    expect((await lib.loadSession())?.patch.meta.name).toBe('Now');
+    oldTab.close();
     // a session saved by a newer build: loading it fails, and the clean-up deletes nothing
-    await backend.put('session', { id: 'current', patch: { ...capture(stores(), emptyMeta('Future')), version: 999 }, presetId: '', dirty: false, saved: 1 });
+    await backend.put('prefs', { id: 'session', patch: { ...capture(stores(), emptyMeta('Future')), version: 999 }, presetId: '', dirty: false, saved: 1 });
     await expect(lib.loadSession()).rejects.toThrow(/newer/);
     expect(await lib.collectGarbage()).toBe(0);
     expect(await lib.asset('abc')).toBeDefined();
+  });
+
+  it('moves a session from the short-lived session store (database version 2) into prefs', async () => {
+    const idb = new IDBFactory();
+    await new Promise<void>((ok, fail) => {
+      const r = idb.open('v2', 2);
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        db.createObjectStore('patches', { keyPath: 'id' }).put({ id: 'user:7', patch: capture(stores(), emptyMeta('Kept')), modified: 1 });
+        db.createObjectStore('assets', { keyPath: 'hash' });
+        db.createObjectStore('prefs', { keyPath: 'id' });
+        db.createObjectStore('session', { keyPath: 'id' }).put({ id: 'current', patch: capture(stores(), emptyMeta('Working')), presetId: 'user:7', dirty: true, saved: 5 });
+      };
+      r.onsuccess = () => (r.result.close(), ok());
+      r.onerror = () => fail(r.error);
+    });
+    const backend = await IdbBackend.open('v2', idb);
+    const lib = await Library.over(backend);
+    expect(lib.entry('user:7')?.patch.meta.name).toBe('Kept');
+    expect(await lib.loadSession()).toMatchObject({ presetId: 'user:7', dirty: true, saved: 5 });
+    expect(await backend.get('session', 'current'), 'moved out of the old store').toBeUndefined();
+    expect(await backend.get('prefs', 'session')).toMatchObject({ presetId: 'user:7' });
+    expect((await Library.over(await IdbBackend.open('v2', idb)).then((l) => l.loadSession()))?.patch.meta.name).toBe('Working');
   });
 
   it('searches by words, tags (all, any, not), category, rating and source', () => {
