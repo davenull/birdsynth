@@ -46,9 +46,14 @@
   }
   header {
     display: grid;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: end;
     gap: 6px;
+  }
+  /* the type menu fills what the header leaves (its longest names would otherwise push past the panel) */
+  header :global(.select select) {
+    width: 100%;
+    min-width: 0;
   }
   .graph {
     min-height: 0;

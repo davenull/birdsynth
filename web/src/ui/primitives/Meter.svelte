@@ -45,7 +45,7 @@
     grid-template-rows: 1fr 1fr;
     gap: 2px 4px;
     align-items: center;
-    width: 120px;
+    width: 96px;
   }
   .bar {
     grid-column: 1;
@@ -57,7 +57,8 @@
   .fill {
     height: 100%;
     background: linear-gradient(90deg, #2ecc71 0 70%, #f1c40f 85%, var(--clip) 95%);
-    background-size: 120px 100%;
+    /* the bar's full width (the meter's less the gap and the clip light), so each colour sits at its level */
+    background-size: 84px 100%;
   }
   .clip {
     grid-column: 2;

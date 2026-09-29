@@ -26,7 +26,16 @@
     size = 44,
     color = 'var(--accent)',
     compact = false,
-  }: { param: ParamKey; label?: string; size?: number; color?: string; compact?: boolean } = $props();
+    inline = false,
+  }: {
+    param: ParamKey;
+    label?: string;
+    size?: number;
+    color?: string;
+    compact?: boolean;
+    /** Name and value beside the dial instead of under it, for a row with little height (the top bar). */
+    inline?: boolean;
+  } = $props();
 
   const bank = getContext<ParamBank>('bank');
   const synth = getContext<Synth | undefined>('synth');
@@ -234,6 +243,7 @@
   aria-valuetext={mods.length ? `${text}, modulated by ${modText}` : text}
   title={`${info.explain}${mods.length ? `\nModulated by ${modText} (Alt-drag to change)` : ''}${cc !== null ? `\nMIDI CC ${cc}` : ''}${learning ? '\nMove a MIDI control to tie it to this knob' : ''}`}
   class:learning
+  class:inline
   data-param={param}
   data-explain={param}
   data-mod={modulatable ? '1' : '0'}
@@ -378,5 +388,29 @@
     border-radius: 3px;
     padding: 0;
     outline: none;
+  }
+  /* the dial on the left, its name over its value on the right */
+  .knob.inline {
+    grid-template-columns: auto 52px;
+    grid-template-rows: auto auto;
+    justify-items: start;
+    align-items: center;
+    column-gap: 5px;
+    row-gap: 0;
+    width: auto;
+    padding: 2px 4px;
+  }
+  .knob.inline svg {
+    grid-row: 1 / 3;
+  }
+  .knob.inline .label {
+    align-self: end;
+    max-width: 52px;
+  }
+  .knob.inline .value,
+  .knob.inline .edit {
+    align-self: start;
+    width: 52px;
+    text-align: left;
   }
 </style>

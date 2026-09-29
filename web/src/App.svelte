@@ -127,7 +127,7 @@
       </div>
       <div class="master" data-explain="master">
         <Meter {synth} />
-        <Knob param="master.volume" size={30} color="var(--text)" />
+        <Knob param="master.volume" size={28} color="var(--text)" inline />
       </div>
     </header>
 
