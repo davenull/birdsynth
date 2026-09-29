@@ -10,11 +10,12 @@ import { ModMatrix, slotFlags } from '../web/src/state/matrix';
 import { toPlain } from '../web/src/state/param-math';
 import type { Patch, PatchTarget } from '../web/src/state/patch';
 import { RemapCurves } from '../web/src/state/remap';
+import { ArpPatterns, ClipStore } from '../web/src/state/seq';
 import { Engine, loadIr, loadNoise, loadTable } from './engine/harness';
 
 export function stores(): PatchTarget {
   const bank = new ParamBank();
-  return { bank, matrix: new ModMatrix(), lfo: new LfoShapes(), remap: new RemapCurves(), fx: new FxRacks(bank) };
+  return { bank, matrix: new ModMatrix(), lfo: new LfoShapes(), remap: new RemapCurves(), fx: new FxRacks(bank), arp: new ArpPatterns(), clips: new ClipStore() };
 }
 
 /** Everything the stores hold, as engine commands (what the Synth sends on a resync). */
@@ -25,16 +26,21 @@ export function send(t: PatchTarget, w: CmdWriter): void {
   t.lfo.attach((l, kind, pts) => w.setLfoShape(0, l, kind === 'path' ? 1 : 0, pts.length, pts.flatMap((p) => [p.x, p.y, p.c])));
   t.remap.attach((o, lut) => w.setOscCurve(0, o, lut.length, lut));
   t.fx.attach((c, refs) => w.setChain(0, c, refs.length, refs.map((r) => r.type * 256 + r.inst)));
+  t.arp?.attach({ setArpPattern: (b, v) => w.setArpPattern(0, b, v.length, v) });
+  t.clips?.attach({ setClip: (c, notes, n, length) => w.setClip(0, c, n, length, notes), setClipLane: (c, l, param, pts, n) => w.setClipLane(0, c, l, param, n, pts) });
   t.matrix.resync();
   t.lfo.resync();
   t.remap.resync();
   t.fx.resync();
+  t.arp?.resync();
+  t.clips?.resync();
 }
 
-/** Render a little phrase and hash the output bits. */
-export function render(t: PatchTarget): string {
+/** Render a little phrase (with the transport running, if asked) and hash the output bits. */
+export function render(t: PatchTarget, transport = false): string {
   const e = new Engine(48_000);
   send(t, e.w);
+  if (transport) e.w.transport(0, 1);
   e.render(512);
   e.w.noteOn(0, 57, 0, 0.8, 1);
   e.w.noteOn(0, 64, 0, 0.6, 2);

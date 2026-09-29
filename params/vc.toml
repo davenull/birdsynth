@@ -1,0 +1,220 @@
+# Voice Control: an 8-step sequencer that runs in every voice from its
+# note-on, with two lanes feeding the Voice Mod 1 and 2 sources.
+
+[group]
+key = "vc"
+name = "Voice Control"
+
+[[param]]
+key = "rate"
+name = "Voice Control Rate"
+short = "Rate"
+curve = "enum"
+options = ["1/1", "1/2", "1/4", "1/8", "1/16", "1/32", "1/4 T", "1/8 T", "1/16 T"]
+default = 4
+explain = "How long each step lasts, at the tempo."
+
+[[param]]
+key = "steps"
+name = "Voice Control Steps"
+short = "Steps"
+curve = "int"
+min = 1.0
+max = 8.0
+default = 8.0
+explain = "How many of the eight steps are used."
+
+[[param]]
+key = "smooth"
+name = "Voice Control Smooth"
+short = "Smooth"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+explain = "Glides from one step's value to the next instead of jumping."
+
+[[param]]
+key = "loop"
+name = "Voice Control Loop"
+short = "Loop"
+curve = "bool"
+default = 1
+explain = "Starts over after the last step. Off: stays on the last step."
+
+[[param]]
+key = "a1"
+name = "Voice Mod 1 Step 1"
+short = "1"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 1 has during step 1."
+
+[[param]]
+key = "a2"
+name = "Voice Mod 1 Step 2"
+short = "2"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 1 has during step 2."
+
+[[param]]
+key = "a3"
+name = "Voice Mod 1 Step 3"
+short = "3"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 1 has during step 3."
+
+[[param]]
+key = "a4"
+name = "Voice Mod 1 Step 4"
+short = "4"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 1 has during step 4."
+
+[[param]]
+key = "a5"
+name = "Voice Mod 1 Step 5"
+short = "5"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 1 has during step 5."
+
+[[param]]
+key = "a6"
+name = "Voice Mod 1 Step 6"
+short = "6"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 1 has during step 6."
+
+[[param]]
+key = "a7"
+name = "Voice Mod 1 Step 7"
+short = "7"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 1 has during step 7."
+
+[[param]]
+key = "a8"
+name = "Voice Mod 1 Step 8"
+short = "8"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 1 has during step 8."
+
+[[param]]
+key = "b1"
+name = "Voice Mod 2 Step 1"
+short = "1"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 2 has during step 1."
+
+[[param]]
+key = "b2"
+name = "Voice Mod 2 Step 2"
+short = "2"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 2 has during step 2."
+
+[[param]]
+key = "b3"
+name = "Voice Mod 2 Step 3"
+short = "3"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 2 has during step 3."
+
+[[param]]
+key = "b4"
+name = "Voice Mod 2 Step 4"
+short = "4"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 2 has during step 4."
+
+[[param]]
+key = "b5"
+name = "Voice Mod 2 Step 5"
+short = "5"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 2 has during step 5."
+
+[[param]]
+key = "b6"
+name = "Voice Mod 2 Step 6"
+short = "6"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 2 has during step 6."
+
+[[param]]
+key = "b7"
+name = "Voice Mod 2 Step 7"
+short = "7"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 2 has during step 7."
+
+[[param]]
+key = "b8"
+name = "Voice Mod 2 Step 8"
+short = "8"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "The value Voice Mod 2 has during step 8."

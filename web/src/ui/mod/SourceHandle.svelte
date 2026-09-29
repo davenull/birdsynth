@@ -6,7 +6,8 @@
   import { sourceColor } from './sources';
   import { startModDrag } from './drag';
 
-  let { source, label = '' }: { source: number; label?: string } = $props();
+  /** `bare`: just the label, tight (for numbered handles grouped under one name). */
+  let { source, label = '', bare = false }: { source: number; label?: string; bare?: boolean } = $props();
   const synth = getContext<Synth>('synth');
   const name = $derived(SOURCES[source] as string);
   const color = $derived(sourceColor(source));
@@ -14,15 +15,18 @@
 
 <button
   class="handle"
+  class:bare
   style:--c={color}
   aria-label={`Drag ${name} onto a control to modulate it`}
   title={`Drag ${name} onto a knob to modulate it`}
   data-source={name}
   onpointerdown={(e) => startModDrag(e, source, name, color, synth.matrix)}
 >
-  <svg width="10" height="12" viewBox="0 0 10 12" aria-hidden="true">
-    {#each [0, 1, 2] as r (r)}{#each [0, 1] as c (c)}<circle cx={2.5 + c * 5} cy={2 + r * 4} r="1.3" />{/each}{/each}
-  </svg>
+  {#if !bare}
+    <svg width="10" height="12" viewBox="0 0 10 12" aria-hidden="true">
+      {#each [0, 1, 2] as r (r)}{#each [0, 1] as c (c)}<circle cx={2.5 + c * 5} cy={2 + r * 4} r="1.3" />{/each}{/each}
+    </svg>
+  {/if}
   {#if label}<span>{label}</span>{/if}
 </button>
 
@@ -42,6 +46,14 @@
     touch-action: none;
     user-select: none;
     white-space: nowrap;
+  }
+  .handle.bare {
+    justify-content: center;
+    min-width: 17px;
+    padding: 1px 3px;
+    border-radius: 3px;
+    font: 600 9.5px var(--font-num);
+    letter-spacing: 0;
   }
   .handle:active {
     cursor: grabbing;

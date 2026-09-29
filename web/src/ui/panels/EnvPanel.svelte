@@ -2,13 +2,14 @@
 <script lang="ts">
   import type { ParamKey } from '../../gen/params';
   import { SOURCE, type SourceName } from '../../state/matrix';
+  import { strip } from '../strip.svelte';
   import Knob from '../primitives/Knob.svelte';
   import Select from '../primitives/Select.svelte';
   import Toggle from '../primitives/Toggle.svelte';
   import EnvGraph from '../graphs/EnvGraph.svelte';
   import SourceHandle from '../mod/SourceHandle.svelte';
 
-  let n = $state(1);
+  const n = $derived(strip.env);
   const color = 'var(--env)';
   const k = (s: string) => `env.${n}.${s}` as ParamKey;
 </script>
@@ -17,7 +18,7 @@
   <div class="top">
     <div class="tabs" role="tablist" aria-label="Envelope">
       {#each [1, 2, 3, 4] as i (i)}
-        <button role="tab" aria-selected={n === i} class:on={n === i} onclick={() => (n = i)}>ENV {i}{i === 1 ? ' · AMP' : ''}</button>
+        <button role="tab" aria-selected={n === i} class:on={n === i} onclick={() => (strip.env = i)}>ENV {i}{i === 1 ? ' · AMP' : ''}</button>
       {/each}
     </div>
     <SourceHandle source={SOURCE[`Env ${n}` as SourceName]} label={`ENV ${n}`} />

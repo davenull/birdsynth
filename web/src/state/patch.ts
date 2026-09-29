@@ -12,9 +12,10 @@ import { CHAINS, FX_TYPES, type FxRacks, type FxRef } from './fx';
 import { LFO_COUNT, defaultCurve, defaultPath, normalize, type LfoPoint, type LfoShapes } from './lfo';
 import type { ModMatrix, ModSlot } from './matrix';
 import { identityCurve, type RemapCurves } from './remap';
+import type { ArpPatterns, ClipStore } from './seq';
 
 export const PATCH_FORMAT = 'birdsynth-patch';
-export const PATCH_VERSION = 2;
+export const PATCH_VERSION = 3;
 
 export interface PatchMeta {
   name: string;
@@ -84,6 +85,16 @@ export interface Patch {
   multis: (MultiRef | null)[];
   /** The Spectral type's drawn filter, or null when flat. */
   specFilter: (number[] | null)[];
+  /** Version 3 on: the arpeggiator's twelve patterns (null: the default) and the twelve clips (null: empty). */
+  arp: (number[] | null)[];
+  clips: (PatchClip | null)[];
+}
+
+/** A clip in a patch: its automation lanes name parameters by key. */
+export interface PatchClip {
+  notes: { start: number; length: number; key: number; velocity: number; chance: number; bend: number }[];
+  length: number;
+  lanes: { param: string | null; points: [number, number][] }[];
 }
 
 /** The stores a patch is captured from and applied to (the Synth has them all). */
@@ -93,6 +104,9 @@ export interface PatchTarget {
   lfo: LfoShapes;
   remap: RemapCurves;
   fx: FxRacks;
+  /** The sequencer's patterns and clips (optional for callers that don't have them). */
+  arp?: ArpPatterns;
+  clips?: ClipStore;
 }
 
 export function emptyMeta(name = 'Init'): PatchMeta {
@@ -135,6 +149,12 @@ export function capture(t: PatchTarget, meta: PatchMeta = emptyMeta()): Patch {
     recordings: [null, null, null],
     multis: [null, null, null],
     specFilter: [null, null, null],
+    arp: Array.from({ length: 12 }, (_, b) => (t.arp && !t.arp.isDefault(b) ? Array.from(t.arp.banks[b]) : null)),
+    clips: Array.from({ length: 12 }, (_, c) => {
+      if (!t.clips || t.clips.isEmpty(c)) return null;
+      const clip = t.clips.clips[c];
+      return { notes: clip.notes.map((n) => ({ ...n })), length: clip.length, lanes: clip.lanes.map((l) => ({ param: l.param, points: l.points.map((p) => [p[0], p[1]] as [number, number]) })) };
+    }),
   };
 }
 
@@ -172,6 +192,13 @@ export function applyPatch(t: PatchTarget, patch: Patch): string[] {
     }
     t.fx.set(c, refs);
   }
+  if (t.arp) for (let b = 0; b < 12; b++) t.arp.load(b, patch.arp?.[b] ?? null);
+  if (t.clips)
+    for (let c = 0; c < 12; c++) {
+      const clip = patch.clips?.[c] ?? null;
+      for (const l of clip?.lanes ?? []) if (l.param && !(l.param in PARAM_ID)) warnings.push(`clip ${c + 1}: unknown automated parameter ${l.param}`);
+      t.clips.load(c, clip);
+    }
   return warnings;
 }
 
@@ -218,6 +245,11 @@ export function migrate(raw: unknown): Patch {
     cur = { ...cur, version: 2, recordings: [null, null, null], multis: [null, null, null], specFilter: [null, null, null] };
     version = 2;
   }
+  if (version === 2) {
+    // version 3 added the arpeggiator's patterns and the clips
+    cur = { ...cur, version: 3, arp: Array(12).fill(null), clips: Array(12).fill(null) };
+    version = 3;
+  }
   if (version > PATCH_VERSION) throw new Error(`this patch is from a newer birdsynth (format ${version})`);
   const out = cur as unknown as Patch;
   if (out.format !== PATCH_FORMAT) throw new Error('not a birdsynth patch');
@@ -233,6 +265,8 @@ export function migrate(raw: unknown): Patch {
   out.recordings ??= [null, null, null];
   out.multis ??= [null, null, null];
   out.specFilter ??= [null, null, null];
+  out.arp ??= Array(12).fill(null);
+  out.clips ??= Array(12).fill(null);
   return out;
 }
 

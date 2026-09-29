@@ -1,0 +1,146 @@
+# The arpeggiator: plays the held keys one after another (or together),
+# on the tempo's grid, with a pattern of steps.
+
+[group]
+key = "arp"
+name = "Arpeggiator"
+
+[[param]]
+key = "enable"
+name = "Arp On"
+short = "Arp"
+curve = "bool"
+default = 0
+explain = "Turns held keys into a pattern: the arpeggiator plays them in turn, in time."
+
+[[param]]
+key = "shape"
+name = "Arp Shape"
+short = "Shape"
+curve = "enum"
+options = ["Up", "Down", "Up/Down", "Up & Down", "Converge", "Diverge", "Thumb", "Played", "Chord", "Random", "Pattern"]
+default = 0
+explain = "The order: Up and Down by pitch; Up/Down turns at the ends (Up & Down plays the ends twice); Converge goes outside in, Diverge inside out; Thumb returns to the lowest note between the others; Played keeps the order you played; Chord plays them all together; Random picks one each step; Pattern follows the steps' degree lane."
+
+[[param]]
+key = "rate"
+name = "Arp Rate"
+short = "Rate"
+curve = "enum"
+options = ["1/1", "1/2", "1/4", "1/8", "1/16", "1/32", "1/64", "1/2 D", "1/4 D", "1/8 D", "1/16 D", "1/2 T", "1/4 T", "1/8 T", "1/16 T", "1/32 T"]
+default = 4
+explain = "How long each step lasts, as a note value at the tempo (D dotted, T triplet)."
+
+[[param]]
+key = "octaves"
+name = "Arp Range"
+short = "Range"
+curve = "int"
+min = 1.0
+max = 4.0
+default = 1.0
+explain = "How many times the pattern repeats, each time shifted up (by an octave, or the Shift)."
+
+[[param]]
+key = "shift"
+name = "Arp Shift"
+short = "Shift"
+curve = "int"
+min = -24.0
+max = 24.0
+default = 12.0
+unit = "st"
+explain = "How far each repeat of the pattern moves: 12 for octaves, 7 for fifths, negative to go down."
+
+[[param]]
+key = "gate"
+name = "Arp Gate"
+short = "Gate"
+curve = "lin"
+min = 0.05
+max = 2.0
+default = 0.5
+unit = "×"
+flags = ["mod"]
+explain = "How long each note is held, as a share of a step. Past 1 the notes overlap (legato)."
+
+[[param]]
+key = "chance"
+name = "Arp Chance"
+short = "Chance"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 1.0
+unit = "%"
+flags = ["mod"]
+explain = "The chance each step plays (on top of each step's own chance)."
+
+[[param]]
+key = "repeats"
+name = "Arp Repeats"
+short = "Repeats"
+curve = "int"
+min = 1.0
+max = 8.0
+default = 1.0
+explain = "Plays each note this many steps in a row before moving on."
+
+[[param]]
+key = "vel_ramp"
+name = "Arp Velocity Ramp"
+short = "Vel Ramp"
+curve = "lin"
+min = -1.0
+max = 1.0
+default = 0.0
+flags = ["mod"]
+explain = "Makes the pattern grow louder (positive) or softer (negative) from its first step to its last."
+
+[[param]]
+key = "offset"
+name = "Arp Offset"
+short = "Offset"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+explain = "Moves the whole grid later by a share of a step."
+
+[[param]]
+key = "retrigger"
+name = "Arp Retrigger"
+short = "Retrig"
+curve = "enum"
+options = ["Beat", "Launch", "Note"]
+default = 1
+explain = "When the pattern starts again from its first step: Beat keeps it on the tempo's grid; Launch restarts it when you play after letting go of every key; Note restarts it with every new key."
+
+[[param]]
+key = "hold"
+name = "Arp Hold"
+short = "Hold"
+curve = "bool"
+default = 0
+explain = "Keeps playing the last keys after you let go, until you play a new chord."
+
+[[param]]
+key = "steps"
+name = "Arp Steps"
+short = "Steps"
+curve = "int"
+min = 1.0
+max = 16.0
+default = 16.0
+explain = "How many steps of the pattern's lanes are used before it wraps."
+
+[[param]]
+key = "bank"
+name = "Arp Pattern"
+short = "Pattern"
+curve = "int"
+min = 1.0
+max = 12.0
+default = 1.0
+explain = "Which of the twelve step patterns plays."

@@ -2,288 +2,357 @@
 
 use crate::params::{Curve, ParamInfo};
 
-pub const COUNT: usize = 983;
+pub const COUNT: usize = 1042;
 
-pub const ENV_ATTACK: [u16; 4] = [0, 11, 22, 33];
-pub const ENV_HOLD: [u16; 4] = [1, 12, 23, 34];
-pub const ENV_DECAY: [u16; 4] = [2, 13, 24, 35];
-pub const ENV_SUSTAIN: [u16; 4] = [3, 14, 25, 36];
-pub const ENV_RELEASE: [u16; 4] = [4, 15, 26, 37];
-pub const ENV_ATTACK_CURVE: [u16; 4] = [5, 16, 27, 38];
-pub const ENV_DECAY_CURVE: [u16; 4] = [6, 17, 28, 39];
-pub const ENV_RELEASE_CURVE: [u16; 4] = [7, 18, 29, 40];
-pub const ENV_BPM: [u16; 4] = [8, 19, 30, 41];
-pub const ENV_LEGATO_INVERT: [u16; 4] = [9, 20, 31, 42];
-pub const ENV_RETRIG: [u16; 4] = [10, 21, 32, 43];
-pub const FILTER_ENABLE: [u16; 2] = [44, 55];
-pub const FILTER_TYPE: [u16; 2] = [45, 56];
-pub const FILTER_CUTOFF: [u16; 2] = [46, 57];
-pub const FILTER_RES: [u16; 2] = [47, 58];
-pub const FILTER_DRIVE: [u16; 2] = [48, 59];
-pub const FILTER_MIX: [u16; 2] = [49, 60];
-pub const FILTER_KEYTRACK: [u16; 2] = [50, 61];
-pub const FILTER_LEVEL: [u16; 2] = [51, 62];
-pub const FILTER_PAN: [u16; 2] = [52, 63];
-pub const FILTER_VAR: [u16; 2] = [53, 64];
-pub const FILTER_STEREO: [u16; 2] = [54, 65];
-pub const FX_BODE_ENABLE: [u16; 4] = [66, 71, 76, 81];
-pub const FX_BODE_SHIFT: [u16; 4] = [67, 72, 77, 82];
-pub const FX_BODE_FEEDBACK: [u16; 4] = [68, 73, 78, 83];
-pub const FX_BODE_SPREAD: [u16; 4] = [69, 74, 79, 84];
-pub const FX_BODE_MIX: [u16; 4] = [70, 75, 80, 85];
-pub const FX_CHORUS_ENABLE: [u16; 4] = [86, 96, 106, 116];
-pub const FX_CHORUS_RATE: [u16; 4] = [87, 97, 107, 117];
-pub const FX_CHORUS_BPM: [u16; 4] = [88, 98, 108, 118];
-pub const FX_CHORUS_SYNC: [u16; 4] = [89, 99, 109, 119];
-pub const FX_CHORUS_DELAY1: [u16; 4] = [90, 100, 110, 120];
-pub const FX_CHORUS_DELAY2: [u16; 4] = [91, 101, 111, 121];
-pub const FX_CHORUS_DEPTH: [u16; 4] = [92, 102, 112, 122];
-pub const FX_CHORUS_FEEDBACK: [u16; 4] = [93, 103, 113, 123];
-pub const FX_CHORUS_LPF: [u16; 4] = [94, 104, 114, 124];
-pub const FX_CHORUS_MIX: [u16; 4] = [95, 105, 115, 125];
-pub const FX_COMPRESSOR_ENABLE: [u16; 4] = [126, 144, 162, 180];
-pub const FX_COMPRESSOR_MODE: [u16; 4] = [127, 145, 163, 181];
-pub const FX_COMPRESSOR_THRESHOLD: [u16; 4] = [128, 146, 164, 182];
-pub const FX_COMPRESSOR_RATIO: [u16; 4] = [129, 147, 165, 183];
-pub const FX_COMPRESSOR_ATTACK: [u16; 4] = [130, 148, 166, 184];
-pub const FX_COMPRESSOR_RELEASE: [u16; 4] = [131, 149, 167, 185];
-pub const FX_COMPRESSOR_KNEE: [u16; 4] = [132, 150, 168, 186];
-pub const FX_COMPRESSOR_GAIN: [u16; 4] = [133, 151, 169, 187];
-pub const FX_COMPRESSOR_DEPTH: [u16; 4] = [134, 152, 170, 188];
-pub const FX_COMPRESSOR_UPWARD: [u16; 4] = [135, 153, 171, 189];
-pub const FX_COMPRESSOR_DOWNWARD: [u16; 4] = [136, 154, 172, 190];
-pub const FX_COMPRESSOR_TIME: [u16; 4] = [137, 155, 173, 191];
-pub const FX_COMPRESSOR_XOVER1: [u16; 4] = [138, 156, 174, 192];
-pub const FX_COMPRESSOR_XOVER2: [u16; 4] = [139, 157, 175, 193];
-pub const FX_COMPRESSOR_LOW: [u16; 4] = [140, 158, 176, 194];
-pub const FX_COMPRESSOR_MID: [u16; 4] = [141, 159, 177, 195];
-pub const FX_COMPRESSOR_HIGH: [u16; 4] = [142, 160, 178, 196];
-pub const FX_COMPRESSOR_MIX: [u16; 4] = [143, 161, 179, 197];
-pub const FX_CONVOLVE_ENABLE: [u16; 4] = [198, 205, 212, 219];
-pub const FX_CONVOLVE_IR: [u16; 4] = [199, 206, 213, 220];
-pub const FX_CONVOLVE_PREDELAY: [u16; 4] = [200, 207, 214, 221];
-pub const FX_CONVOLVE_LOWCUT: [u16; 4] = [201, 208, 215, 222];
-pub const FX_CONVOLVE_HIGHCUT: [u16; 4] = [202, 209, 216, 223];
-pub const FX_CONVOLVE_WIDTH: [u16; 4] = [203, 210, 217, 224];
-pub const FX_CONVOLVE_MIX: [u16; 4] = [204, 211, 218, 225];
-pub const FX_DELAY_ENABLE: [u16; 4] = [226, 239, 252, 265];
-pub const FX_DELAY_MODE: [u16; 4] = [227, 240, 253, 266];
-pub const FX_DELAY_BPM: [u16; 4] = [228, 241, 254, 267];
-pub const FX_DELAY_SYNC_L: [u16; 4] = [229, 242, 255, 268];
-pub const FX_DELAY_SYNC_R: [u16; 4] = [230, 243, 256, 269];
-pub const FX_DELAY_TIME_L: [u16; 4] = [231, 244, 257, 270];
-pub const FX_DELAY_TIME_R: [u16; 4] = [232, 245, 258, 271];
-pub const FX_DELAY_LINK: [u16; 4] = [233, 246, 259, 272];
-pub const FX_DELAY_FEEDBACK: [u16; 4] = [234, 247, 260, 273];
-pub const FX_DELAY_FREQ: [u16; 4] = [235, 248, 261, 274];
-pub const FX_DELAY_WIDTH: [u16; 4] = [236, 249, 262, 275];
-pub const FX_DELAY_HQ: [u16; 4] = [237, 250, 263, 276];
-pub const FX_DELAY_MIX: [u16; 4] = [238, 251, 264, 277];
-pub const FX_DISTORTION_ENABLE: [u16; 4] = [278, 289, 300, 311];
-pub const FX_DISTORTION_MODE: [u16; 4] = [279, 290, 301, 312];
-pub const FX_DISTORTION_DRIVE: [u16; 4] = [280, 291, 302, 313];
-pub const FX_DISTORTION_BIAS: [u16; 4] = [281, 292, 303, 314];
-pub const FX_DISTORTION_FILTER: [u16; 4] = [282, 293, 304, 315];
-pub const FX_DISTORTION_FILTER_TYPE: [u16; 4] = [283, 294, 305, 316];
-pub const FX_DISTORTION_FREQ: [u16; 4] = [284, 295, 306, 317];
-pub const FX_DISTORTION_Q: [u16; 4] = [285, 296, 307, 318];
-pub const FX_DISTORTION_KEYTRACK: [u16; 4] = [286, 297, 308, 319];
-pub const FX_DISTORTION_MIX: [u16; 4] = [287, 298, 309, 320];
-pub const FX_DISTORTION_OUTPUT: [u16; 4] = [288, 299, 310, 321];
-pub const FX_EQ_ENABLE: [u16; 4] = [322, 334, 346, 358];
-pub const FX_EQ_LOW_TYPE: [u16; 4] = [323, 335, 347, 359];
-pub const FX_EQ_LOW_FREQ: [u16; 4] = [324, 336, 348, 360];
-pub const FX_EQ_LOW_Q: [u16; 4] = [325, 337, 349, 361];
-pub const FX_EQ_LOW_GAIN: [u16; 4] = [326, 338, 350, 362];
-pub const FX_EQ_MID_FREQ: [u16; 4] = [327, 339, 351, 363];
-pub const FX_EQ_MID_Q: [u16; 4] = [328, 340, 352, 364];
-pub const FX_EQ_MID_GAIN: [u16; 4] = [329, 341, 353, 365];
-pub const FX_EQ_HIGH_TYPE: [u16; 4] = [330, 342, 354, 366];
-pub const FX_EQ_HIGH_FREQ: [u16; 4] = [331, 343, 355, 367];
-pub const FX_EQ_HIGH_Q: [u16; 4] = [332, 344, 356, 368];
-pub const FX_EQ_HIGH_GAIN: [u16; 4] = [333, 345, 357, 369];
-pub const FX_FILTER_ENABLE: [u16; 4] = [370, 378, 386, 394];
-pub const FX_FILTER_TYPE: [u16; 4] = [371, 379, 387, 395];
-pub const FX_FILTER_CUTOFF: [u16; 4] = [372, 380, 388, 396];
-pub const FX_FILTER_RES: [u16; 4] = [373, 381, 389, 397];
-pub const FX_FILTER_DRIVE: [u16; 4] = [374, 382, 390, 398];
-pub const FX_FILTER_VAR: [u16; 4] = [375, 383, 391, 399];
-pub const FX_FILTER_STEREO: [u16; 4] = [376, 384, 392, 400];
-pub const FX_FILTER_MIX: [u16; 4] = [377, 385, 393, 401];
-pub const FX_FLANGER_ENABLE: [u16; 4] = [402, 411, 420, 429];
-pub const FX_FLANGER_RATE: [u16; 4] = [403, 412, 421, 430];
-pub const FX_FLANGER_BPM: [u16; 4] = [404, 413, 422, 431];
-pub const FX_FLANGER_SYNC: [u16; 4] = [405, 414, 423, 432];
-pub const FX_FLANGER_DEPTH: [u16; 4] = [406, 415, 424, 433];
-pub const FX_FLANGER_DELAY: [u16; 4] = [407, 416, 425, 434];
-pub const FX_FLANGER_FEEDBACK: [u16; 4] = [408, 417, 426, 435];
-pub const FX_FLANGER_PHASE: [u16; 4] = [409, 418, 427, 436];
-pub const FX_FLANGER_MIX: [u16; 4] = [410, 419, 428, 437];
-pub const FX_HYPER_ENABLE: [u16; 4] = [438, 445, 452, 459];
-pub const FX_HYPER_RATE: [u16; 4] = [439, 446, 453, 460];
-pub const FX_HYPER_DETUNE: [u16; 4] = [440, 447, 454, 461];
-pub const FX_HYPER_VOICES: [u16; 4] = [441, 448, 455, 462];
-pub const FX_HYPER_HYPER_MIX: [u16; 4] = [442, 449, 456, 463];
-pub const FX_HYPER_SIZE: [u16; 4] = [443, 450, 457, 464];
-pub const FX_HYPER_DIM_MIX: [u16; 4] = [444, 451, 458, 465];
-pub const FX_PHASER_ENABLE: [u16; 4] = [466, 476, 486, 496];
-pub const FX_PHASER_RATE: [u16; 4] = [467, 477, 487, 497];
-pub const FX_PHASER_BPM: [u16; 4] = [468, 478, 488, 498];
-pub const FX_PHASER_SYNC: [u16; 4] = [469, 479, 489, 499];
-pub const FX_PHASER_DEPTH: [u16; 4] = [470, 480, 490, 500];
-pub const FX_PHASER_FREQ: [u16; 4] = [471, 481, 491, 501];
-pub const FX_PHASER_FEEDBACK: [u16; 4] = [472, 482, 492, 502];
-pub const FX_PHASER_STAGES: [u16; 4] = [473, 483, 493, 503];
-pub const FX_PHASER_SPREAD: [u16; 4] = [474, 484, 494, 504];
-pub const FX_PHASER_MIX: [u16; 4] = [475, 485, 495, 505];
-pub const RACK_BUS1_TO: u16 = 506;
-pub const RACK_BUS2_TO: u16 = 507;
-pub const FX_REVERB_ENABLE: [u16; 4] = [508, 519, 530, 541];
-pub const FX_REVERB_ALGO: [u16; 4] = [509, 520, 531, 542];
-pub const FX_REVERB_SIZE: [u16; 4] = [510, 521, 532, 543];
-pub const FX_REVERB_DECAY: [u16; 4] = [511, 522, 533, 544];
-pub const FX_REVERB_PREDELAY: [u16; 4] = [512, 523, 534, 545];
-pub const FX_REVERB_DAMP: [u16; 4] = [513, 524, 535, 546];
-pub const FX_REVERB_LOWCUT: [u16; 4] = [514, 525, 536, 547];
-pub const FX_REVERB_WIDTH: [u16; 4] = [515, 526, 537, 548];
-pub const FX_REVERB_MOVEMENT: [u16; 4] = [516, 527, 538, 549];
-pub const FX_REVERB_FREEZE: [u16; 4] = [517, 528, 539, 550];
-pub const FX_REVERB_MIX: [u16; 4] = [518, 529, 540, 551];
-pub const FX_SPLITTER_ENABLE: [u16; 4] = [552, 559, 566, 573];
-pub const FX_SPLITTER_MODE: [u16; 4] = [553, 560, 567, 574];
-pub const FX_SPLITTER_FREQ1: [u16; 4] = [554, 561, 568, 575];
-pub const FX_SPLITTER_FREQ2: [u16; 4] = [555, 562, 569, 576];
-pub const FX_SPLITTER_BAND1: [u16; 4] = [556, 563, 570, 577];
-pub const FX_SPLITTER_BAND2: [u16; 4] = [557, 564, 571, 578];
-pub const FX_SPLITTER_BAND3: [u16; 4] = [558, 565, 572, 579];
-pub const FX_UTILITY_ENABLE: [u16; 4] = [580, 589, 598, 607];
-pub const FX_UTILITY_GAIN: [u16; 4] = [581, 590, 599, 608];
-pub const FX_UTILITY_PAN: [u16; 4] = [582, 591, 600, 609];
-pub const FX_UTILITY_WIDTH: [u16; 4] = [583, 592, 601, 610];
-pub const FX_UTILITY_MONO_BASS: [u16; 4] = [584, 593, 602, 611];
-pub const FX_UTILITY_BASS_FREQ: [u16; 4] = [585, 594, 603, 612];
-pub const FX_UTILITY_INVERT_L: [u16; 4] = [586, 595, 604, 613];
-pub const FX_UTILITY_INVERT_R: [u16; 4] = [587, 596, 605, 614];
-pub const FX_UTILITY_DC: [u16; 4] = [588, 597, 606, 615];
-pub const GLOBAL_QUALITY: u16 = 616;
-pub const GLOBAL_BPM: u16 = 617;
-pub const GLOBAL_ENV_RATE: u16 = 618;
-pub const GLOBAL_LFO_RATE: u16 = 619;
-pub const GLOBAL_TUNE: u16 = 620;
-pub const LFO_TYPE: [u16; 10] = [621, 634, 647, 660, 673, 686, 699, 712, 725, 738];
-pub const LFO_MODE: [u16; 10] = [622, 635, 648, 661, 674, 687, 700, 713, 726, 739];
-pub const LFO_RATE: [u16; 10] = [623, 636, 649, 662, 675, 688, 701, 714, 727, 740];
-pub const LFO_BPM: [u16; 10] = [624, 637, 650, 663, 676, 689, 702, 715, 728, 741];
-pub const LFO_SYNC_RATE: [u16; 10] = [625, 638, 651, 664, 677, 690, 703, 716, 729, 742];
-pub const LFO_SYNC_MOD: [u16; 10] = [626, 639, 652, 665, 678, 691, 704, 717, 730, 743];
-pub const LFO_X10: [u16; 10] = [627, 640, 653, 666, 679, 692, 705, 718, 731, 744];
-pub const LFO_RISE: [u16; 10] = [628, 641, 654, 667, 680, 693, 706, 719, 732, 745];
-pub const LFO_DELAY: [u16; 10] = [629, 642, 655, 668, 681, 694, 707, 720, 733, 746];
-pub const LFO_SMOOTH: [u16; 10] = [630, 643, 656, 669, 682, 695, 708, 721, 734, 747];
-pub const LFO_PHASE: [u16; 10] = [631, 644, 657, 670, 683, 696, 709, 722, 735, 748];
-pub const LFO_DIRECTION: [u16; 10] = [632, 645, 658, 671, 684, 697, 710, 723, 736, 749];
-pub const LFO_POLY: [u16; 10] = [633, 646, 659, 672, 685, 698, 711, 724, 737, 750];
-pub const MACRO_VALUE: [u16; 8] = [751, 752, 753, 754, 755, 756, 757, 758];
-pub const MASTER_VOLUME: u16 = 759;
-pub const MIX_FILTER_ROUTING: u16 = 760;
-pub const NOISE_ENABLE: u16 = 761;
-pub const NOISE_TYPE: u16 = 762;
-pub const NOISE_LEVEL: u16 = 763;
-pub const NOISE_PAN: u16 = 764;
-pub const NOISE_PITCH: u16 = 765;
-pub const NOISE_KEYTRACK: u16 = 766;
-pub const NOISE_ONESHOT: u16 = 767;
-pub const NOISE_PHASE: u16 = 768;
-pub const NOISE_RAND: u16 = 769;
-pub const NOISE_ROUTE: u16 = 770;
-pub const NOISE_BALANCE: u16 = 771;
-pub const NOISE_SEND1: u16 = 772;
-pub const NOISE_SEND2: u16 = 773;
-pub const OSC_ENABLE: [u16; 3] = [774, 837, 900];
-pub const OSC_LEVEL: [u16; 3] = [775, 838, 901];
-pub const OSC_PAN: [u16; 3] = [776, 839, 902];
-pub const OSC_OCTAVE: [u16; 3] = [777, 840, 903];
-pub const OSC_SEMI: [u16; 3] = [778, 841, 904];
-pub const OSC_FINE: [u16; 3] = [779, 842, 905];
-pub const OSC_COARSE: [u16; 3] = [780, 843, 906];
-pub const OSC_PITCH_MODE: [u16; 3] = [781, 844, 907];
-pub const OSC_WT_POS: [u16; 3] = [782, 845, 908];
-pub const OSC_WT_SMOOTH: [u16; 3] = [783, 846, 909];
-pub const OSC_PHASE: [u16; 3] = [784, 847, 910];
-pub const OSC_RAND_PHASE: [u16; 3] = [785, 848, 911];
-pub const OSC_PHASE_MEM: [u16; 3] = [786, 849, 912];
-pub const OSC_UNISON: [u16; 3] = [787, 850, 913];
-pub const OSC_DETUNE: [u16; 3] = [788, 851, 914];
-pub const OSC_BLEND: [u16; 3] = [789, 852, 915];
-pub const OSC_WIDTH: [u16; 3] = [790, 853, 916];
-pub const OSC_UNI_RANGE: [u16; 3] = [791, 854, 917];
-pub const OSC_UNI_MODE: [u16; 3] = [792, 855, 918];
-pub const OSC_UNI_STACK: [u16; 3] = [793, 856, 919];
-pub const OSC_WT_SPREAD: [u16; 3] = [794, 857, 920];
-pub const OSC_WARP_SPREAD: [u16; 3] = [795, 858, 921];
-pub const OSC_WARP1_MODE: [u16; 3] = [796, 859, 922];
-pub const OSC_WARP1_AMOUNT: [u16; 3] = [797, 860, 923];
-pub const OSC_WARP2_MODE: [u16; 3] = [798, 861, 924];
-pub const OSC_WARP2_AMOUNT: [u16; 3] = [799, 862, 925];
-pub const OSC_ROUTE: [u16; 3] = [800, 863, 926];
-pub const OSC_BALANCE: [u16; 3] = [801, 864, 927];
-pub const OSC_SEND1: [u16; 3] = [802, 865, 928];
-pub const OSC_SEND2: [u16; 3] = [803, 866, 929];
-pub const OSC_TYPE: [u16; 3] = [804, 867, 930];
-pub const OSC_SMP_START: [u16; 3] = [805, 868, 931];
-pub const OSC_SMP_END: [u16; 3] = [806, 869, 932];
-pub const OSC_LOOP_START: [u16; 3] = [807, 870, 933];
-pub const OSC_LOOP_END: [u16; 3] = [808, 871, 934];
-pub const OSC_LOOP_MODE: [u16; 3] = [809, 872, 935];
-pub const OSC_XFADE: [u16; 3] = [810, 873, 936];
-pub const OSC_SNAP: [u16; 3] = [811, 874, 937];
-pub const OSC_RATE: [u16; 3] = [812, 875, 938];
-pub const OSC_ROOT: [u16; 3] = [813, 876, 939];
-pub const OSC_KEYTRACK: [u16; 3] = [814, 877, 940];
-pub const OSC_SLICE: [u16; 3] = [815, 878, 941];
-pub const OSC_TAIL: [u16; 3] = [816, 879, 942];
-pub const OSC_GR_DENSITY: [u16; 3] = [817, 880, 943];
-pub const OSC_GR_LENGTH: [u16; 3] = [818, 881, 944];
-pub const OSC_GR_POSITION: [u16; 3] = [819, 882, 945];
-pub const OSC_GR_SCAN: [u16; 3] = [820, 883, 946];
-pub const OSC_GR_SPRAY: [u16; 3] = [821, 884, 947];
-pub const OSC_GR_PITCH_RAND: [u16; 3] = [822, 885, 948];
-pub const OSC_GR_PAN: [u16; 3] = [823, 886, 949];
-pub const OSC_GR_WINDOW: [u16; 3] = [824, 887, 950];
-pub const OSC_GR_DIRECTION: [u16; 3] = [825, 888, 951];
-pub const OSC_GR_SYNC: [u16; 3] = [826, 889, 952];
-pub const OSC_GR_TIMBRE: [u16; 3] = [827, 890, 953];
-pub const OSC_GR_LOOP: [u16; 3] = [828, 891, 954];
-pub const OSC_SP_POSITION: [u16; 3] = [829, 892, 955];
-pub const OSC_SP_SCAN: [u16; 3] = [830, 893, 956];
-pub const OSC_SP_LOW: [u16; 3] = [831, 894, 957];
-pub const OSC_SP_HIGH: [u16; 3] = [832, 895, 958];
-pub const OSC_SP_WARP: [u16; 3] = [833, 896, 959];
-pub const OSC_SP_WARP_AMT: [u16; 3] = [834, 897, 960];
-pub const OSC_SP_LOOP: [u16; 3] = [835, 898, 961];
-pub const OSC_SP_FILTER: [u16; 3] = [836, 899, 962];
-pub const SUB_ENABLE: u16 = 963;
-pub const SUB_SHAPE: u16 = 964;
-pub const SUB_OCTAVE: u16 = 965;
-pub const SUB_LEVEL: u16 = 966;
-pub const SUB_PAN: u16 = 967;
-pub const SUB_ROUTE: u16 = 968;
-pub const SUB_BALANCE: u16 = 969;
-pub const SUB_SEND1: u16 = 970;
-pub const SUB_SEND2: u16 = 971;
-pub const VOICE_POLYPHONY: u16 = 972;
-pub const VOICE_MONO: u16 = 973;
-pub const VOICE_LEGATO: u16 = 974;
-pub const VOICE_GLIDE: u16 = 975;
-pub const VOICE_GLIDE_ALWAYS: u16 = 976;
-pub const VOICE_GLIDE_SCALED: u16 = 977;
-pub const VOICE_GLIDE_CURVE: u16 = 978;
-pub const VOICE_STEAL: u16 = 979;
-pub const VOICE_BEND_UP: u16 = 980;
-pub const VOICE_BEND_DOWN: u16 = 981;
-pub const VOICE_VEL_CURVE: u16 = 982;
+pub const ARP_ENABLE: u16 = 0;
+pub const ARP_SHAPE: u16 = 1;
+pub const ARP_RATE: u16 = 2;
+pub const ARP_OCTAVES: u16 = 3;
+pub const ARP_SHIFT: u16 = 4;
+pub const ARP_GATE: u16 = 5;
+pub const ARP_CHANCE: u16 = 6;
+pub const ARP_REPEATS: u16 = 7;
+pub const ARP_VEL_RAMP: u16 = 8;
+pub const ARP_OFFSET: u16 = 9;
+pub const ARP_RETRIGGER: u16 = 10;
+pub const ARP_HOLD: u16 = 11;
+pub const ARP_STEPS: u16 = 12;
+pub const ARP_BANK: u16 = 13;
+pub const CLIP_ENABLE: u16 = 14;
+pub const CLIP_SLOT: u16 = 15;
+pub const CLIP_QUANTIZE: u16 = 16;
+pub const CLIP_TRIGGER_KEYS: u16 = 17;
+pub const CLIP_TRANSPOSE: u16 = 18;
+pub const CLIP_LOOP: u16 = 19;
+pub const ENV_ATTACK: [u16; 4] = [20, 31, 42, 53];
+pub const ENV_HOLD: [u16; 4] = [21, 32, 43, 54];
+pub const ENV_DECAY: [u16; 4] = [22, 33, 44, 55];
+pub const ENV_SUSTAIN: [u16; 4] = [23, 34, 45, 56];
+pub const ENV_RELEASE: [u16; 4] = [24, 35, 46, 57];
+pub const ENV_ATTACK_CURVE: [u16; 4] = [25, 36, 47, 58];
+pub const ENV_DECAY_CURVE: [u16; 4] = [26, 37, 48, 59];
+pub const ENV_RELEASE_CURVE: [u16; 4] = [27, 38, 49, 60];
+pub const ENV_BPM: [u16; 4] = [28, 39, 50, 61];
+pub const ENV_LEGATO_INVERT: [u16; 4] = [29, 40, 51, 62];
+pub const ENV_RETRIG: [u16; 4] = [30, 41, 52, 63];
+pub const FILTER_ENABLE: [u16; 2] = [64, 75];
+pub const FILTER_TYPE: [u16; 2] = [65, 76];
+pub const FILTER_CUTOFF: [u16; 2] = [66, 77];
+pub const FILTER_RES: [u16; 2] = [67, 78];
+pub const FILTER_DRIVE: [u16; 2] = [68, 79];
+pub const FILTER_MIX: [u16; 2] = [69, 80];
+pub const FILTER_KEYTRACK: [u16; 2] = [70, 81];
+pub const FILTER_LEVEL: [u16; 2] = [71, 82];
+pub const FILTER_PAN: [u16; 2] = [72, 83];
+pub const FILTER_VAR: [u16; 2] = [73, 84];
+pub const FILTER_STEREO: [u16; 2] = [74, 85];
+pub const FX_BODE_ENABLE: [u16; 4] = [86, 91, 96, 101];
+pub const FX_BODE_SHIFT: [u16; 4] = [87, 92, 97, 102];
+pub const FX_BODE_FEEDBACK: [u16; 4] = [88, 93, 98, 103];
+pub const FX_BODE_SPREAD: [u16; 4] = [89, 94, 99, 104];
+pub const FX_BODE_MIX: [u16; 4] = [90, 95, 100, 105];
+pub const FX_CHORUS_ENABLE: [u16; 4] = [106, 116, 126, 136];
+pub const FX_CHORUS_RATE: [u16; 4] = [107, 117, 127, 137];
+pub const FX_CHORUS_BPM: [u16; 4] = [108, 118, 128, 138];
+pub const FX_CHORUS_SYNC: [u16; 4] = [109, 119, 129, 139];
+pub const FX_CHORUS_DELAY1: [u16; 4] = [110, 120, 130, 140];
+pub const FX_CHORUS_DELAY2: [u16; 4] = [111, 121, 131, 141];
+pub const FX_CHORUS_DEPTH: [u16; 4] = [112, 122, 132, 142];
+pub const FX_CHORUS_FEEDBACK: [u16; 4] = [113, 123, 133, 143];
+pub const FX_CHORUS_LPF: [u16; 4] = [114, 124, 134, 144];
+pub const FX_CHORUS_MIX: [u16; 4] = [115, 125, 135, 145];
+pub const FX_COMPRESSOR_ENABLE: [u16; 4] = [146, 164, 182, 200];
+pub const FX_COMPRESSOR_MODE: [u16; 4] = [147, 165, 183, 201];
+pub const FX_COMPRESSOR_THRESHOLD: [u16; 4] = [148, 166, 184, 202];
+pub const FX_COMPRESSOR_RATIO: [u16; 4] = [149, 167, 185, 203];
+pub const FX_COMPRESSOR_ATTACK: [u16; 4] = [150, 168, 186, 204];
+pub const FX_COMPRESSOR_RELEASE: [u16; 4] = [151, 169, 187, 205];
+pub const FX_COMPRESSOR_KNEE: [u16; 4] = [152, 170, 188, 206];
+pub const FX_COMPRESSOR_GAIN: [u16; 4] = [153, 171, 189, 207];
+pub const FX_COMPRESSOR_DEPTH: [u16; 4] = [154, 172, 190, 208];
+pub const FX_COMPRESSOR_UPWARD: [u16; 4] = [155, 173, 191, 209];
+pub const FX_COMPRESSOR_DOWNWARD: [u16; 4] = [156, 174, 192, 210];
+pub const FX_COMPRESSOR_TIME: [u16; 4] = [157, 175, 193, 211];
+pub const FX_COMPRESSOR_XOVER1: [u16; 4] = [158, 176, 194, 212];
+pub const FX_COMPRESSOR_XOVER2: [u16; 4] = [159, 177, 195, 213];
+pub const FX_COMPRESSOR_LOW: [u16; 4] = [160, 178, 196, 214];
+pub const FX_COMPRESSOR_MID: [u16; 4] = [161, 179, 197, 215];
+pub const FX_COMPRESSOR_HIGH: [u16; 4] = [162, 180, 198, 216];
+pub const FX_COMPRESSOR_MIX: [u16; 4] = [163, 181, 199, 217];
+pub const FX_CONVOLVE_ENABLE: [u16; 4] = [218, 225, 232, 239];
+pub const FX_CONVOLVE_IR: [u16; 4] = [219, 226, 233, 240];
+pub const FX_CONVOLVE_PREDELAY: [u16; 4] = [220, 227, 234, 241];
+pub const FX_CONVOLVE_LOWCUT: [u16; 4] = [221, 228, 235, 242];
+pub const FX_CONVOLVE_HIGHCUT: [u16; 4] = [222, 229, 236, 243];
+pub const FX_CONVOLVE_WIDTH: [u16; 4] = [223, 230, 237, 244];
+pub const FX_CONVOLVE_MIX: [u16; 4] = [224, 231, 238, 245];
+pub const FX_DELAY_ENABLE: [u16; 4] = [246, 259, 272, 285];
+pub const FX_DELAY_MODE: [u16; 4] = [247, 260, 273, 286];
+pub const FX_DELAY_BPM: [u16; 4] = [248, 261, 274, 287];
+pub const FX_DELAY_SYNC_L: [u16; 4] = [249, 262, 275, 288];
+pub const FX_DELAY_SYNC_R: [u16; 4] = [250, 263, 276, 289];
+pub const FX_DELAY_TIME_L: [u16; 4] = [251, 264, 277, 290];
+pub const FX_DELAY_TIME_R: [u16; 4] = [252, 265, 278, 291];
+pub const FX_DELAY_LINK: [u16; 4] = [253, 266, 279, 292];
+pub const FX_DELAY_FEEDBACK: [u16; 4] = [254, 267, 280, 293];
+pub const FX_DELAY_FREQ: [u16; 4] = [255, 268, 281, 294];
+pub const FX_DELAY_WIDTH: [u16; 4] = [256, 269, 282, 295];
+pub const FX_DELAY_HQ: [u16; 4] = [257, 270, 283, 296];
+pub const FX_DELAY_MIX: [u16; 4] = [258, 271, 284, 297];
+pub const FX_DISTORTION_ENABLE: [u16; 4] = [298, 309, 320, 331];
+pub const FX_DISTORTION_MODE: [u16; 4] = [299, 310, 321, 332];
+pub const FX_DISTORTION_DRIVE: [u16; 4] = [300, 311, 322, 333];
+pub const FX_DISTORTION_BIAS: [u16; 4] = [301, 312, 323, 334];
+pub const FX_DISTORTION_FILTER: [u16; 4] = [302, 313, 324, 335];
+pub const FX_DISTORTION_FILTER_TYPE: [u16; 4] = [303, 314, 325, 336];
+pub const FX_DISTORTION_FREQ: [u16; 4] = [304, 315, 326, 337];
+pub const FX_DISTORTION_Q: [u16; 4] = [305, 316, 327, 338];
+pub const FX_DISTORTION_KEYTRACK: [u16; 4] = [306, 317, 328, 339];
+pub const FX_DISTORTION_MIX: [u16; 4] = [307, 318, 329, 340];
+pub const FX_DISTORTION_OUTPUT: [u16; 4] = [308, 319, 330, 341];
+pub const FX_EQ_ENABLE: [u16; 4] = [342, 354, 366, 378];
+pub const FX_EQ_LOW_TYPE: [u16; 4] = [343, 355, 367, 379];
+pub const FX_EQ_LOW_FREQ: [u16; 4] = [344, 356, 368, 380];
+pub const FX_EQ_LOW_Q: [u16; 4] = [345, 357, 369, 381];
+pub const FX_EQ_LOW_GAIN: [u16; 4] = [346, 358, 370, 382];
+pub const FX_EQ_MID_FREQ: [u16; 4] = [347, 359, 371, 383];
+pub const FX_EQ_MID_Q: [u16; 4] = [348, 360, 372, 384];
+pub const FX_EQ_MID_GAIN: [u16; 4] = [349, 361, 373, 385];
+pub const FX_EQ_HIGH_TYPE: [u16; 4] = [350, 362, 374, 386];
+pub const FX_EQ_HIGH_FREQ: [u16; 4] = [351, 363, 375, 387];
+pub const FX_EQ_HIGH_Q: [u16; 4] = [352, 364, 376, 388];
+pub const FX_EQ_HIGH_GAIN: [u16; 4] = [353, 365, 377, 389];
+pub const FX_FILTER_ENABLE: [u16; 4] = [390, 398, 406, 414];
+pub const FX_FILTER_TYPE: [u16; 4] = [391, 399, 407, 415];
+pub const FX_FILTER_CUTOFF: [u16; 4] = [392, 400, 408, 416];
+pub const FX_FILTER_RES: [u16; 4] = [393, 401, 409, 417];
+pub const FX_FILTER_DRIVE: [u16; 4] = [394, 402, 410, 418];
+pub const FX_FILTER_VAR: [u16; 4] = [395, 403, 411, 419];
+pub const FX_FILTER_STEREO: [u16; 4] = [396, 404, 412, 420];
+pub const FX_FILTER_MIX: [u16; 4] = [397, 405, 413, 421];
+pub const FX_FLANGER_ENABLE: [u16; 4] = [422, 431, 440, 449];
+pub const FX_FLANGER_RATE: [u16; 4] = [423, 432, 441, 450];
+pub const FX_FLANGER_BPM: [u16; 4] = [424, 433, 442, 451];
+pub const FX_FLANGER_SYNC: [u16; 4] = [425, 434, 443, 452];
+pub const FX_FLANGER_DEPTH: [u16; 4] = [426, 435, 444, 453];
+pub const FX_FLANGER_DELAY: [u16; 4] = [427, 436, 445, 454];
+pub const FX_FLANGER_FEEDBACK: [u16; 4] = [428, 437, 446, 455];
+pub const FX_FLANGER_PHASE: [u16; 4] = [429, 438, 447, 456];
+pub const FX_FLANGER_MIX: [u16; 4] = [430, 439, 448, 457];
+pub const FX_HYPER_ENABLE: [u16; 4] = [458, 465, 472, 479];
+pub const FX_HYPER_RATE: [u16; 4] = [459, 466, 473, 480];
+pub const FX_HYPER_DETUNE: [u16; 4] = [460, 467, 474, 481];
+pub const FX_HYPER_VOICES: [u16; 4] = [461, 468, 475, 482];
+pub const FX_HYPER_HYPER_MIX: [u16; 4] = [462, 469, 476, 483];
+pub const FX_HYPER_SIZE: [u16; 4] = [463, 470, 477, 484];
+pub const FX_HYPER_DIM_MIX: [u16; 4] = [464, 471, 478, 485];
+pub const FX_PHASER_ENABLE: [u16; 4] = [486, 496, 506, 516];
+pub const FX_PHASER_RATE: [u16; 4] = [487, 497, 507, 517];
+pub const FX_PHASER_BPM: [u16; 4] = [488, 498, 508, 518];
+pub const FX_PHASER_SYNC: [u16; 4] = [489, 499, 509, 519];
+pub const FX_PHASER_DEPTH: [u16; 4] = [490, 500, 510, 520];
+pub const FX_PHASER_FREQ: [u16; 4] = [491, 501, 511, 521];
+pub const FX_PHASER_FEEDBACK: [u16; 4] = [492, 502, 512, 522];
+pub const FX_PHASER_STAGES: [u16; 4] = [493, 503, 513, 523];
+pub const FX_PHASER_SPREAD: [u16; 4] = [494, 504, 514, 524];
+pub const FX_PHASER_MIX: [u16; 4] = [495, 505, 515, 525];
+pub const RACK_BUS1_TO: u16 = 526;
+pub const RACK_BUS2_TO: u16 = 527;
+pub const FX_REVERB_ENABLE: [u16; 4] = [528, 539, 550, 561];
+pub const FX_REVERB_ALGO: [u16; 4] = [529, 540, 551, 562];
+pub const FX_REVERB_SIZE: [u16; 4] = [530, 541, 552, 563];
+pub const FX_REVERB_DECAY: [u16; 4] = [531, 542, 553, 564];
+pub const FX_REVERB_PREDELAY: [u16; 4] = [532, 543, 554, 565];
+pub const FX_REVERB_DAMP: [u16; 4] = [533, 544, 555, 566];
+pub const FX_REVERB_LOWCUT: [u16; 4] = [534, 545, 556, 567];
+pub const FX_REVERB_WIDTH: [u16; 4] = [535, 546, 557, 568];
+pub const FX_REVERB_MOVEMENT: [u16; 4] = [536, 547, 558, 569];
+pub const FX_REVERB_FREEZE: [u16; 4] = [537, 548, 559, 570];
+pub const FX_REVERB_MIX: [u16; 4] = [538, 549, 560, 571];
+pub const FX_SPLITTER_ENABLE: [u16; 4] = [572, 579, 586, 593];
+pub const FX_SPLITTER_MODE: [u16; 4] = [573, 580, 587, 594];
+pub const FX_SPLITTER_FREQ1: [u16; 4] = [574, 581, 588, 595];
+pub const FX_SPLITTER_FREQ2: [u16; 4] = [575, 582, 589, 596];
+pub const FX_SPLITTER_BAND1: [u16; 4] = [576, 583, 590, 597];
+pub const FX_SPLITTER_BAND2: [u16; 4] = [577, 584, 591, 598];
+pub const FX_SPLITTER_BAND3: [u16; 4] = [578, 585, 592, 599];
+pub const FX_UTILITY_ENABLE: [u16; 4] = [600, 609, 618, 627];
+pub const FX_UTILITY_GAIN: [u16; 4] = [601, 610, 619, 628];
+pub const FX_UTILITY_PAN: [u16; 4] = [602, 611, 620, 629];
+pub const FX_UTILITY_WIDTH: [u16; 4] = [603, 612, 621, 630];
+pub const FX_UTILITY_MONO_BASS: [u16; 4] = [604, 613, 622, 631];
+pub const FX_UTILITY_BASS_FREQ: [u16; 4] = [605, 614, 623, 632];
+pub const FX_UTILITY_INVERT_L: [u16; 4] = [606, 615, 624, 633];
+pub const FX_UTILITY_INVERT_R: [u16; 4] = [607, 616, 625, 634];
+pub const FX_UTILITY_DC: [u16; 4] = [608, 617, 626, 635];
+pub const GLOBAL_QUALITY: u16 = 636;
+pub const GLOBAL_BPM: u16 = 637;
+pub const GLOBAL_ENV_RATE: u16 = 638;
+pub const GLOBAL_LFO_RATE: u16 = 639;
+pub const GLOBAL_TUNE: u16 = 640;
+pub const GLOBAL_SWING: u16 = 641;
+pub const KEYS_TRANSPOSE: u16 = 642;
+pub const KEYS_SCALE: u16 = 643;
+pub const KEYS_ROOT: u16 = 644;
+pub const LFO_TYPE: [u16; 10] = [645, 658, 671, 684, 697, 710, 723, 736, 749, 762];
+pub const LFO_MODE: [u16; 10] = [646, 659, 672, 685, 698, 711, 724, 737, 750, 763];
+pub const LFO_RATE: [u16; 10] = [647, 660, 673, 686, 699, 712, 725, 738, 751, 764];
+pub const LFO_BPM: [u16; 10] = [648, 661, 674, 687, 700, 713, 726, 739, 752, 765];
+pub const LFO_SYNC_RATE: [u16; 10] = [649, 662, 675, 688, 701, 714, 727, 740, 753, 766];
+pub const LFO_SYNC_MOD: [u16; 10] = [650, 663, 676, 689, 702, 715, 728, 741, 754, 767];
+pub const LFO_X10: [u16; 10] = [651, 664, 677, 690, 703, 716, 729, 742, 755, 768];
+pub const LFO_RISE: [u16; 10] = [652, 665, 678, 691, 704, 717, 730, 743, 756, 769];
+pub const LFO_DELAY: [u16; 10] = [653, 666, 679, 692, 705, 718, 731, 744, 757, 770];
+pub const LFO_SMOOTH: [u16; 10] = [654, 667, 680, 693, 706, 719, 732, 745, 758, 771];
+pub const LFO_PHASE: [u16; 10] = [655, 668, 681, 694, 707, 720, 733, 746, 759, 772];
+pub const LFO_DIRECTION: [u16; 10] = [656, 669, 682, 695, 708, 721, 734, 747, 760, 773];
+pub const LFO_POLY: [u16; 10] = [657, 670, 683, 696, 709, 722, 735, 748, 761, 774];
+pub const MACRO_VALUE: [u16; 8] = [775, 776, 777, 778, 779, 780, 781, 782];
+pub const MASTER_VOLUME: u16 = 783;
+pub const MIX_FILTER_ROUTING: u16 = 784;
+pub const NOISE_ENABLE: u16 = 785;
+pub const NOISE_TYPE: u16 = 786;
+pub const NOISE_LEVEL: u16 = 787;
+pub const NOISE_PAN: u16 = 788;
+pub const NOISE_PITCH: u16 = 789;
+pub const NOISE_KEYTRACK: u16 = 790;
+pub const NOISE_ONESHOT: u16 = 791;
+pub const NOISE_PHASE: u16 = 792;
+pub const NOISE_RAND: u16 = 793;
+pub const NOISE_ROUTE: u16 = 794;
+pub const NOISE_BALANCE: u16 = 795;
+pub const NOISE_SEND1: u16 = 796;
+pub const NOISE_SEND2: u16 = 797;
+pub const OSC_ENABLE: [u16; 3] = [798, 866, 934];
+pub const OSC_LEVEL: [u16; 3] = [799, 867, 935];
+pub const OSC_PAN: [u16; 3] = [800, 868, 936];
+pub const OSC_OCTAVE: [u16; 3] = [801, 869, 937];
+pub const OSC_SEMI: [u16; 3] = [802, 870, 938];
+pub const OSC_FINE: [u16; 3] = [803, 871, 939];
+pub const OSC_COARSE: [u16; 3] = [804, 872, 940];
+pub const OSC_PITCH_MODE: [u16; 3] = [805, 873, 941];
+pub const OSC_WT_POS: [u16; 3] = [806, 874, 942];
+pub const OSC_WT_SMOOTH: [u16; 3] = [807, 875, 943];
+pub const OSC_PHASE: [u16; 3] = [808, 876, 944];
+pub const OSC_RAND_PHASE: [u16; 3] = [809, 877, 945];
+pub const OSC_PHASE_MEM: [u16; 3] = [810, 878, 946];
+pub const OSC_UNISON: [u16; 3] = [811, 879, 947];
+pub const OSC_DETUNE: [u16; 3] = [812, 880, 948];
+pub const OSC_BLEND: [u16; 3] = [813, 881, 949];
+pub const OSC_WIDTH: [u16; 3] = [814, 882, 950];
+pub const OSC_UNI_RANGE: [u16; 3] = [815, 883, 951];
+pub const OSC_UNI_MODE: [u16; 3] = [816, 884, 952];
+pub const OSC_UNI_STACK: [u16; 3] = [817, 885, 953];
+pub const OSC_WT_SPREAD: [u16; 3] = [818, 886, 954];
+pub const OSC_WARP_SPREAD: [u16; 3] = [819, 887, 955];
+pub const OSC_WARP1_MODE: [u16; 3] = [820, 888, 956];
+pub const OSC_WARP1_AMOUNT: [u16; 3] = [821, 889, 957];
+pub const OSC_WARP2_MODE: [u16; 3] = [822, 890, 958];
+pub const OSC_WARP2_AMOUNT: [u16; 3] = [823, 891, 959];
+pub const OSC_ROUTE: [u16; 3] = [824, 892, 960];
+pub const OSC_BALANCE: [u16; 3] = [825, 893, 961];
+pub const OSC_SEND1: [u16; 3] = [826, 894, 962];
+pub const OSC_SEND2: [u16; 3] = [827, 895, 963];
+pub const OSC_TYPE: [u16; 3] = [828, 896, 964];
+pub const OSC_SMP_START: [u16; 3] = [829, 897, 965];
+pub const OSC_SMP_END: [u16; 3] = [830, 898, 966];
+pub const OSC_LOOP_START: [u16; 3] = [831, 899, 967];
+pub const OSC_LOOP_END: [u16; 3] = [832, 900, 968];
+pub const OSC_LOOP_MODE: [u16; 3] = [833, 901, 969];
+pub const OSC_XFADE: [u16; 3] = [834, 902, 970];
+pub const OSC_SNAP: [u16; 3] = [835, 903, 971];
+pub const OSC_RATE: [u16; 3] = [836, 904, 972];
+pub const OSC_ROOT: [u16; 3] = [837, 905, 973];
+pub const OSC_KEYTRACK: [u16; 3] = [838, 906, 974];
+pub const OSC_SLICE: [u16; 3] = [839, 907, 975];
+pub const OSC_TAIL: [u16; 3] = [840, 908, 976];
+pub const OSC_GR_DENSITY: [u16; 3] = [841, 909, 977];
+pub const OSC_GR_LENGTH: [u16; 3] = [842, 910, 978];
+pub const OSC_GR_POSITION: [u16; 3] = [843, 911, 979];
+pub const OSC_GR_SCAN: [u16; 3] = [844, 912, 980];
+pub const OSC_GR_SPRAY: [u16; 3] = [845, 913, 981];
+pub const OSC_GR_PITCH_RAND: [u16; 3] = [846, 914, 982];
+pub const OSC_GR_PAN: [u16; 3] = [847, 915, 983];
+pub const OSC_GR_WINDOW: [u16; 3] = [848, 916, 984];
+pub const OSC_GR_DIRECTION: [u16; 3] = [849, 917, 985];
+pub const OSC_GR_SYNC: [u16; 3] = [850, 918, 986];
+pub const OSC_GR_TIMBRE: [u16; 3] = [851, 919, 987];
+pub const OSC_GR_LOOP: [u16; 3] = [852, 920, 988];
+pub const OSC_SP_POSITION: [u16; 3] = [853, 921, 989];
+pub const OSC_SP_SCAN: [u16; 3] = [854, 922, 990];
+pub const OSC_SP_LOW: [u16; 3] = [855, 923, 991];
+pub const OSC_SP_HIGH: [u16; 3] = [856, 924, 992];
+pub const OSC_SP_WARP: [u16; 3] = [857, 925, 993];
+pub const OSC_SP_WARP_AMT: [u16; 3] = [858, 926, 994];
+pub const OSC_SP_LOOP: [u16; 3] = [859, 927, 995];
+pub const OSC_SP_FILTER: [u16; 3] = [860, 928, 996];
+pub const OSC_KEY_LO: [u16; 3] = [861, 929, 997];
+pub const OSC_KEY_HI: [u16; 3] = [862, 930, 998];
+pub const OSC_VEL_LO: [u16; 3] = [863, 931, 999];
+pub const OSC_VEL_HI: [u16; 3] = [864, 932, 1000];
+pub const OSC_KEY_MODE: [u16; 3] = [865, 933, 1001];
+pub const SUB_ENABLE: u16 = 1002;
+pub const SUB_SHAPE: u16 = 1003;
+pub const SUB_OCTAVE: u16 = 1004;
+pub const SUB_LEVEL: u16 = 1005;
+pub const SUB_PAN: u16 = 1006;
+pub const SUB_ROUTE: u16 = 1007;
+pub const SUB_BALANCE: u16 = 1008;
+pub const SUB_SEND1: u16 = 1009;
+pub const SUB_SEND2: u16 = 1010;
+pub const VC_RATE: u16 = 1011;
+pub const VC_STEPS: u16 = 1012;
+pub const VC_SMOOTH: u16 = 1013;
+pub const VC_LOOP: u16 = 1014;
+pub const VC_A1: u16 = 1015;
+pub const VC_A2: u16 = 1016;
+pub const VC_A3: u16 = 1017;
+pub const VC_A4: u16 = 1018;
+pub const VC_A5: u16 = 1019;
+pub const VC_A6: u16 = 1020;
+pub const VC_A7: u16 = 1021;
+pub const VC_A8: u16 = 1022;
+pub const VC_B1: u16 = 1023;
+pub const VC_B2: u16 = 1024;
+pub const VC_B3: u16 = 1025;
+pub const VC_B4: u16 = 1026;
+pub const VC_B5: u16 = 1027;
+pub const VC_B6: u16 = 1028;
+pub const VC_B7: u16 = 1029;
+pub const VC_B8: u16 = 1030;
+pub const VOICE_POLYPHONY: u16 = 1031;
+pub const VOICE_MONO: u16 = 1032;
+pub const VOICE_LEGATO: u16 = 1033;
+pub const VOICE_GLIDE: u16 = 1034;
+pub const VOICE_GLIDE_ALWAYS: u16 = 1035;
+pub const VOICE_GLIDE_SCALED: u16 = 1036;
+pub const VOICE_GLIDE_CURVE: u16 = 1037;
+pub const VOICE_STEAL: u16 = 1038;
+pub const VOICE_BEND_UP: u16 = 1039;
+pub const VOICE_BEND_DOWN: u16 = 1040;
+pub const VOICE_VEL_CURVE: u16 = 1041;
 
 pub static INFO: [ParamInfo; COUNT] = [
+    ParamInfo { key: "arp.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "arp.shape", curve: Curve::Enum(11), min: 0.0, max: 10.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "arp.rate", curve: Curve::Enum(16), min: 0.0, max: 15.0, default: 0.26666668, flags: 0 },
+    ParamInfo { key: "arp.octaves", curve: Curve::Int, min: 1.0, max: 4.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "arp.shift", curve: Curve::Int, min: -24.0, max: 24.0, default: 0.75, flags: 0 },
+    ParamInfo { key: "arp.gate", curve: Curve::Lin, min: 0.05, max: 2.0, default: 0.23076923, flags: 1 },
+    ParamInfo { key: "arp.chance", curve: Curve::Lin, min: 0.0, max: 1.0, default: 1.0, flags: 1 },
+    ParamInfo { key: "arp.repeats", curve: Curve::Int, min: 1.0, max: 8.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "arp.vel_ramp", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "arp.offset", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "arp.retrigger", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.5, flags: 0 },
+    ParamInfo { key: "arp.hold", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "arp.steps", curve: Curve::Int, min: 1.0, max: 16.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "arp.bank", curve: Curve::Int, min: 1.0, max: 12.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "clip.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "clip.slot", curve: Curve::Int, min: 1.0, max: 12.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "clip.quantize", curve: Curve::Enum(6), min: 0.0, max: 5.0, default: 0.6, flags: 0 },
+    ParamInfo { key: "clip.trigger_keys", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "clip.transpose", curve: Curve::Int, min: -24.0, max: 24.0, default: 0.5, flags: 0 },
+    ParamInfo { key: "clip.loop", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
     ParamInfo { key: "env.1.attack", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.025, flags: 1 },
     ParamInfo { key: "env.1.hold", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.0, flags: 1 },
     ParamInfo { key: "env.1.decay", curve: Curve::Pow(3.0), min: 0.0, max: 32000.0, default: 0.31498027, flags: 1 },
@@ -905,6 +974,10 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "global.env_rate", curve: Curve::Exp, min: 0.1, max: 10.0, default: 0.5, flags: 0 },
     ParamInfo { key: "global.lfo_rate", curve: Curve::Exp, min: 0.1, max: 10.0, default: 0.5, flags: 0 },
     ParamInfo { key: "global.tune", curve: Curve::Lin, min: 415.0, max: 466.0, default: 0.49019608, flags: 0 },
+    ParamInfo { key: "global.swing", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "keys.transpose", curve: Curve::Int, min: -24.0, max: 24.0, default: 0.5, flags: 0 },
+    ParamInfo { key: "keys.scale", curve: Curve::Enum(14), min: 0.0, max: 13.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "keys.root", curve: Curve::Enum(12), min: 0.0, max: 11.0, default: 0.0, flags: 0 },
     ParamInfo { key: "lfo.1.type", curve: Curve::Enum(5), min: 0.0, max: 4.0, default: 0.0, flags: 0 },
     ParamInfo { key: "lfo.1.mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
     ParamInfo { key: "lfo.1.rate", curve: Curve::Exp, min: 0.01, max: 100.0, default: 0.5, flags: 1 },
@@ -1121,6 +1194,11 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "osc.a.sp_warp_amt", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "osc.a.sp_loop", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
     ParamInfo { key: "osc.a.sp_filter", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.a.key_lo", curve: Curve::Int, min: 0.0, max: 127.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.a.key_hi", curve: Curve::Int, min: 0.0, max: 127.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "osc.a.vel_lo", curve: Curve::Int, min: 0.0, max: 127.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.a.vel_hi", curve: Curve::Int, min: 0.0, max: 127.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "osc.a.key_mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
     ParamInfo { key: "osc.b.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "osc.b.level", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.75, flags: 3 },
     ParamInfo { key: "osc.b.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
@@ -1184,6 +1262,11 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "osc.b.sp_warp_amt", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "osc.b.sp_loop", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
     ParamInfo { key: "osc.b.sp_filter", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.b.key_lo", curve: Curve::Int, min: 0.0, max: 127.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.b.key_hi", curve: Curve::Int, min: 0.0, max: 127.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "osc.b.vel_lo", curve: Curve::Int, min: 0.0, max: 127.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.b.vel_hi", curve: Curve::Int, min: 0.0, max: 127.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "osc.b.key_mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
     ParamInfo { key: "osc.c.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "osc.c.level", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.75, flags: 3 },
     ParamInfo { key: "osc.c.pan", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 3 },
@@ -1247,6 +1330,11 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "osc.c.sp_warp_amt", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "osc.c.sp_loop", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
     ParamInfo { key: "osc.c.sp_filter", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.c.key_lo", curve: Curve::Int, min: 0.0, max: 127.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.c.key_hi", curve: Curve::Int, min: 0.0, max: 127.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "osc.c.vel_lo", curve: Curve::Int, min: 0.0, max: 127.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "osc.c.vel_hi", curve: Curve::Int, min: 0.0, max: 127.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "osc.c.key_mode", curve: Curve::Enum(3), min: 0.0, max: 2.0, default: 0.0, flags: 0 },
     ParamInfo { key: "sub.enable", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "sub.shape", curve: Curve::Enum(6), min: 0.0, max: 5.0, default: 0.0, flags: 0 },
     ParamInfo { key: "sub.octave", curve: Curve::Int, min: -4.0, max: 2.0, default: 0.5, flags: 1 },
@@ -1256,6 +1344,26 @@ pub static INFO: [ParamInfo; COUNT] = [
     ParamInfo { key: "sub.balance", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "sub.send1", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
     ParamInfo { key: "sub.send2", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 3 },
+    ParamInfo { key: "vc.rate", curve: Curve::Enum(9), min: 0.0, max: 8.0, default: 0.5, flags: 0 },
+    ParamInfo { key: "vc.steps", curve: Curve::Int, min: 1.0, max: 8.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "vc.smooth", curve: Curve::Lin, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
+    ParamInfo { key: "vc.loop", curve: Curve::Bool, min: 0.0, max: 1.0, default: 1.0, flags: 0 },
+    ParamInfo { key: "vc.a1", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "vc.a2", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "vc.a3", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "vc.a4", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "vc.a5", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "vc.a6", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "vc.a7", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "vc.a8", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "vc.b1", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "vc.b2", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "vc.b3", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "vc.b4", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "vc.b5", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "vc.b6", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "vc.b7", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
+    ParamInfo { key: "vc.b8", curve: Curve::Lin, min: -1.0, max: 1.0, default: 0.5, flags: 1 },
     ParamInfo { key: "voice.polyphony", curve: Curve::Int, min: 1.0, max: 32.0, default: 0.22580644, flags: 0 },
     ParamInfo { key: "voice.mono", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },
     ParamInfo { key: "voice.legato", curve: Curve::Bool, min: 0.0, max: 1.0, default: 0.0, flags: 0 },

@@ -676,3 +676,53 @@ short = "Filter"
 curve = "bool"
 default = 0
 explain = "Shapes the spectrum with the curve you draw: each frequency gets the gain the curve has there."
+
+# --- which notes and velocities it plays
+
+[[param]]
+key = "key_lo"
+name = "Lowest Key"
+short = "Key Lo"
+curve = "int"
+min = 0.0
+max = 127.0
+default = 0.0
+explain = "The lowest key this oscillator plays (see Key Mode)."
+
+[[param]]
+key = "key_hi"
+name = "Highest Key"
+short = "Key Hi"
+curve = "int"
+min = 0.0
+max = 127.0
+default = 127.0
+explain = "The highest key this oscillator plays."
+
+[[param]]
+key = "vel_lo"
+name = "Lowest Velocity"
+short = "Vel Lo"
+curve = "int"
+min = 0.0
+max = 127.0
+default = 0.0
+explain = "The softest note this oscillator plays."
+
+[[param]]
+key = "vel_hi"
+name = "Highest Velocity"
+short = "Vel Hi"
+curve = "int"
+min = 0.0
+max = 127.0
+default = 127.0
+explain = "The hardest note this oscillator plays."
+
+[[param]]
+key = "key_mode"
+name = "Key Mode"
+curve = "enum"
+options = ["Range", "Fold", "Warp"]
+default = 0
+explain = "What happens outside the key range: Range stays silent; Fold plays it an octave or more closer so it lands inside; Warp squeezes the whole keyboard into the range."

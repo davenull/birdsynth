@@ -29,6 +29,8 @@ export class History {
     t.lfo.subscribe(touch);
     t.remap.subscribe(touch);
     t.fx.subscribe(touch);
+    t.arp?.subscribe(touch);
+    t.clips?.subscribe(touch);
     this.reset();
   }
 

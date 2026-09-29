@@ -335,7 +335,7 @@
     </div>
   {/if}
   <details class="more">
-    <summary>{type === TYPE.wavetable ? 'Unison and phase options' : type === TYPE.sample ? 'Unison options' : 'Pitch options'}</summary>
+    <summary>{type === TYPE.wavetable ? 'Unison, phase and key range' : type === TYPE.sample ? 'Unison and key range' : 'Pitch and key range'}</summary>
     {#if type === TYPE.wavetable || type === TYPE.sample}
       <div class="grid small">
         <Knob param={k('unison')} size={24} {color} />
@@ -367,6 +367,13 @@
         {#if type === TYPE.granular}<Toggle param={k('keytrack')} {color} />{/if}
       </div>
     {/if}
+    <div class="row">
+      <Knob param={k('key_lo')} size={24} {color} />
+      <Knob param={k('key_hi')} size={24} {color} />
+      <Knob param={k('vel_lo')} size={24} {color} />
+      <Knob param={k('vel_hi')} size={24} {color} />
+      <Select param={k('key_mode')} />
+    </div>
   </details>
 </section>
 

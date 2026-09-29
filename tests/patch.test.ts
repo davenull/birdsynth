@@ -55,6 +55,35 @@ describe('patches', () => {
     expect(render(b)).not.toBe(render(a));
   });
 
+  it('keeps the arp patterns and clips, and plays them the same', () => {
+    const a = stores();
+    a.arp!.set(0, 'velocity', 3, 0.4);
+    a.arp!.set(0, 'on', 5, 0);
+    a.arp!.set(0, 'bend', 2, 7);
+    a.clips!.edit(0, (c) => {
+      c.notes = [
+        { start: 0, length: 0.5, key: 60, velocity: 0.9, chance: 1, bend: 0 },
+        { start: 0.25, length: 0.25, key: 72, velocity: 0.5, chance: 1, bend: 2 },
+      ];
+      c.length = 1;
+      c.lanes[1] = { param: 'filter.1.cutoff', points: [[0, 0.2], [0.75, 0.9]] };
+    });
+    for (const [k, v] of [['arp.enable', 1], ['clip.enable', 1], ['clip.quantize', 0], ['filter.1.enable', 1]] as const) a.bank.set(PARAM_ID[k], v);
+    const p = migrate(JSON.parse(JSON.stringify(capture(a))));
+    // only what differs from the defaults is written
+    expect(p.arp.filter(Boolean)).toHaveLength(1);
+    expect(p.clips.filter(Boolean)).toHaveLength(1);
+    const b = stores();
+    expect(applyPatch(b, p)).toEqual([]);
+    expect(Array.from(b.arp!.banks[0])).toEqual(Array.from(a.arp!.banks[0]));
+    expect(b.clips!.clips[0]).toEqual(a.clips!.clips[0]);
+    expect(b.arp!.isDefault(1) && b.clips!.isEmpty(1)).toBe(true);
+    expect(render(b, true)).toBe(render(a, true));
+    // and they matter: without the clip it sounds different
+    b.clips!.load(0, null);
+    expect(render(b, true)).not.toBe(render(a, true));
+  });
+
   it('migrates the pre-release format', () => {
     const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests/fixtures/patches/v0-lead.json'), 'utf8'));
     const p = migrate(raw);

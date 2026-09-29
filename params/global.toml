@@ -54,3 +54,13 @@ max = 466.0
 default = 440.0
 unit = "Hz"
 explain = "The frequency of A above middle C. Everything else follows."
+
+[[param]]
+key = "swing"
+name = "Swing"
+curve = "lin"
+min = 0.0
+max = 1.0
+default = 0.0
+unit = "%"
+explain = "Delays every second step of the arpeggiator and clips, up to half a step, for a shuffled feel."

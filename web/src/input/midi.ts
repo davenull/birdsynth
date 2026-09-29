@@ -7,44 +7,68 @@ export interface MidiSink {
   controller(channel: number, cc: number, value: number): void;
   channelPressure(channel: number, value: number): void;
   polyPressure(note: number, channel: number, value: number): void;
+  /** System real-time: clock (0xF8), start (0xFA), continue (0xFB), stop (0xFC). */
+  realtime?(status: number, time: number): void;
 }
 
 const DATA_BYTES: Record<number, number> = { 0x80: 2, 0x90: 2, 0xa0: 2, 0xb0: 2, 0xc0: 1, 0xd0: 1, 0xe0: 2 };
 
 /**
- * Parse one or more MIDI messages (running status supported). System
+ * Parse one or more MIDI messages (running status supported). Real-time
+ * messages go to the sink's `realtime` (with `time`, ms); other system
  * messages are skipped. Velocities and values are scaled to 0..1, pitch
  * bend to -1..1.
  */
-export function parseMidi(bytes: ArrayLike<number>, sink: MidiSink): void {
+export function parseMidi(bytes: ArrayLike<number>, sink: MidiSink, time = performance.now()): void {
   let status = 0;
   let i = 0;
   while (i < bytes.length) {
     const b = bytes[i];
+    if (b >= 0xf8) {
+      sink.realtime?.(b, time);
+      i++;
+      continue;
+    }
     if (b >= 0xf0) {
-      // system messages: skip sysex payloads and anything else we don't use
+      // system common messages and sysex: skipped (sysex to its end), and they cancel running status
       if (b === 0xf0) {
         while (i < bytes.length && bytes[i] !== 0xf7) i++;
       }
       i++;
-      if (b < 0xf8) status = 0;
+      status = 0;
       continue;
     }
     if (b & 0x80) {
       status = b;
       i++;
+      continue;
     }
     if (!status) {
       i++;
       continue;
     }
+    // a data byte: gather the message's data (real-time bytes can sit between them)
+    const need = DATA_BYTES[status & 0xf0];
+    let d1 = 0;
+    let d2 = 0;
+    let got = 0;
+    while (got < need && i < bytes.length) {
+      const x = bytes[i];
+      if (x >= 0xf8) {
+        sink.realtime?.(x, time);
+        i++;
+        continue;
+      }
+      if (x & 0x80) break;
+      if (got === 0) d1 = x;
+      else d2 = x;
+      got++;
+      i++;
+    }
+    // cut short (by a new status byte, or the end): dropped
+    if (got < need) continue;
     const kind = status & 0xf0;
     const ch = status & 0x0f;
-    const need = DATA_BYTES[kind];
-    if (i + need > bytes.length) break;
-    const d1 = bytes[i] & 0x7f;
-    const d2 = need > 1 ? bytes[i + 1] & 0x7f : 0;
-    i += need;
     switch (kind) {
       case 0x90:
         if (d2 > 0) sink.noteOn(d1, d2 / 127, ch);

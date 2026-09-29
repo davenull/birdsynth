@@ -1,4 +1,4 @@
-<!-- GLOBAL page: quality, tempo and rate scaling, tuning, velocity, bend range, voices, MIDI and master. -->
+<!-- GLOBAL page: quality, tempo and rate scaling, tuning, the keyboard, velocity, bend range, voices, MIDI and master. -->
 <script lang="ts">
   import { getContext, onMount } from 'svelte';
   import { PARAMS, PARAM_ID } from '../../gen/params';
@@ -22,6 +22,7 @@
   let maps = $state<Mapping[]>([]);
   let velCurve = $state(0);
   let dropping = $state(false);
+  let followClock = $state(synth.followClock);
 
   onMount(() => {
     const offFrame = onFrame(() => {
@@ -116,6 +117,15 @@
     </div>
     {#if tuningError}<p class="error" role="alert">{tuningError}</p>{:else}<p>Drop a Scala scale (with its keyboard map, if it has one) or an AnaMark .tun here. The tuning stays when you change presets.</p>{/if}
   </section>
+  <section class="panel" data-explain="keys" aria-label="Keyboard">
+    <h2>KEYBOARD</h2>
+    <div class="row">
+      <Knob param="keys.transpose" size={30} {color} />
+      <Select param="keys.scale" wide />
+      <Select param="keys.root" />
+    </div>
+    <p>Moves what you play, and with a scale, puts every key on its nearest note (the arpeggiator and clips play what comes out).</p>
+  </section>
   <section class="panel" data-explain="voice.vel_curve" aria-label="Velocity">
     <h2>VELOCITY</h2>
     <div class="row">
@@ -143,7 +153,18 @@
   </section>
   <section class="panel" data-explain="midi" aria-label="MIDI">
     <h2>MIDI</h2>
-    <div class="row"><MidiButton {synth} /></div>
+    <div class="row">
+      <MidiButton {synth} />
+      <button
+        class="clock"
+        aria-pressed={followClock}
+        title="Follow an external MIDI clock: its tempo sets the BPM, and its start and stop run the transport"
+        onclick={() => {
+          followClock = !followClock;
+          synth.setFollowClock(followClock);
+        }}>Sync to MIDI clock</button
+      >
+    </div>
     {#if maps.length}
       <ul class="maps">
         {#each maps as m (m.cc)}
@@ -229,6 +250,11 @@
   button:disabled {
     color: var(--text-faint);
     cursor: default;
+  }
+  .clock[aria-pressed='true'] {
+    color: #111;
+    background: var(--accent);
+    border-color: var(--accent);
   }
   .vel {
     width: 64px;

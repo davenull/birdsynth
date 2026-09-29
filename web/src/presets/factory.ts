@@ -740,6 +740,8 @@ export function patchOf(d: Def): Patch {
     recordings: [null, null, null],
     multis: [null, null, null],
     specFilter: [null, null, null],
+    arp: Array(12).fill(null),
+    clips: Array(12).fill(null),
   };
 }
 

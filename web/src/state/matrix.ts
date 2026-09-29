@@ -39,7 +39,7 @@ const AUDIO_SOURCES = new Set<string>(['Osc A', 'Osc B', 'Osc C', 'Sub', 'Noise'
 /** Sources that swing -1..1 by nature; the rest run 0..1. Mirrors the engine. */
 export function bipolarSource(s: number): boolean {
   const n = SOURCES[s] as string;
-  return n === 'Note' || n === 'Pitch Bend' || n.startsWith('LFO') || n === 'MPE X' || AUDIO_SOURCES.has(n);
+  return n === 'Note' || n === 'Pitch Bend' || n === 'Voice Mod 1' || n === 'Voice Mod 2' || n.startsWith('LFO') || n === 'MPE X' || AUDIO_SOURCES.has(n);
 }
 
 /** A slot's curve applied to a source value (by magnitude for -1..1 values). */

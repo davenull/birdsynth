@@ -3,6 +3,7 @@
   import { getContext } from 'svelte';
   import { PARAMS, PARAM_ID, type ParamKey } from '../../gen/params';
   import { SOURCE, type SourceName } from '../../state/matrix';
+  import { strip } from '../strip.svelte';
   import { SHAPE_PRESETS } from '../../state/lfo';
   import { toPlain } from '../../state/param-math';
   import type { Synth } from '../../synth';
@@ -13,7 +14,7 @@
   import SourceHandle from '../mod/SourceHandle.svelte';
 
   const synth = getContext<Synth>('synth');
-  let n = $state(1);
+  const n = $derived(strip.lfo);
   const k = (s: string) => `lfo.${n}.${s}` as ParamKey;
   const color = 'var(--lfo)';
 
@@ -39,7 +40,7 @@
   <div class="top">
     <div class="tabs" role="tablist" aria-label="LFO">
       {#each [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as i (i)}
-        <button role="tab" aria-selected={n === i} aria-label={`LFO ${i}`} class:on={n === i} onclick={() => (n = i)}>{i}</button>
+        <button role="tab" aria-selected={n === i} aria-label={`LFO ${i}`} class:on={n === i} onclick={() => (strip.lfo = i)}>{i}</button>
       {/each}
     </div>
     <div class="handles">

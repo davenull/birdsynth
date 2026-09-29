@@ -50,7 +50,7 @@ impl Slot {
 
 /// Is a source bipolar (-1..1) by nature? The rest are 0..1.
 pub fn bipolar_source(s: u8) -> bool {
-    matches!(s, source::NOTE | source::PITCH_BEND)
+    matches!(s, source::NOTE | source::PITCH_BEND | source::VOICE_MOD_1 | source::VOICE_MOD_2)
         || (source::LFO_1..=source::LFO_10_Y).contains(&s)
         || s == source::MPE_X
         || (source::OSC_A..=source::FILTER_2).contains(&s)

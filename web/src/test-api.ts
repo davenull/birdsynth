@@ -16,6 +16,8 @@ import { nav, type PageId } from './ui/nav.svelte';
 import { editorView } from './editor/editor.svelte';
 import type { Scope } from './editor/model';
 import type { Synth } from './synth';
+import type { ClipNote, LaneName } from './state/seq';
+import { parseSmf } from './midi/smf';
 
 interface PlaybackStats {
   underrunEvents?: number;
@@ -170,7 +172,13 @@ export function installTestApi(synth: Synth): void {
         return { open: editorView.osc, name: e.name, count: e.count, current: e.current, selected: [...e.selected].sort((a, b) => a - b), canUndo: e.canUndo, canRedo: e.canRedo };
       },
       /** A frame's samples (every `step`-th). */
-      frame: (i: number, step = 1) => Array.from(editorView.editor(synth.tables).frame(i).filter((_, k) => k % step === 0)),
+      frame: (i: number, step = 1) =>
+        Array.from(
+          editorView
+            .editor(synth.tables)
+            .frame(i)
+            .filter((_, k) => k % step === 0),
+        ),
       select: (i: number, mode: 'only' | 'toggle' | 'range' = 'only') => editorView.editor(synth.tables).select(i, mode),
       /** Draw a stroke through [sample index, value] points on the current frame (one undo step). */
       draw: (points: [number, number][]) => {
@@ -335,6 +343,36 @@ export function installTestApi(synth: Synth): void {
         stolen: t[TEL.grainsStolen],
       };
     },
+    /** The transport, the arpeggiator's patterns and the clips. */
+    seq: {
+      play: (on = true) => synth.transport(on),
+      state: () => {
+        const t = synth.host?.tel;
+        return t
+          ? { playing: t[TEL.playing] >= 0.5, beat: t[TEL.beat], arpStep: t[TEL.arpStep], clipPlaying: t[TEL.clipPlaying], clipPos: t[TEL.clipPos], notes: t[TEL.seqNotes], beatNow: synth.beatNow() }
+          : null;
+      },
+      arpStep: (bank: number, lane: LaneName, step: number, v: number) => synth.arp.set(bank, lane, step, v),
+      clip: (slot: number) => structuredClone(synth.clips.clips[slot]),
+      setClip: (slot: number, notes: Partial<ClipNote>[], length?: number) =>
+        synth.clips.edit(slot, (c) => {
+          c.notes = notes.map((n) => ({ start: 0, length: 0.25, key: 60, velocity: 0.8, chance: 1, bend: 0, ...n }));
+          if (length) c.length = length;
+        }),
+      setLane: (slot: number, lane: number, param: ParamKey | null, points: [number, number][]) =>
+        synth.clips.edit(slot, (c) => {
+          c.lanes[lane].param = param;
+          c.lanes[lane].points = points.map((p) => [p[0], p[1]]);
+        }),
+      /** Put a MIDI file (its bytes) in a clip, as Import does. */
+      importMidi: (slot: number, bytes: number[]) => {
+        const smf = parseSmf(new Uint8Array(bytes).buffer);
+        synth.clips.importSmf(slot, smf);
+        return smf.notes.length;
+      },
+      record: (slot: number) => synth.record(slot),
+      stopRecording: () => synth.stopRecording(),
+    },
     tour: {
       start: (id: string) => tours.start(synth, id),
       next: () => tours.next(),
@@ -345,7 +383,17 @@ export function installTestApi(synth: Synth): void {
         const s = tours.step;
         const el = s?.target ? document.querySelector(`[data-explain="${s.target}"]`) : null;
         return tours.tour
-          ? { id: tours.tour.id, index: tours.index, steps: tours.tour.steps.length, title: s?.title ?? '', target: s?.target ?? null, targetShown: !!el, page: nav.page, bandlimit: synth.bandlimit, expect: s?.expect ? { ...s.expect } : null }
+          ? {
+              id: tours.tour.id,
+              index: tours.index,
+              steps: tours.tour.steps.length,
+              title: s?.title ?? '',
+              target: s?.target ?? null,
+              targetShown: !!el,
+              page: nav.page,
+              bandlimit: synth.bandlimit,
+              expect: s?.expect ? { ...s.expect } : null,
+            }
           : null;
       },
     },

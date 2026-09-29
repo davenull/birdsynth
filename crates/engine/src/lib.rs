@@ -13,6 +13,7 @@ pub mod modmatrix;
 pub mod osc;
 pub mod params;
 pub mod samples;
+mod seq;
 mod sources;
 pub mod spec;
 pub mod tables;

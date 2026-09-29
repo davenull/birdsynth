@@ -1,7 +1,7 @@
-// Saving a text file and opening one, for preset export and import.
+// Saving a file and opening one, for preset (and MIDI) export and import.
 
-export function download(name: string, text: string, type = 'application/json'): void {
-  const url = URL.createObjectURL(new Blob([text], { type }));
+export function download(name: string, data: string | ArrayBuffer, type = 'application/json'): void {
+  const url = URL.createObjectURL(new Blob([data], { type }));
   const a = document.createElement('a');
   a.href = url;
   a.download = name;

@@ -2,10 +2,11 @@
 // engine host, behind one object. Inputs (QWERTY, the on-screen keyboard,
 // MIDI) and the test API all play through here.
 
-import { PARAM_ID, type ParamKey } from './gen/params';
+import { PARAMS, PARAM_ID, type ParamKey } from './gen/params';
 import { DEBUG, TEL, TEL_COUNT, TAP, type CmdWriter, type TapName } from './gen/protocol';
 import { EngineHost } from './audio/host';
-import { BLOCK_MAX_TAPS } from './audio/block';
+import { BLOCK_FRAMES, BLOCK_MAX_TAPS } from './audio/block';
+import { toNorm, toPlain } from './state/param-math';
 import { ParamBank } from './state/bank';
 import { TableStore } from './state/tables';
 import { LfoShapes } from './state/lfo';
@@ -19,12 +20,14 @@ import { RecordingStore } from './state/recordings';
 import { MultiStore } from './state/multis';
 import { SpectralFilters, pictureToAnalysis } from './state/spectral';
 import { zoneInfo } from './state/multis';
+import { ArpPatterns, ClipStore } from './state/seq';
 import { History } from './state/history';
 import { Library, type Entry } from './state/library';
 import { applyPatch, capture, emptyMeta, hashBytes, type Patch, type PatchMeta, type PatchTarget } from './state/patch';
 import { parseMidi, type MidiSink } from './input/midi';
 import { MidiLearn } from './input/learn';
 import { WebMidi } from './input/webmidi';
+import { MidiClock } from './input/clock';
 
 export type SynthStatus = 'idle' | 'starting' | 'running' | 'suspended' | 'error';
 
@@ -63,14 +66,22 @@ export class Synth implements MidiSink {
   readonly recordings = new RecordingStore(this.bank);
   readonly multis = new MultiStore();
   readonly specFilters = new SpectralFilters();
-  readonly target: PatchTarget = { bank: this.bank, matrix: this.matrix, lfo: this.lfo, remap: this.remap, fx: this.fx };
-  readonly history = new History(this.target);
+  readonly arp = new ArpPatterns();
+  readonly clips = new ClipStore();
+  /** Recording into a clip: its slot and where each held key started (in beats). */
+  recording: { slot: number; open: Map<string, { start: number; beat: number; velocity: number }> } | null = null;
+  private transportSubs = new Set<() => void>();
+  readonly target: PatchTarget;
+  readonly history: History;
   /** The current preset: its metadata and where it came from ("" for none). */
   meta: PatchMeta = emptyMeta('Init');
   presetId = 'factory:Init';
   library: Library | null = null;
   readonly learn = new MidiLearn(this.bank);
-  readonly midi = new WebMidi((bytes) => parseMidi(bytes, this));
+  readonly midi = new WebMidi((bytes, time) => parseMidi(bytes, this, time));
+  private readonly clock = new MidiClock();
+  /** Whether incoming MIDI clock sets the tempo and runs the transport (a setting of this browser, not the patch). */
+  followClock = readSetting('birdsynth.midi-clock') === '1';
   /** Whether the oscillators band-limit (always, except in the aliasing tour). */
   bandlimit = true;
   /** The wheels as last moved (by MIDI or on screen): bend -1..1, mod 0..1. */
@@ -93,17 +104,36 @@ export class Synth implements MidiSink {
   private opening: Promise<Library> | null = null;
 
   constructor() {
+    this.target = { bank: this.bank, matrix: this.matrix, lfo: this.lfo, remap: this.remap, fx: this.fx, arp: this.arp, clips: this.clips };
+    this.history = new History(this.target);
     this.bank.onAny((id, v) => this.host?.send((w) => w.setParam(0, id, v)));
     this.matrix.attach((i, s) => this.host?.send((w) => writeSlot(w, i, s)));
     this.remap.attach((osc, lut) => this.host?.send((w) => w.setOscCurve(0, osc, lut.length, lut)));
-    this.fx.attach((chain, refs) => this.host?.send((w) => w.setChain(0, chain, refs.length, refs.map((r) => r.type * 256 + r.inst))));
+    this.fx.attach((chain, refs) =>
+      this.host?.send((w) =>
+        w.setChain(
+          0,
+          chain,
+          refs.length,
+          refs.map((r) => r.type * 256 + r.inst),
+        ),
+      ),
+    );
     // convolvers build their response once they're in a rack
     this.ir.active = (inst) => this.fx.used(CONVOLVE, inst);
     this.fx.subscribe(() => {
       for (let i = 0; i < 4; i++) if (this.fx.used(CONVOLVE, i)) void this.ir.load(i);
     });
     this.lfo.attach((lfo, kind, pts) =>
-      this.host?.send((w) => w.setLfoShape(0, lfo, kind === 'path' ? 1 : 0, pts.length, pts.flatMap((p) => [p.x, p.y, p.c]))),
+      this.host?.send((w) =>
+        w.setLfoShape(
+          0,
+          lfo,
+          kind === 'path' ? 1 : 0,
+          pts.length,
+          pts.flatMap((p) => [p.x, p.y, p.c]),
+        ),
+      ),
     );
   }
 
@@ -139,6 +169,11 @@ export class Synth implements MidiSink {
         this.recordings.attach(host);
         this.multis.attach(host, host.ctx.sampleRate);
         this.specFilters.attach({ setSpectralFilter: (o, p) => host.send((w) => w.setSpectralFilter(0, o, p.length, p)) });
+        this.arp.attach({ setArpPattern: (b, v) => host.send((w) => w.setArpPattern(0, b, v.length, v)) });
+        this.clips.attach({
+          setClip: (slot, notes, count, length) => host.send((w) => w.setClip(0, slot, count, length, notes)),
+          setClipLane: (slot, lane, param, pts, count) => host.send((w) => w.setClipLane(0, slot, lane, param, count, pts)),
+        });
         const follow = () => {
           if (this.status !== 'error') this.setStatus(host.ctx.state === 'running' ? 'running' : 'suspended');
         };
@@ -184,6 +219,8 @@ export class Synth implements MidiSink {
     this.recordings.resync();
     this.multis.resync();
     this.specFilters.resync();
+    this.arp.resync();
+    this.clips.resync();
     this.tables.resync();
     this.noise.resync();
     host.send((w) => {
@@ -307,7 +344,11 @@ export class Synth implements MidiSink {
         const c = new OffscreenCanvas(Math.min(1024, bmp.width), Math.min(512, bmp.height));
         const g = c.getContext('2d')!;
         g.drawImage(bmp, 0, 0, c.width, c.height);
-        await this.recordings.setPicture(o, { name: r.name, bytes: data, seconds: r.seconds }, pictureToAnalysis(g.getImageData(0, 0, c.width, c.height), r.seconds, this.host?.ctx.sampleRate ?? 48_000));
+        await this.recordings.setPicture(
+          o,
+          { name: r.name, bytes: data, seconds: r.seconds },
+          pictureToAnalysis(g.getImageData(0, 0, c.width, c.height), r.seconds, this.host?.ctx.sampleRate ?? 48_000),
+        );
         return;
       }
       const f = new Float32Array(data);
@@ -369,6 +410,61 @@ export class Synth implements MidiSink {
     this.emitPatch();
   }
 
+  // ---------------------------------------------------------- transport
+  /** Start or stop the transport (clips play while it runs). */
+  transport(play: boolean): void {
+    this.host?.send((w) => w.transport(0, play ? 1 : 0));
+    if (!play) this.stopRecording();
+    for (const fn of this.transportSubs) fn();
+  }
+
+  onTransport(fn: () => void): () => void {
+    this.transportSubs.add(fn);
+    return () => this.transportSubs.delete(fn);
+  }
+
+  get playing(): boolean {
+    return (this.host?.tel[TEL.playing] ?? 0) >= 0.5;
+  }
+
+  /** The transport's position now, in beats (from the newest telemetry, moved on by the time since). */
+  beatNow(): number {
+    const h = this.host;
+    if (!h) return 0;
+    const bpm = toPlain(PARAMS[PARAM_ID['global.bpm']], this.bank.get(PARAM_ID['global.bpm']));
+    // the telemetry is from the end of the newest block rendered; the listener is behind that
+    const rendered = h.frame + BLOCK_FRAMES;
+    return h.tel[TEL.beat] + ((h.heardFrame() - rendered) / h.ctx.sampleRate) * (bpm / 60);
+  }
+
+  /** Where a clip is now, in beats from its start (the transport's beat when it isn't the one playing). */
+  clipBeatNow(slot: number): number {
+    const h = this.host;
+    const now = this.beatNow();
+    return h && h.tel[TEL.clipPlaying] === slot ? h.tel[TEL.clipPos] + (now - h.tel[TEL.beat]) : now;
+  }
+
+  /** Record played notes into a clip (overdubbing what's there) while the transport runs. */
+  record(slot: number): void {
+    this.recording = { slot, open: new Map() };
+    if (!this.playing) this.transport(true);
+  }
+
+  stopRecording(): void {
+    const r = this.recording;
+    if (!r) return;
+    const now = this.beatNow();
+    for (const [k, o] of r.open) this.writeNote(r.slot, Number(k.split(':')[1]), o.start, now - o.beat, o.velocity);
+    this.recording = null;
+  }
+
+  /** A recorded note: its start in the clip (wrapped into it) and its length in beats (however many loops it was held over). */
+  private writeNote(slot: number, key: number, start: number, length: number, velocity: number): void {
+    const len = this.clips.clips[slot].length;
+    const s = ((start % len) + len) % len;
+    this.clips.edit(slot, (clip) => clip.notes.push({ start: Math.round(s * 960) / 960, length: Math.max(1 / 64, Math.min(len, length)), key, velocity, chance: 1, bend: 0 }));
+  }
+
   // ------------------------------------------------------------- taps
   /** Ask for a tap while something shows it; call the returned function when done. */
   useTap(name: TapName): () => void {
@@ -410,6 +506,11 @@ export class Synth implements MidiSink {
       return 0;
     }
     this.resume();
+    if (note >= 24 && note < 36 && this.bank.get(PARAM_ID['clip.enable']) >= 0.5 && this.bank.get(PARAM_ID['clip.trigger_keys']) >= 0.5) {
+      // C1..B1 launch clips 1..12 (here, so the slot the page shows is the one playing)
+      this.bank.set(PARAM_ID['clip.slot'], (note - 24) / 11);
+      return 0;
+    }
     const id = this.nextId;
     this.nextId = this.nextId >= 0x7ffe_ffff ? 1 : this.nextId + 1;
     this.held.set(id, { note, channel, velocity });
@@ -418,6 +519,7 @@ export class Synth implements MidiSink {
     if (ids) ids.push(id);
     else this.byKey.set(k, [id]);
     this.host?.send((w) => w.noteOn(0, note, channel, velocity, id));
+    if (this.recording) this.recording.open.set(`${channel}:${note}`, { start: this.clipBeatNow(this.recording.slot), beat: this.beatNow(), velocity });
     return id;
   }
 
@@ -429,6 +531,11 @@ export class Synth implements MidiSink {
     if (!ids!.length) this.byKey.delete(k);
     this.held.delete(id);
     this.host?.send((w) => w.noteOff(0, note, channel, velocity, id));
+    const rec = this.recording?.open.get(`${channel}:${note}`);
+    if (rec && this.recording) {
+      this.recording.open.delete(`${channel}:${note}`);
+      this.writeNote(this.recording.slot, note, rec.start, this.beatNow() - rec.beat, rec.velocity);
+    }
   }
 
   allNotesOff(): void {
@@ -439,6 +546,24 @@ export class Synth implements MidiSink {
 
   get heldNotes(): number[] {
     return [...this.held.values()].map((h) => h.note);
+  }
+
+  setFollowClock(on: boolean): void {
+    this.followClock = on;
+    this.clock.reset();
+    writeSetting('birdsynth.midi-clock', on ? '1' : null);
+  }
+
+  realtime(status: number, time: number): void {
+    if (!this.followClock) return;
+    if (status === 0xf8) {
+      const bpm = this.clock.tick(time);
+      if (bpm !== null) this.setParam('global.bpm', toNorm(PARAMS[PARAM_ID['global.bpm']], bpm));
+    } else if (status === 0xfa || status === 0xfb) {
+      if (!this.playing || status === 0xfa) this.transport(true);
+    } else if (status === 0xfc) {
+      this.transport(false);
+    }
   }
 
   // ---------------------------------------------- MidiSink (the rest)
@@ -527,4 +652,23 @@ export class Synth implements MidiSink {
 function writeSlot(w: CmdWriter, i: number, s: ModSlot | null): void {
   if (s) w.setModSlot(0, i, s.source, s.aux, slotFlags(s), s.dest, s.amount, s.curve, s.output);
   else w.setModSlot(0, i, 0, 0, 0, 0, 0, 0, 1);
+}
+
+/** A setting of this browser (localStorage, which may be missing or refuse). */
+function readSetting(key: string): string | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeSetting(key: string, value: string | null): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {
+    // private mode: the setting lasts this session only
+  }
 }

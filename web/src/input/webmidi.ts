@@ -10,7 +10,7 @@ export class WebMidi {
   private access: MIDIAccess | null = null;
   private readonly subs = new Set<() => void>();
 
-  constructor(private readonly onBytes: (bytes: Uint8Array) => void) {
+  constructor(private readonly onBytes: (bytes: Uint8Array, time: number) => void) {
     this.status = typeof navigator !== 'undefined' && 'requestMIDIAccess' in navigator ? 'off' : 'unsupported';
   }
 
@@ -56,7 +56,7 @@ export class WebMidi {
     if (!this.access) return;
     const names: string[] = [];
     for (const input of this.access.inputs.values()) {
-      input.onmidimessage = (e) => e.data && this.onBytes(e.data);
+      input.onmidimessage = (e) => e.data && this.onBytes(e.data, e.timeStamp);
       if (input.state === 'connected') names.push(input.name ?? 'MIDI input');
     }
     this.inputs = names;

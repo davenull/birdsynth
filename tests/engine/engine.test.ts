@@ -130,6 +130,40 @@ describe('engine.wasm', () => {
     expect(e.tel()[TEL.tableErrors]).toBe(0);
   });
 
+  it('never allocates with the arpeggiator and a clip running', () => {
+    const e = new Engine();
+    const set = (key: string, plain: number) => {
+      const p = PARAMS.find((q) => q.key === key)!;
+      e.w.setParam(0, p.id, toNorm(p, plain));
+    };
+    set('arp.enable', 1);
+    set('arp.rate', 6);
+    set('arp.octaves', 3);
+    set('clip.enable', 1);
+    const notes: number[] = [];
+    for (let i = 0; i < 64; i++) notes.push(i * 0.25, 0.2, 40 + ((i * 7) % 36), 0.8, 1, 0);
+    e.w.setClip(0, 0, 64, 16, notes);
+    e.w.transport(0, 1);
+    let seed = 5;
+    const rand = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32);
+    let id = 1;
+    const held: number[] = [];
+    for (let i = 0; i < 20; i++) e.render(2400);
+    const before = e.ex.wt_alloc_count();
+    for (let i = 0; i < 600; i++) {
+      if (rand() < 0.4) {
+        const n = 48 + Math.floor(rand() * 24);
+        held.push(n);
+        e.w.noteOn(0, n, 0, 0.8, id++);
+      }
+      if (held.length > 5 || (held.length && rand() < 0.3)) e.w.noteOff(0, held.shift()!, 0, 0, 0);
+      if (i % 97 === 0) set('arp.shape', Math.floor(rand() * 11));
+      if (i % 131 === 0) e.w.setClip(0, 0, 64, 8 + Math.floor(rand() * 8), notes);
+      e.render(2400);
+    }
+    expect(e.ex.wt_alloc_count() - before).toBe(0);
+  });
+
   it('keeps its views when memory grows', () => {
     const e = new Engine();
     const rab = (e.ex.memory as unknown as { toResizableBuffer(): ArrayBuffer }).toResizableBuffer();

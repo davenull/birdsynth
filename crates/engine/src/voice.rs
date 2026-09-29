@@ -444,6 +444,9 @@ impl Voice {
         src[source::VOICE_INDEX as usize] = self.index as f32 / 31.0;
         src[source::ACTIVE_VOICES as usize] = cx.active_voices / 32.0;
         src[source::FIXED as usize] = 1.0;
+        let (vc1, vc2) = voice_control(&base, self.time, cx.bpm);
+        src[source::VOICE_MOD_1 as usize] = vc1;
+        src[source::VOICE_MOD_2 as usize] = vc2;
         for i in 0..MACROS {
             src[source::MACRO_1 as usize + i] = prm.norm(p::MACRO_VALUE[i]);
         }
@@ -541,16 +544,21 @@ impl Voice {
         let osc_a_semis = res(p::OSC_OCTAVE[0]) * 12.0 + res(p::OSC_FINE[0]) * 0.01 + res(p::OSC_COARSE[0]);
         let mut enabled = [false; OSC_COUNT];
         let mut kinds = [TYPE_WAVETABLE; OSC_COUNT];
+        let mut opitch = [pitch; OSC_COUNT];
         let mut tuning = [0.0f32; OSC_COUNT];
         let mut uni = [UniParams::default(); OSC_COUNT];
         let mut settings: [Option<OscSettings>; OSC_COUNT] = [None; OSC_COUNT];
         let mut xm: [[Option<XMod>; 2]; OSC_COUNT] = [[None; 2]; OSC_COUNT];
         for o in 0..OSC_COUNT {
-            if res(p::OSC_ENABLE[o]) < 0.5 {
+            // which keys and velocities it plays (outside them: silent, folded or warped in)
+            let key_shift = key_range(&res, o, self.note, self.velocity);
+            if res(p::OSC_ENABLE[o]) < 0.5 || key_shift.is_none() {
                 self.osc[o].primed = false;
                 self.lines[o].primed = false;
                 continue;
             }
+            let pitch = pitch + key_shift.unwrap_or(0.0);
+            opitch[o] = pitch;
             enabled[o] = true;
             let mode = res(p::OSC_PITCH_MODE[o]) as u8;
             let semi = res(p::OSC_SEMI[o]);
@@ -729,7 +737,7 @@ impl Voice {
                     note: self.note,
                     velocity: self.velocity,
                     held: !self.released,
-                    pitch,
+                    pitch: opitch[o],
                     tuning: tuning[o],
                     bend: cx.bend,
                     sr,
@@ -917,6 +925,57 @@ impl Voice {
                 self.src[o].stop(self.slot as usize, o, shared);
             }
         }
+    }
+}
+
+/// Voice Control: its two lanes' values `t` seconds into the note.
+fn voice_control(base: &impl Fn(u16) -> f32, t: f32, bpm: f32) -> (f32, f32) {
+    const BEATS: [f32; 9] = [4.0, 2.0, 1.0, 0.5, 0.25, 0.125, 2.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0];
+    const A: [u16; 8] = [p::VC_A1, p::VC_A2, p::VC_A3, p::VC_A4, p::VC_A5, p::VC_A6, p::VC_A7, p::VC_A8];
+    const B: [u16; 8] = [p::VC_B1, p::VC_B2, p::VC_B3, p::VC_B4, p::VC_B5, p::VC_B6, p::VC_B7, p::VC_B8];
+    let step = BEATS[(base(p::VC_RATE) as usize).min(BEATS.len() - 1)] * 60.0 / bpm.max(1.0);
+    let steps = (base(p::VC_STEPS) as usize).clamp(1, 8);
+    let x = t / step;
+    let i = x.floor() as usize;
+    let frac = x - x.floor();
+    let looped = base(p::VC_LOOP) >= 0.5;
+    let at = |k: usize| if looped { k % steps } else { k.min(steps - 1) };
+    let (cur, prev) = (at(i), if i == 0 { at(0) } else { at(i - 1) });
+    let smooth = base(p::VC_SMOOTH);
+    let g = if smooth > 0.0 && i > 0 {
+        let u = (frac / smooth).min(1.0);
+        u * u * (3.0 - 2.0 * u)
+    } else {
+        1.0
+    };
+    let lane = |l: &[u16; 8]| base(l[prev]) + (base(l[cur]) - base(l[prev])) * g;
+    (lane(&A), lane(&B))
+}
+
+/// How far oscillator `o`'s pitch moves for this note under its key range,
+/// or None when the note (or its velocity) is outside and the mode is Range.
+fn key_range(res: &impl Fn(u16) -> f32, o: usize, note: u8, velocity: f32) -> Option<f32> {
+    let (lo, hi) = (res(p::OSC_KEY_LO[o]), res(p::OSC_KEY_HI[o]).max(res(p::OSC_KEY_LO[o])));
+    let vel = velocity * 127.0;
+    if vel < res(p::OSC_VEL_LO[o]) - 0.5 || vel > res(p::OSC_VEL_HI[o]) + 0.5 {
+        return None;
+    }
+    let k = note as f32;
+    match res(p::OSC_KEY_MODE[o]) as u8 {
+        // Fold: octaves toward the range until the key is inside it
+        1 => {
+            let mut f = k;
+            while f < lo && f + 12.0 <= 127.0 {
+                f += 12.0;
+            }
+            while f > hi && f - 12.0 >= 0.0 {
+                f -= 12.0;
+            }
+            Some(f - k)
+        }
+        // Warp: the whole keyboard squeezed into the range
+        2 => Some(lo + (k / 127.0) * (hi - lo) - k),
+        _ => (k >= lo && k <= hi).then_some(0.0),
     }
 }
 

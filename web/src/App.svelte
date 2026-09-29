@@ -20,6 +20,8 @@
   import MatrixPage from './ui/pages/MatrixPage.svelte';
   import GlobalPage from './ui/pages/GlobalPage.svelte';
   import FxPage from './ui/pages/FxPage.svelte';
+  import ArpPage from './ui/pages/ArpPage.svelte';
+  import ClipPage from './ui/pages/ClipPage.svelte';
   import PresetBar from './ui/browser/PresetBar.svelte';
   import Browser from './ui/browser/Browser.svelte';
   import { browse } from './ui/browser/browse.svelte';
@@ -46,11 +48,16 @@
   let scale = $state(1);
   let routings = $state(0);
 
+  // the modulation strip (envelopes, LFOs, macros, voicing) is on the OSC page only; the other pages and views get its room
+  const main = $derived(nav.page === 'osc' && !browse.open && editorView.osc === null && sampleEditor.osc === null);
+
   const PAGES: { id: PageId; name: string; later?: string }[] = [
     { id: 'osc', name: 'OSC' },
     { id: 'mix', name: 'MIX' },
     { id: 'fx', name: 'FX' },
     { id: 'matrix', name: 'MATRIX' },
+    { id: 'arp', name: 'ARP' },
+    { id: 'clip', name: 'CLIP' },
     { id: 'global', name: 'GLOBAL' },
   ];
 
@@ -85,7 +92,7 @@
 </script>
 
 <div class="viewport">
-  <div class="stage" style:width={`${W}px`} style:height={`${H}px`} style:transform={`scale(${scale})`}>
+  <div class="stage" class:full={!main} style:width={`${W}px`} style:height={`${H}px`} style:transform={`scale(${scale})`}>
     <header class="topbar">
       <div class="brand">birdsynth</div>
       <PresetBar />
@@ -111,7 +118,7 @@
       <div class="readout" aria-live="polite">
         <span>{voices} voice{voices === 1 ? '' : 's'}</span>
         <span>CPU {cpu.toFixed(1)}%</span>
-        <span class="state {status}">{status}</span>
+        <span class="state {status}" title={`Audio ${status}`} aria-label={`Audio ${status}`}>{status === 'running' ? '●' : status}</span>
       </div>
       <div class="master" data-explain="master">
         <Meter {synth} />
@@ -134,24 +141,32 @@
         <FxPage />
       {:else if nav.page === 'matrix'}
         <MatrixPage />
+      {:else if nav.page === 'arp'}
+        <ArpPage />
+      {:else if nav.page === 'clip'}
+        <ClipPage />
       {:else if nav.page === 'global'}
         <GlobalPage />
       {/if}
     </main>
 
-    <section class="strip" aria-label="Modulation and voicing">
-      <EnvPanel />
-      <LfoPanel />
-      <MacroPanel />
-      <VoicingPanel />
-    </section>
+    {#if main}
+      <section class="strip" aria-label="Modulation and voicing">
+        <EnvPanel />
+        <LfoPanel />
+        <MacroPanel />
+        <VoicingPanel />
+      </section>
+    {/if}
 
     <footer class="keys">
       <div class="hint-row">
-        <SourceChips />
-        <div class="hint">
-          Keys <kbd>A</kbd>–<kbd>'</kbd> · octave <kbd>Z</kbd>/<kbd>X</kbd> (A = C{qwerty.octave}) · velocity <kbd>C</kbd>/<kbd>V</kbd> ({Math.round(qwerty.velocity * 100)}%) · drag a handle onto a knob to modulate it
-        </div>
+        <SourceChips panels={!main} />
+        {#if main}
+          <div class="hint">
+            Keys <kbd>A</kbd>–<kbd>'</kbd> · octave <kbd>Z</kbd>/<kbd>X</kbd> (A = C{qwerty.octave}) · velocity <kbd>C</kbd>/<kbd>V</kbd> ({Math.round(qwerty.velocity * 100)}%) · drag a handle onto a knob to modulate it
+          </div>
+        {/if}
       </div>
       <div class="play">
         <Wheels {synth} />
@@ -194,7 +209,7 @@
   .topbar {
     display: flex;
     align-items: center;
-    gap: 18px;
+    gap: 12px;
     padding: 0 12px;
     background: var(--panel);
     border: 1px solid var(--line);
@@ -216,7 +231,7 @@
     background: transparent;
     border: 0;
     border-bottom: 2px solid transparent;
-    padding: 6px 10px;
+    padding: 6px 8px;
     cursor: pointer;
   }
   .tabs button.on {
@@ -228,6 +243,7 @@
     cursor: default;
   }
   .help {
+    flex: none;
     width: 22px;
     height: 22px;
     padding: 0;
@@ -245,7 +261,8 @@
   }
   .readout {
     display: flex;
-    gap: 14px;
+    gap: 10px;
+    white-space: nowrap;
     font: 11px var(--font-num);
     color: var(--text-dim);
     margin-left: auto;
@@ -260,6 +277,9 @@
     display: flex;
     align-items: center;
     gap: 10px;
+  }
+  .stage.full {
+    grid-template-rows: 44px minmax(0, 1fr) auto;
   }
   .page {
     min-height: 0;

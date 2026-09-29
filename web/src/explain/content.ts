@@ -74,7 +74,9 @@ function mix(key: string): Explanation {
 
 const FX_TEXT: Record<string, [string, Record<string, number>?]> = {
   hyper: ['Hyper stacks detuned copies of the sound (like unison after the fact); Dimension widens it with short, modulated delays.'],
-  distortion: ['Distortion bends the waveform, adding harmonics. It runs at 4× the sample rate, so the new harmonics above the audible range are filtered out before they can fold back down as aliasing.'],
+  distortion: [
+    'Distortion bends the waveform, adding harmonics. It runs at 4× the sample rate, so the new harmonics above the audible range are filtered out before they can fold back down as aliasing.',
+  ],
   flanger: ['A flanger mixes in a copy delayed by a few milliseconds and sweeps the delay, so a comb of notches moves through the sound: the jet-plane whoosh.'],
   phaser: ['A phaser sweeps a chain of all-pass filters, making notches that move without the metallic comb of a flanger.'],
   chorus: ['Chorus adds a few slightly delayed, slowly wobbling copies, like several players who are nearly in tune.'],
@@ -83,7 +85,9 @@ const FX_TEXT: Record<string, [string, Record<string, number>?]> = {
   reverb: ['Reverb imitates a space: thousands of reflections that blur into a tail. Size and decay set the room; damping darkens it the way air and soft walls do.'],
   eq: ['EQ lifts or cuts frequency bands. The low and high shelves tilt the ends, the peak works around one frequency.'],
   filter: ['The same filters as the voice has, placed on the mixed sound, so every note shares one sweep.'],
-  bode: ['A frequency shifter moves every partial by the same number of hertz (not by the same ratio, as pitch shifting does), so harmonics stop lining up: a clangy, inharmonic sound. With feedback it makes endless-rising "barber pole" sweeps.'],
+  bode: [
+    'A frequency shifter moves every partial by the same number of hertz (not by the same ratio, as pitch shifting does), so harmonics stop lining up: a clangy, inharmonic sound. With feedback it makes endless-rising "barber pole" sweeps.',
+  ],
   convolve: ['Convolution puts the sound in a recorded (or here, generated) space or body: every sample triggers a copy of the impulse response. It runs with no added delay.'],
   utility: ['Gain, width, pan and a mono switch for the low end: the plumbing at the end of a chain.'],
   splitter: ['A splitter divides the sound into bands (low/high, low/mid/high) or mid/side, each with its own chain of effects, then adds them back together. The crossovers sum back flat.'],
@@ -145,9 +149,14 @@ export const CONTENT: Record<string, Explanation> = {
       { label: 'Back to standard tuning', run: (s) => s.tuning.reset() },
     ],
   },
+  keys: {
+    title: 'Keyboard',
+    text: 'Transpose moves every key you play (from the screen, the computer keyboard or MIDI). Pick a scale and a root and every key lands on the nearest note of that scale, so any key sounds right; the arpeggiator and clips then play those notes.',
+    tries: [{ label: 'Play only C minor pentatonic', run: setAll({ 'keys.scale': 11, 'keys.root': 0 }) }],
+  },
   midi: {
     title: 'MIDI',
-    text: 'Plays from any MIDI controller in Chrome, Edge and Firefox (Safari has no Web MIDI). MIDI learn ties a controller knob to any parameter: right-click a knob, choose MIDI learn, move the control. Mappings stay across presets and reloads.',
+    text: 'Plays from any MIDI controller in Chrome, Edge and Firefox (Safari has no Web MIDI). MIDI learn ties a controller knob to any parameter: right-click a knob, choose MIDI learn, move the control. Mappings stay across presets and reloads. Sync to MIDI clock follows a drum machine or DAW sending clock: its tempo becomes the BPM, and its start and stop run the transport.',
   },
   sub: {
     title: 'Sub oscillator',
@@ -248,6 +257,45 @@ export const CONTENT: Record<string, Explanation> = {
   'global.tempo': {
     title: 'Tempo and rates',
     text: 'The tempo that synced LFOs, envelopes and delays follow, and two knobs that speed up or slow down every envelope or every LFO at once.',
+  },
+  arp: {
+    title: 'Arpeggiator',
+    text: 'Hold a chord and the arpeggiator plays its notes one at a time, in time with the tempo: up, down, outside in, in the order you played, or by a pattern you draw. Range repeats the pattern higher; Gate above 100% lets notes overlap; Retrigger decides whether the pattern restarts on the beat, when you start playing, or with every new key.',
+    view: 'scope',
+    tap: 'focus.out',
+    tries: [
+      { label: 'Classic up arp, two octaves', run: setAll({ 'arp.enable': 1, 'arp.shape': 0, 'arp.rate': 4, 'arp.octaves': 2, 'arp.gate': 0.5 }) },
+      { label: 'Swung sixteenths', run: setAll({ 'arp.enable': 1, 'arp.rate': 4, 'global.swing': 0.6 }) },
+    ],
+  },
+  'arp.lanes': {
+    title: 'Arp pattern lanes',
+    text: 'Each of the sixteen steps can be on or off and has its own velocity, gate (note length), chance of playing, bend in semitones, strum (a chord step spreads its notes over this share of the step) and degree (which held note it plays, for the Pattern shape). Steps sets how many of them loop.',
+  },
+  vc: {
+    title: 'Voice Control',
+    text: 'A little eight-step sequencer inside every voice. It starts from step one each time a note begins and steps along at its own rate, feeding two sources, Voice Mod 1 and 2. Route them anywhere: a filter that opens in steps, a pitch figure, a pan pattern. Smooth glides between the steps.',
+    tries: [
+      {
+        label: 'Step the cutoff with Voice Mod 1',
+        run: (s) => {
+          setAll({ 'filter.1.enable': 1, 'filter.1.cutoff': 500, 'vc.a1': 1, 'vc.a2': 0.2, 'vc.a3': 0.6, 'vc.a4': -0.4, 'vc.steps': 4, 'vc.loop': 1 })(s);
+          s.matrix.add(SOURCE['Voice Mod 1'], PARAM_ID['filter.1.cutoff'], 0.4);
+        },
+      },
+    ],
+  },
+  clip: {
+    title: 'Clips and the transport',
+    text: 'Twelve clips of notes (and parameter automation) that play in time while the transport runs. Pick a clip to edit it; with Clip on, the one picked plays, and switching waits for the launch quantize so it stays in time. Trigger keys lets the twelve keys from C1 up launch the clips as you play. Record writes what you play into the clip, over what is already there.',
+  },
+  transport: {
+    title: 'Transport',
+    text: 'The synth’s own clock: play starts it from the first beat, stop ends every note it started. Clips, the arpeggiator on the Beat retrigger, synced LFOs and delays all follow its tempo; swing delays every second step of the arpeggiator and the clips.',
+  },
+  'clip.roll': {
+    title: 'Piano roll',
+    text: 'A clip’s notes: time runs across, pitch up. Click to add a note one grid step long, drag it to move it, drag its end to stretch it, Alt-click to delete, scroll over it for velocity. Below, an automation lane draws a parameter’s value over the clip: pick the parameter, click points in.',
   },
   ...Object.fromEntries((['a', 'b', 'c'] as const).map((l) => [`osc.${l}`, osc(l)])),
   'filter.1': filter(1),

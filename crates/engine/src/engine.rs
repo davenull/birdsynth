@@ -33,6 +33,7 @@ use crate::osc::multi::Multi;
 use crate::osc::sample::Recording;
 use crate::osc::spectral::{self, Analysis};
 use crate::samples::{self, Samples};
+use crate::seq::{ClipNote, Ev, Events, Seq, SeqParams};
 use crate::sources::{OscAssets, OscShared};
 use crate::spec::params as p;
 use crate::spec::protocol::{self as proto, Command, HEADER_BYTES, MAX_BLOCK, MAX_MOD_SLOTS, MAX_VOICES, OSC_COUNT, SUB_BLOCK, VOICE_SLOTS, tap, tel};
@@ -47,6 +48,10 @@ const KILL_SECONDS: f32 = 0.003;
 const SMOOTH_MS: f32 = 12.0;
 /// Pitch-bend smoothing: fast enough to feel direct, slow enough not to zipper.
 const BEND_MS: f32 = 6.0;
+/// Host keys tracked for their key-ups.
+const KEYS_DOWN: usize = 64;
+/// An `auto_base` entry not in use.
+const NO_AUTO: u16 = u16::MAX;
 const MAX_HELD: usize = 128;
 /// Bus channels that are decimated: main, direct, bus 1, bus 2 (L and R each).
 const DEC_CH: usize = 8;
@@ -121,6 +126,16 @@ pub struct Engine {
     /// Recordings, multisamples and analyses for the oscillator types, and what their voices share.
     assets: Box<OscAssets>,
     shared: Box<OscShared>,
+    /// The transport, arpeggiator and clips, and a buffer for their events.
+    seq: Box<Seq>,
+    sev: Box<Events>,
+    /// Keys down from the host: (key, note id, the note it became after the
+    /// transpose and scale), so each key-up finds its own note however the
+    /// keyboard settings changed meanwhile.
+    keys: Vec<(u8, u32, u8)>,
+    /// The parameters the playing clip automates, each with the value the
+    /// host last set it to, which it returns to when the automation stops.
+    auto_base: [(u16, f32); proto::CLIP_LANES],
     fx: Box<Fx>,
     out: [Vec<f32>; 2],
     taps: Vec<Vec<f32>>,
@@ -176,6 +191,10 @@ impl Engine {
             scratch: Box::default(),
             assets: Box::default(),
             shared: Box::default(),
+            seq: Box::default(),
+            sev: Box::default(),
+            keys: Vec::with_capacity(KEYS_DOWN),
+            auto_base: [(NO_AUTO, 0.0); proto::CLIP_LANES],
             fx: Fx::new(sample_rate),
             out: [vec![0.0; MAX_BLOCK], vec![0.0; MAX_BLOCK]],
             taps: (0..tap::COUNT).map(|_| vec![0.0; MAX_BLOCK]).collect(),
@@ -221,7 +240,19 @@ impl Engine {
         &mut self.tables
     }
 
+    /// A command that carries a tail (tests; the host's go through `apply`).
+    #[cfg(test)]
+    pub fn command_with_tail(&mut self, cmd: Command, tail: &[u8]) {
+        self.command_tail(cmd, tail)
+    }
+
     /// The recording types' assets (native tests load them here: commands carry wasm32 pointers).
+    /// A parameter's normalized value now (tests).
+    #[cfg(test)]
+    pub fn param(&self, id: u16) -> f32 {
+        self.params.norm(id)
+    }
+
     #[cfg(test)]
     pub fn assets_mut(&mut self) -> &mut OscAssets {
         &mut self.assets
@@ -322,6 +353,36 @@ impl Engine {
                     };
                 }
             }
+            Command::SetArpPattern { bank, count } => {
+                let n = (count as usize).min(proto::ARP_LANES * proto::ARP_STEPS).min(tail.len() / 4);
+                let mut v = [0.0f32; proto::ARP_LANES * proto::ARP_STEPS];
+                for (i, x) in v.iter_mut().enumerate().take(n) {
+                    let f = rd(i * 4);
+                    *x = if f.is_finite() { f } else { 0.0 };
+                }
+                self.seq.set_pattern(bank as usize, &v[..n]);
+            }
+            Command::SetClip { slot, count, length } => {
+                let n = (count as usize).min(proto::CLIP_NOTES).min(tail.len() / 24);
+                let mut notes = [ClipNote::default(); proto::CLIP_NOTES];
+                for (i, c) in notes.iter_mut().enumerate().take(n) {
+                    let f = |j: usize| {
+                        let v = rd((i * 6 + j) * 4);
+                        if v.is_finite() { v } else { 0.0 }
+                    };
+                    *c = ClipNote { start: f(0).max(0.0), len: f(1).max(0.0), key: f(2).clamp(0.0, 127.0) as u8, velocity: f(3).clamp(0.0, 1.0), chance: f(4).clamp(0.0, 1.0), bend: f(5).clamp(-48.0, 48.0) };
+                }
+                self.seq.set_clip(slot as usize, &notes[..n], length);
+            }
+            Command::SetClipLane { slot, lane, param, count } => {
+                let n = (count as usize).min(proto::CLIP_POINTS).min(tail.len() / 8);
+                let mut pts = [(0.0f32, 0.0f32); proto::CLIP_POINTS];
+                for (i, pt) in pts.iter_mut().enumerate().take(n) {
+                    *pt = (rd(i * 8), rd(i * 8 + 4).clamp(0.0, 1.0));
+                }
+                let param = if (param as usize) < p::COUNT { param } else { u16::MAX };
+                self.seq.set_lane(slot as usize, lane as usize, param, &pts[..n]);
+            }
             Command::SetSpectralFilter { osc, count } => {
                 let n = (count as usize).min(proto::SPEC_FILTER_POINTS).min(tail.len() / 4);
                 let mut pts = [1.0f32; proto::SPEC_FILTER_POINTS];
@@ -353,6 +414,11 @@ impl Engine {
         match cmd {
             Command::SetTaps { mask } => self.tap_mask = mask,
             Command::Reset => self.reset(),
+            Command::Transport { play } => {
+                self.sev.n = 0;
+                self.seq.transport(play != 0, &mut self.sev);
+                self.play_seq_events();
+            }
             Command::Debug { code, arg } => match code {
                 proto::debug::TRAP => panic!("debug trap requested by the host"),
                 proto::debug::SCALAR => self.scalar = arg >= 0.5,
@@ -448,7 +514,14 @@ impl Engine {
                     self.table_errors += 1;
                 }
             }
-            Command::SetLfoShape { .. } | Command::SetOscCurve { .. } | Command::SetChain { .. } | Command::SetTuning { .. } | Command::SetSpectralFilter { .. } => {} // need their tails: see `apply`
+            Command::SetLfoShape { .. }
+            | Command::SetOscCurve { .. }
+            | Command::SetChain { .. }
+            | Command::SetTuning { .. }
+            | Command::SetSpectralFilter { .. }
+            | Command::SetArpPattern { .. }
+            | Command::SetClip { .. }
+            | Command::SetClipLane { .. } => {} // need their tails: see `apply`
             _ => {
                 let frame = if frame > 0.0 { frame as u64 } else { 0 };
                 self.queue.push(Event { frame, cmd });
@@ -471,6 +544,12 @@ impl Engine {
         self.last_pitch = None;
         self.sustain = false;
         self.bend = self.bend_target;
+        for b in self.auto_base.iter_mut() {
+            if b.0 != NO_AUTO {
+                self.params.set(b.0 as usize, b.1);
+                b.0 = NO_AUTO;
+            }
+        }
         self.params.snap();
         self.master_prev = math::db_to_gain(self.params.plain(p::MASTER_VOLUME));
         for d in self.dec.iter_mut().flatten() {
@@ -493,6 +572,7 @@ impl Engine {
         for sb in 0..frames / N {
             let t0 = self.frame + (sb * N) as u64;
             self.dispatch(t0);
+            self.sequence();
             self.render_sub_block(sb * N, t0);
         }
         self.frame += frames as u64;
@@ -534,11 +614,16 @@ impl Engine {
             Command::SetParam { id, value } => {
                 if !self.params.set(id as usize, value) {
                     self.unknown_cmds += 1;
+                } else if let Some(b) = self.auto_base.iter_mut().find(|b| b.0 == id) {
+                    // automated: the clip keeps it, and it goes to this value after
+                    b.1 = value;
                 }
             }
-            Command::NoteOn { note, channel, velocity, note_id } => self.note_on(note, channel, velocity, note_id, offset),
-            Command::NoteOff { note, channel, velocity, note_id } => self.note_off(note, channel, velocity, note_id),
+            Command::NoteOn { note, channel, velocity, note_id } => self.key_down(note, channel, velocity, note_id, offset),
+            Command::NoteOff { note, channel, velocity, note_id } => self.key_up(note, channel, velocity, note_id),
             Command::AllNotesOff => {
+                self.seq.clear_keys();
+                self.keys.clear();
                 self.held.clear();
                 for v in self.voices.iter_mut().filter(|v| v.active) {
                     v.release(0.0);
@@ -618,6 +703,149 @@ impl Engine {
     fn curve_velocity(&self, v: f32) -> f32 {
         let c = self.params.plain(p::VOICE_VEL_CURVE);
         if c == 0.0 { v } else { v.clamp(0.0, 1.0).powf(4f32.powf(-c)) }
+    }
+
+    /// The settings the sequencer reads this sub-block.
+    fn seq_params(&self) -> SeqParams {
+        let pr = &self.params;
+        let f = |id: u16| pr.plain(id);
+        SeqParams {
+            bpm: f(p::GLOBAL_BPM),
+            swing: f(p::GLOBAL_SWING),
+            arp_on: f(p::ARP_ENABLE) >= 0.5,
+            shape: f(p::ARP_SHAPE) as u8,
+            rate: f(p::ARP_RATE) as u8,
+            octaves: f(p::ARP_OCTAVES) as u8,
+            shift: f(p::ARP_SHIFT) as i8,
+            gate: f(p::ARP_GATE),
+            chance: f(p::ARP_CHANCE),
+            repeats: f(p::ARP_REPEATS) as u8,
+            vel_ramp: f(p::ARP_VEL_RAMP),
+            offset: f(p::ARP_OFFSET),
+            retrigger: f(p::ARP_RETRIGGER) as u8,
+            hold: f(p::ARP_HOLD) >= 0.5,
+            steps: f(p::ARP_STEPS) as u8,
+            bank: f(p::ARP_BANK) as u8,
+            clip_on: f(p::CLIP_ENABLE) >= 0.5,
+            clip_slot: f(p::CLIP_SLOT) as u8,
+            quantize: f(p::CLIP_QUANTIZE) as u8,
+            clip_transpose: f(p::CLIP_TRANSPOSE) as i8,
+            clip_loop: f(p::CLIP_LOOP) >= 0.5,
+        }
+    }
+
+    /// The sequencer's work for the next sub-block: its notes, then the playing clip's automation.
+    fn sequence(&mut self) {
+        let sp = self.seq_params();
+        self.sev.n = 0;
+        self.seq.advance(&sp, N, self.sr, &mut self.sev);
+        self.play_seq_events();
+        let mut auto = [(0u16, 0.0f32); proto::CLIP_LANES];
+        let n = self.seq.automation(&mut auto);
+        let auto = &auto[..n];
+        // parameters no longer automated go back to where the host set them
+        for b in self.auto_base.iter_mut() {
+            if b.0 != NO_AUTO && !auto.iter().any(|a| a.0 == b.0) {
+                self.params.set(b.0 as usize, b.1);
+                b.0 = NO_AUTO;
+            }
+        }
+        for &(id, v) in auto {
+            if !self.auto_base.iter().any(|b| b.0 == id)
+                && let Some(b) = self.auto_base.iter_mut().find(|b| b.0 == NO_AUTO)
+            {
+                *b = (id, self.params.target(id));
+            }
+            self.params.set(id as usize, v);
+        }
+    }
+
+    fn play_seq_events(&mut self) {
+        let n = self.sev.n;
+        for i in 0..n {
+            let (at, e) = self.sev.list[i];
+            match e {
+                Ev::On { note, velocity, id } => self.note_on(note, 0, velocity, id, at),
+                Ev::Off { note, id } => self.note_off(note, 0, 0.0, id),
+            }
+        }
+        self.sev.n = 0;
+    }
+
+    /// A played key, after the keyboard's transpose and scale.
+    fn map_key(&self, note: u8) -> u8 {
+        const SCALES: [u16; 14] = [
+            0xFFF,
+            0b1010_1011_0101,
+            0b0101_1010_1101,
+            0b0110_1010_1101,
+            0b0101_1010_1011,
+            0b1010_1101_0101,
+            0b0110_1011_0101,
+            0b0101_0110_1011,
+            0b1001_1010_1101,
+            0b1010_1010_1101,
+            0b0010_1001_0101,
+            0b0100_1010_1001,
+            0b0100_1110_1001,
+            0b0101_0101_0101,
+        ];
+        let t = (note as i32 + self.params.plain(p::KEYS_TRANSPOSE) as i32).clamp(0, 127);
+        let scale = SCALES[(self.params.plain(p::KEYS_SCALE) as usize).min(SCALES.len() - 1)];
+        if scale == 0xFFF {
+            return t as u8;
+        }
+        let root = self.params.plain(p::KEYS_ROOT) as i32;
+        // the nearest note of the scale, the lower one on a tie
+        for d in 0..12 {
+            for c in [t - d, t + d] {
+                if (0..128).contains(&c) && scale & (1 << (c - root).rem_euclid(12)) != 0 {
+                    return c as u8;
+                }
+            }
+        }
+        t as u8
+    }
+
+    /// A key from the host (or MIDI): trigger keys launch clips; with the arp on it joins the held keys.
+    fn key_down(&mut self, note: u8, channel: u8, velocity: f32, note_id: u32, offset: usize) {
+        if velocity <= 0.0 {
+            return self.key_up(note, channel, 0.0, note_id);
+        }
+        if self.params.plain(p::CLIP_ENABLE) >= 0.5 && self.params.plain(p::CLIP_TRIGGER_KEYS) >= 0.5 && (24..36).contains(&note) {
+            // C1..B1 pick clips 1..12 (the slot parameter runs 1..12)
+            self.params.set(p::CLIP_SLOT as usize, (note - 24) as f32 / 11.0);
+            return;
+        }
+        let mapped = self.map_key(note);
+        if self.keys.len() >= KEYS_DOWN {
+            self.keys.remove(0);
+        }
+        self.keys.push((note, note_id, mapped));
+        if self.params.plain(p::ARP_ENABLE) >= 0.5 {
+            let sp = self.seq_params();
+            let beat = self.seq.beat_at(offset);
+            let v = self.curve_velocity(velocity);
+            self.seq.key_down(mapped, v, beat, &sp);
+        } else {
+            self.note_on(mapped, channel, velocity, note_id, offset);
+        }
+    }
+
+    fn key_up(&mut self, note: u8, channel: u8, velocity: f32, note_id: u32) {
+        // the key's own entry: by note id when there is one, else the newest press of that key
+        let at = if note_id != 0 { self.keys.iter().rposition(|k| k.1 == note_id) } else { None }.or_else(|| self.keys.iter().rposition(|k| k.0 == note));
+        let mapped = match at {
+            Some(i) => self.keys.remove(i).2,
+            None => self.map_key(note),
+        };
+        let sp = self.seq_params();
+        // the arp lets go of the note once no other key still holds it
+        if !self.keys.iter().any(|k| k.2 == mapped) {
+            self.seq.key_up(mapped, &sp);
+        }
+        // a voice started before the arp came on still gets its note-off
+        self.note_off(mapped, channel, velocity, note_id);
     }
 
     fn note_on(&mut self, note: u8, channel: u8, velocity: f32, note_id: u32, offset: usize) {
@@ -984,6 +1212,12 @@ impl Engine {
             t[tel::OSC_ASSETS + o * 3 + 2] = a.analyses[o].as_ref().map_or(0, |x| x.frames) as f32;
         }
         t[tel::GRAINS] = self.shared.pool.active() as f32;
+        t[tel::PLAYING] = if self.seq.playing { 1.0 } else { 0.0 };
+        t[tel::BEAT] = self.seq.beat as f32;
+        t[tel::ARP_STEP] = self.seq.step as f32;
+        t[tel::CLIP_PLAYING] = self.seq.clip_playing.map_or(-1.0, |s| s as f32);
+        t[tel::CLIP_POS] = self.seq.clip_pos() as f32;
+        t[tel::SEQ_NOTES] = self.seq.sounding() as f32;
         t[tel::GRAINS_STOLEN] = self.shared.pool.stolen as f32;
         t[tel::PEAK_L] = peak[0];
         t[tel::PEAK_R] = peak[1];

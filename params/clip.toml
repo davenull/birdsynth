@@ -1,0 +1,59 @@
+# Clips: note sequences (and automation) that play in time with the transport.
+
+[group]
+key = "clip"
+name = "Clip"
+
+[[param]]
+key = "enable"
+name = "Clip On"
+short = "Clip"
+curve = "bool"
+default = 0
+explain = "Plays the selected clip while the transport runs."
+
+[[param]]
+key = "slot"
+name = "Clip Slot"
+short = "Slot"
+curve = "int"
+min = 1.0
+max = 12.0
+default = 1.0
+explain = "Which of the twelve clips plays. Changing it waits for the launch quantize."
+
+[[param]]
+key = "quantize"
+name = "Launch Quantize"
+short = "Quantize"
+curve = "enum"
+options = ["Off", "1/16", "1/4", "1 bar", "2 bars", "4 bars"]
+default = 3
+explain = "A new clip starts on the next boundary of this length, so switching stays in time."
+
+[[param]]
+key = "trigger_keys"
+name = "Clip Trigger Keys"
+short = "Triggers"
+curve = "bool"
+default = 0
+explain = "Uses the twelve keys from C1 to B1 to launch clips 1 to 12 instead of playing notes."
+
+[[param]]
+key = "transpose"
+name = "Clip Transpose"
+short = "Transpose"
+curve = "int"
+min = -24.0
+max = 24.0
+default = 0.0
+unit = "st"
+explain = "Moves every note the clip plays."
+
+[[param]]
+key = "loop"
+name = "Clip Loop"
+short = "Loop"
+curve = "bool"
+default = 1
+explain = "Repeats the clip. Off: it plays once from its launch."

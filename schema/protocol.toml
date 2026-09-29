@@ -29,6 +29,13 @@ specSize = 2048     # spectral oscillator: analysis and synthesis FFT size
 specHop = 512       # and the hop between frames
 specPre = 2         # analysis frames before time 0, so the first output sample is right (zero latency)
 specFilterPoints = 64
+arpSteps = 16       # steps in an arpeggiator pattern
+arpBanks = 12       # patterns
+arpLanes = 7        # per step: on, gate, velocity, chance, bend, strum, degree
+clipSlots = 12
+clipNotes = 512     # notes in one clip
+clipLanes = 4       # automation lanes per clip
+clipPoints = 64     # points per automation lane
 
 [[command]]
 name = "SetParam"
@@ -279,6 +286,47 @@ fields = [
 tail = { type = "f32" }
 
 [[command]]
+name = "Transport"
+op = 37
+doc = "Start (1) or stop (0) the transport: clips play while it runs, and the tempo grid restarts at beat 0 on a start."
+fields = [
+  { name = "play", type = "u8" },
+]
+
+[[command]]
+name = "SetArpPattern"
+op = 38
+doc = "An arpeggiator pattern: `count` floats, arpLanes lanes of arpSteps (on, gate, velocity, chance, bend in semitones, strum, degree)."
+fields = [
+  { name = "bank", type = "u8" },
+  { name = "count", type = "u16" },
+]
+tail = { type = "f32" }
+
+[[command]]
+name = "SetClip"
+op = 39
+doc = "A clip's notes: `count` × 6 floats (start and length in beats, key, velocity, chance, bend in semitones), in start order, and its length in beats."
+fields = [
+  { name = "slot", type = "u8" },
+  { name = "count", type = "u16" },
+  { name = "length", type = "f32" },
+]
+tail = { type = "f32" }
+
+[[command]]
+name = "SetClipLane"
+op = 40
+doc = "One of a clip's automation lanes: parameter `param` (0xFFFF: none) at `count` points of (beat, normalized value)."
+fields = [
+  { name = "slot", type = "u8" },
+  { name = "lane", type = "u8" },
+  { name = "param", type = "u16" },
+  { name = "count", type = "u16" },
+]
+tail = { type = "f32" }
+
+[[command]]
 name = "ClearMod"
 op = 25
 doc = "Clear every modulation slot."
@@ -384,6 +432,18 @@ name = "grainsStolen" # grains cut short because the pool was full (a running co
 [[telemetry]]
 name = "oscAssets"    # per oscillator: frames of its recording, zones of its multisample, frames of its analysis (packed: see engine.rs)
 count = 9
+[[telemetry]]
+name = "playing"      # 1 while the transport runs
+[[telemetry]]
+name = "beat"         # transport position in beats (free-running from the engine's start while stopped)
+[[telemetry]]
+name = "arpStep"      # the arpeggiator's step (-1: not playing)
+[[telemetry]]
+name = "clipPlaying"  # the clip slot playing (-1: none)
+[[telemetry]]
+name = "clipPos"      # where it is, in beats
+[[telemetry]]
+name = "seqNotes"     # notes the arp and clips have sounding now
 
 # Taps: signals the engine can record for scopes and the explainer.
 [[tap]]
