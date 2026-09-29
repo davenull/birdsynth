@@ -26,7 +26,7 @@ no imports. It runs inside an AudioWorklet. The UI is Svelte 5 + TypeScript.
 - **Effects:** three racks (Main, Bus 1, Bus 2) of hyper/dimension, distortion, flanger, phaser, chorus, delay, compressor (single and multiband), five reverbs, EQ, filter, frequency shifter, zero-latency convolution, utility and splitters.
 - **Sequencing:** an arpeggiator with step lanes, twelve clips with a piano roll, automation and recording, and MIDI file import and export. Also transport, swing and MIDI clock-in.
 - **Wavetable editor:** draw tools, harmonics, a formula language, process and morph functions, and import from audio.
-- **Presets:** a library in IndexedDB with tags, ratings and search, 30 factory presets, previews and Hybridize.
+- **Presets:** a library in IndexedDB with tags, ratings and search, 31 factory presets, previews and Hybridize.
 - **Other:** your sound is kept between visits (Reset is on the GLOBAL page), MIDI and MIDI learn, microtuning (.scl/.kbm/.tun), undo, and a CPU guard.
 - **Explainer:** explain mode (click anything), six guided tours, and a FLOW page that shows the whole signal path as live scopes.
 

@@ -6,7 +6,8 @@ import { PARAMS, PARAM_ID, type ParamKey } from '../gen/params';
 import { CHAINS, FX_TYPES } from '../state/fx';
 import { LFO_COUNT, type LfoPoint } from '../state/lfo';
 import { toNorm } from '../state/param-math';
-import { PATCH_FORMAT, PATCH_VERSION, emptyMeta, type MatrixRow, type Patch } from '../state/patch';
+import { PATCH_FORMAT, PATCH_VERSION, emptyMeta, type MatrixRow, type Patch, type PatchClip } from '../state/patch';
+import { BOC_OLSON } from './clips/boc-olson';
 
 type Plain = Record<string, number>;
 type Route = [source: string, dest: string, amount: number, opts?: { bipolar?: boolean; curve?: number; aux?: string }];
@@ -25,6 +26,8 @@ export interface Def {
   mod?: Route[];
   fx?: FxDef[];
   lfo?: Record<number, LfoPoint[]>;
+  /** Clips by slot (the first is also the preset's preview). */
+  clips?: Record<number, PatchClip>;
 }
 
 const DEFS: Def[] = [
@@ -522,6 +525,31 @@ const DEFS: Def[] = [
     ],
   },
   {
+    // Tonewheel with a second chorus and a reverb, and a clip to play (Play runs it once)
+    name: 'BOC Olson',
+    category: 'Keys',
+    tags: ['organ', 'vintage'],
+    tables: ['Organ'],
+    p: {
+      'master.volume': -3.6,
+      'global.bpm': 116,
+      'osc.a.wt_pos': 0.5,
+      'env.1.attack': 2,
+      'env.1.release': 60,
+      'lfo.1.rate': 6.5,
+      'clip.enable': 1,
+      'clip.loop': 0,
+    },
+    mod: [['LFO 1', 'osc.a.pan', 0.08, { bipolar: true }]],
+    fx: [
+      { type: 'chorus', p: { rate: 5.5, depth: 0.15, mix: 0.4 } },
+      { type: 'distortion', p: { mode: 0, drive: 0.15 } },
+      { type: 'chorus', p: { mix: 0.31 } },
+      { type: 'reverb', p: { mix: 0.35 } },
+    ],
+    clips: { 0: BOC_OLSON },
+  },
+  {
     name: 'Electric Piano',
     category: 'Keys',
     tags: ['ep', 'soft'],
@@ -741,7 +769,7 @@ export function patchOf(d: Def): Patch {
     multis: [null, null, null],
     specFilter: [null, null, null],
     arp: Array(12).fill(null),
-    clips: Array(12).fill(null),
+    clips: Array.from({ length: 12 }, (_, c) => d.clips?.[c] ?? null),
   };
 }
 
