@@ -4,7 +4,7 @@
   import { TEL } from '../../gen/protocol';
   import { MODULE_PRESETS, CONVOLVE, FX_TYPES, moduleParams, refName, refParam, type FxRef } from '../../state/fx';
   import { USER_IR } from '../../state/ir';
-  import { toNorm } from '../../state/param-math';
+  import { toNorm, toPlain } from '../../state/param-math';
   import { PARAMS, PARAM_ID } from '../../gen/params';
   import type { Synth } from '../../synth';
   import Knob from '../primitives/Knob.svelte';
@@ -21,8 +21,10 @@
   const presets = $derived(MODULE_PRESETS[FX_TYPES[r.type].key] ?? {});
   const color = 'var(--fx)';
 
-  // compressor gain reduction, per band
+  // compressor gain reduction, per band (one in Single mode, three in Multiband)
+  const BANDS = ['Low', 'Mid', 'High'];
   let gr = $state([0, 0, 0]);
+  let multiband = $state(false);
   onMount(() =>
     onFrame(() => {
       if (r.type !== COMPRESSOR) return;
@@ -30,6 +32,13 @@
       if (t) gr = [0, 1, 2].map((b) => t[TEL.fxGr + r.inst * 3 + b]);
     }),
   );
+  $effect(() => {
+    if (r.type !== COMPRESSOR) return;
+    const info = PARAMS[PARAM_ID[refParam(r, 'mode')]];
+    const read = () => (multiband = toPlain(info, synth.bank.get(info.id)) >= 0.5);
+    read();
+    return synth.bank.subscribe(info.id, read);
+  });
 
   // convolver response
   let irName = $state('');
@@ -85,9 +94,15 @@
     {/each}
   </div>
   {#if r.type === COMPRESSOR}
-    <div class="gr" aria-label="Gain reduction">
-      {#each gr as g, b (b)}
-        <div class="meter"><span style:width={`${Math.min(100, (Math.abs(g) / 24) * 100)}%`} class:up={g > 0}></span><em>{g > 0 ? '+' : ''}{g.toFixed(1)} dB</em></div>
+    <div class="gr" role="group" aria-label="Gain reduction">
+      <h3>Gain reduction</h3>
+      {#each multiband ? [0, 1, 2] : [0] as b (b)}
+        {@const g = gr[b]}
+        <div class="band">
+          <span class="name">{multiband ? BANDS[b] : 'All'}</span>
+          <div class="meter"><span style:width={`${Math.min(100, (Math.abs(g) / 24) * 100)}%`} class:up={g > 0}></span></div>
+          <span class="value">{g > 0 ? '+' : ''}{g.toFixed(1)} dB</span>
+        </div>
       {/each}
     </div>
   {/if}
@@ -112,7 +127,7 @@
 <style>
   .module {
     display: grid;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto auto 1fr;
     gap: 8px;
     height: 100%;
     min-height: 0;
@@ -143,16 +158,41 @@
     align-content: start;
     align-items: end;
   }
+  /* in the middle of the room the knobs leave */
   .gr {
+    align-self: center;
+    justify-self: center;
+    width: min(100%, 460px);
     display: grid;
-    gap: 3px;
-    max-width: 320px;
+    gap: 12px;
+  }
+  .gr h3 {
+    margin: 0;
+    font: 600 10px var(--font-ui);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .band {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 64px;
+    align-items: center;
+    gap: 10px;
+  }
+  .name {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .value {
+    font: 11px var(--font-num);
+    color: var(--text);
+    text-align: right;
   }
   .meter {
     position: relative;
-    height: 12px;
+    height: 14px;
     background: var(--glass);
-    border-radius: 3px;
+    border-radius: 4px;
     overflow: hidden;
   }
   .meter span {
@@ -167,14 +207,8 @@
     right: auto;
     background: var(--env);
   }
-  .meter em {
-    position: relative;
-    font: 9px var(--font-num);
-    padding-left: 4px;
-    color: var(--text);
-    font-style: normal;
-  }
   .drop {
+    align-self: end;
     font-size: 11px;
     color: var(--text-dim);
     border: 1px dashed var(--line);
