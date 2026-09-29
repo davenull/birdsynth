@@ -525,13 +525,13 @@ const DEFS: Def[] = [
     ],
   },
   {
-    // Tonewheel with a second chorus and a reverb, and a clip to play (Play runs it once)
+    // Tonewheel with a second chorus, a reverb and glue, and a clip to play (Play runs it once)
     name: 'BOC Olson',
     category: 'Keys',
     tags: ['organ', 'vintage'],
     tables: ['Organ'],
     p: {
-      'master.volume': -3.6,
+      'master.volume': -6.1,
       'global.bpm': 116,
       'osc.a.wt_pos': 0.5,
       'env.1.attack': 2,
@@ -546,6 +546,8 @@ const DEFS: Def[] = [
       { type: 'distortion', p: { mode: 0, drive: 0.15 } },
       { type: 'chorus', p: { mix: 0.31 } },
       { type: 'reverb', p: { mix: 0.35 } },
+      // the Glue module preset, pushed harder
+      { type: 'compressor', p: { mode: 0, threshold: -10, ratio: 2, attack: 30, release: 200, knee: 9, gain: 5.2 } },
     ],
     clips: { 0: BOC_OLSON },
   },
