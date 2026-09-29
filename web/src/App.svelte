@@ -29,6 +29,7 @@
   import ContextMenu from './ui/primitives/ContextMenu.svelte';
   import Wheels from './ui/primitives/Wheels.svelte';
   import MidiButton from './ui/primitives/MidiButton.svelte';
+  import Transport from './ui/primitives/Transport.svelte';
   import Overlay from './explain/Overlay.svelte';
   import { explainMode } from './explain/explain.svelte';
   import { nav, type PageId } from './ui/nav.svelte';
@@ -182,7 +183,10 @@
 
     <footer class="keys">
       <div class="hint-row">
-        <SourceChips panels={!main} />
+        <div class="lead">
+          <SourceChips panels={!main} />
+          <Transport />
+        </div>
         {#if main}
           <div class="hint">
             Keys <kbd>A</kbd>–<kbd>'</kbd> · octave <kbd>Z</kbd>/<kbd>X</kbd> (A = C{qwerty.octave}) · velocity <kbd>C</kbd>/<kbd>V</kbd> ({Math.round(qwerty.velocity * 100)}%) · drag a handle onto a knob to modulate it
@@ -345,6 +349,12 @@
     justify-content: space-between;
     align-items: center;
     gap: 12px;
+  }
+  .lead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
   }
   .keys {
     display: grid;
