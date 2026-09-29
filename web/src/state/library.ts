@@ -92,9 +92,11 @@ const req = <T>(r: IDBRequest<T>) =>
 export class IdbBackend implements Backend {
   private constructor(private readonly db: IDBDatabase) {}
 
-  static async open(name: string, idb: IDBFactory = indexedDB): Promise<IdbBackend> {
+  /** `onBlocked`: an older version's tab has the database open, so the upgrade waits for it to close. */
+  static async open(name: string, idb: IDBFactory = indexedDB, onBlocked?: () => void): Promise<IdbBackend> {
     // version 2 added the session store
     const r = idb.open(name, 2);
+    r.onblocked = () => onBlocked?.();
     r.onupgradeneeded = () => {
       const db = r.result;
       if (!db.objectStoreNames.contains('patches')) db.createObjectStore('patches', { keyPath: 'id' });
@@ -213,11 +215,11 @@ export class Library {
     readonly durable: boolean,
   ) {}
 
-  static async open(name = 'birdsynth'): Promise<Library> {
+  static async open(name = 'birdsynth', onBlocked?: () => void): Promise<Library> {
     let lib: Library;
     try {
       if (typeof indexedDB === 'undefined') throw new Error('no IndexedDB');
-      lib = new Library(await IdbBackend.open(name), true);
+      lib = new Library(await IdbBackend.open(name, indexedDB, onBlocked), true);
     } catch {
       lib = new Library(new MemoryBackend(), false);
     }

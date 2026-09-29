@@ -43,7 +43,9 @@
         ? 'This browser isn’t keeping data for this site (a private window?), so the sound is lost on reload. Export presets you want to keep.'
         : session.state === 'failed'
           ? 'The last session couldn’t be read, so this one isn’t being kept (the old one is left as it was).'
-          : 'Restoring your last session…',
+          : session.state === 'blocked'
+            ? 'Another birdsynth tab from before an update is still open, so this one can’t keep your work yet. Close that tab and reload this one; your last session is safe meanwhile.'
+            : 'Restoring your last session…',
   );
   async function reset(): Promise<void> {
     if (!confirmReset) {

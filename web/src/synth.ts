@@ -88,7 +88,7 @@ export class Synth implements MidiSink {
   readonly mpe = new MpeChannels();
   /** The working state kept between visits (see restoreSession): when it was last saved, and whether it's being kept. */
   sessionSaved = 0;
-  sessionState: 'starting' | 'on' | 'memory' | 'failed' = 'starting';
+  sessionState: 'starting' | 'on' | 'memory' | 'failed' | 'blocked' = 'starting';
   private restoring: Promise<void> | null = null;
   private sessionTimer: ReturnType<typeof setTimeout> | null = null;
   private sessionSaving: Promise<void> | null = null;
@@ -511,7 +511,12 @@ export class Synth implements MidiSink {
 
   /** The library, opened on first use. */
   openLibrary(): Promise<Library> {
-    return (this.opening ??= Library.open().then((lib) => (this.library = lib)));
+    const blocked = () => {
+      // a tab still on an older version holds the database: nothing is kept (or saved over) until it's gone
+      if (this.sessionState === 'starting') this.sessionState = 'blocked';
+      this.emitSession();
+    };
+    return (this.opening ??= Library.open('birdsynth', blocked).then((lib) => (this.library = lib)));
   }
 
   /** Load a library preset by id. */
@@ -597,7 +602,7 @@ export class Synth implements MidiSink {
           document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && leave());
         }
       } catch (e) {
-        this.sessionState = 'failed';
+        if (this.sessionState !== 'blocked') this.sessionState = 'failed';
         console.warn("birdsynth: the last session could not be restored, so this one won't be kept:", e);
       } finally {
         this.emitSession();
