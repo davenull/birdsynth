@@ -298,13 +298,46 @@ fn sources_route_to_filters_buses_or_nowhere() {
         render(&mut e, 4800);
         rms(&render(&mut e, 9600))
     };
-    let (filters, main, direct, none) = (level(0.0, 0.0), level(1.0, 0.0), level(2.0, 0.0), level(3.0, 0.0));
+    use crate::voice::{ROUTE_DIRECT, ROUTE_F1, ROUTE_MAIN, ROUTE_NONE};
+    let r = |route: u8| route as f32;
+    let (filters, main, direct, none) = (level(r(ROUTE_F1), 0.0), level(r(ROUTE_MAIN), 0.0), level(r(ROUTE_DIRECT), 0.0), level(r(ROUTE_NONE), 0.0));
     assert!(main > 0.05, "the sub plays: {main}");
     assert!(filters < 0.2 * main, "through the closed filter: {filters} vs {main}");
     assert!((direct / main - 1.0).abs() < 1e-4, "direct skips the filters too: {direct} vs {main}");
     assert_eq!(none, 0.0);
-    let sent = level(3.0, 1.0);
+    let sent = level(r(ROUTE_NONE), 1.0);
     assert!((sent / main - 1.0).abs() < 1e-4, "a full send carries the source to bus 1: {sent} vs {main}");
+}
+
+#[test]
+fn a_source_routes_to_either_filter_and_splits_to_the_other() {
+    use crate::voice::{ROUTE_F1, ROUTE_F2, ROUTE_MAIN};
+    // side by side: Filter 1 closed far below the sub (65 Hz), Filter 2 wide open
+    let level = |route: u8, split: f32| {
+        let mut e = engine(SR);
+        set(&mut e, p::OSC_ENABLE[0], 0.0);
+        set(&mut e, p::SUB_ENABLE, 1.0);
+        set(&mut e, p::SUB_ROUTE, route as f32);
+        set(&mut e, p::SUB_BALANCE, split);
+        set(&mut e, p::MIX_FILTER_ROUTING, 1.0);
+        set(&mut e, p::FILTER_ENABLE[0], 1.0);
+        set(&mut e, p::FILTER_CUTOFF[0], 20.0);
+        set(&mut e, p::FILTER_ENABLE[1], 1.0);
+        set(&mut e, p::FILTER_CUTOFF[1], 18_000.0);
+        on(&mut e, 48, 1);
+        render(&mut e, 4800);
+        rms(&render(&mut e, 9600))
+    };
+    let main = level(ROUTE_MAIN, 0.0);
+    let (f1, f2) = (level(ROUTE_F1, 0.0), level(ROUTE_F2, 0.0));
+    assert!(f1 < 0.2 * main, "Filter 1 closes it: {f1} vs {main}");
+    assert!((f2 / main - 1.0).abs() < 0.1, "Filter 2 lets it through: {f2} vs {main}");
+    // Split sends that share to the other filter
+    let (f1_all_other, f2_all_other) = (level(ROUTE_F1, 1.0), level(ROUTE_F2, 1.0));
+    assert!((f1_all_other / f2 - 1.0).abs() < 1e-4, "Filter 1 split all the way is Filter 2: {f1_all_other} vs {f2}");
+    assert!((f2_all_other / f1 - 1.0).abs() < 1e-3, "Filter 2 split all the way is Filter 1: {f2_all_other} vs {f1}");
+    let half = level(ROUTE_F2, 0.5);
+    assert!(half > 1.5 * f1 && half < 0.8 * f2, "half and half is in between: {f1} < {half} < {f2}");
 }
 
 #[test]
@@ -562,7 +595,7 @@ fn bus_racks_route_to_main_or_master() {
     let level = |to_master: bool| {
         let mut e = engine(SR);
         // osc A only on bus 1; the main rack mutes everything (utility at -36 dB)
-        set(&mut e, p::OSC_ROUTE[0], 3.0);
+        set(&mut e, p::OSC_ROUTE[0], crate::voice::ROUTE_NONE as f32);
         set(&mut e, p::OSC_SEND1[0], 1.0);
         set(&mut e, p::FX_UTILITY_GAIN[0], -36.0);
         set(&mut e, p::RACK_BUS1_TO, if to_master { 1.0 } else { 0.0 });

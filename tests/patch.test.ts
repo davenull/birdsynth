@@ -5,11 +5,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { FLAG, PARAMS, PARAM_ID } from '../web/src/gen/params';
+import { FLAG, PARAMS, PARAM_ID, type ParamKey } from '../web/src/gen/params';
 import { SOURCE } from '../web/src/state/matrix';
 import { applyPatch, capture, migrate, PATCH_VERSION } from '../web/src/state/patch';
 import { FACTORY } from '../web/src/presets/factory';
 import { toPlain } from '../web/src/state/param-math';
+import { ROUTE } from '../web/src/state/routing';
 import { audition, loudness, render, stores } from './patch-kit';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -90,13 +91,40 @@ describe('patches', () => {
     expect(p.version).toBe(PATCH_VERSION);
     expect(p.meta.name).toBe('Early Lead');
     // osc A's filter switch was on: it routes through the filters; osc B's was off: straight to main
-    expect(p.params['osc.a.route']).toBe(0);
-    expect(p.params['osc.b.route']).toBeCloseTo(1 / 3, 6);
+    expect(p.params['osc.a.route'] ?? 0).toBe(0);
+    expect(toPlain(PARAMS[PARAM_ID['osc.b.route']], p.params['osc.b.route'])).toBe(ROUTE.main);
     expect(p.params['osc.a.filter']).toBeUndefined();
     expect(p.tables[1]?.source).toBe('factory:Basic Shapes');
     const t = stores();
     expect(applyPatch(t, p)).toEqual([]);
     expect(t.matrix.slots[0]?.dest).toBe(PARAM_ID['filter.1.cutoff']);
+  });
+
+  it('names the filter each source goes into (format 3 routes)', () => {
+    const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests/fixtures/patches/v3-routes.json'), 'utf8'));
+    const p = migrate(raw);
+    expect(p.version).toBe(PATCH_VERSION);
+    const route = (q: typeof p, src: string) => {
+      const info = PARAMS[PARAM_ID[`${src}.route` as ParamKey]];
+      return toPlain(info, q.params[info.key] ?? info.def);
+    };
+    // osc A: all but a quarter into Filter 1, as before
+    expect(route(p, 'osc.a')).toBe(ROUTE.f1);
+    expect(p.params['osc.a.balance']).toBeCloseTo(0.25, 6);
+    // osc B went mostly into Filter 2: it routes there now, with the rest split back to Filter 1
+    expect(route(p, 'osc.b')).toBe(ROUTE.f2);
+    expect(p.params['osc.b.balance']).toBeCloseTo(0.2, 6);
+    // osc C's balance is modulated: turning it around would turn the modulation around, so it stays
+    expect(route(p, 'osc.c')).toBe(ROUTE.f1);
+    expect(p.params['osc.c.balance']).toBeCloseTo(0.9, 6);
+    // the other routes keep their meaning in the longer list
+    expect(route(p, 'sub')).toBe(ROUTE.main);
+    expect(route(p, 'noise')).toBe(ROUTE.none);
+    const q = migrate({ ...raw, params: { 'osc.a.route': 0.6666666865348816, 'osc.b.balance': 1 }, matrix: [] });
+    expect(route(q, 'osc.a')).toBe(ROUTE.direct);
+    expect(route(q, 'osc.b')).toBe(ROUTE.f2);
+    expect(q.params['osc.b.balance']).toBeUndefined();
+    expect(applyPatch(stores(), p)).toEqual([]);
   });
 
   it('refuses patches from a newer build and reports unknown parts', () => {

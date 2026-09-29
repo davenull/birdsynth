@@ -11,6 +11,7 @@ import type { Synth } from '../synth';
 import type { Expect } from './check';
 import { SOURCE } from '../state/matrix';
 import { FX_TYPES } from '../state/fx';
+import { ROUTE } from '../state/routing';
 
 /** What a step can use while it's showing; timers stop when it ends. */
 export interface StepCtx {
@@ -100,7 +101,7 @@ const SINE = patchOf({
   category: 'Tour',
   tags: [],
   tables: ['Sine', 'Sine'],
-  p: { 'voice.mono': 1, 'env.1.attack': 5, 'env.1.sustain': 1, 'env.1.release': 150, 'osc.b.enable': 1, 'osc.b.octave': 1, 'osc.b.route': 3, 'master.volume': -14 },
+  p: { 'voice.mono': 1, 'env.1.attack': 5, 'env.1.sustain': 1, 'env.1.release': 150, 'osc.b.enable': 1, 'osc.b.octave': 1, 'osc.b.route': ROUTE.none, 'master.volume': -14 },
 });
 
 // For patterns: a short pluck.
@@ -128,7 +129,7 @@ const EVERYTHING = patchOf({
     'osc.a.level': 0.55,
     'osc.b.enable': 1,
     'osc.b.level': 0.5,
-    'osc.b.balance': 1,
+    'osc.b.route': ROUTE.f2,
     'osc.c.enable': 1,
     'osc.c.level': 0.4,
     'osc.c.send1': 0.6,
@@ -137,7 +138,7 @@ const EVERYTHING = patchOf({
     'sub.send2': 0.5,
     'noise.enable': 1,
     'noise.level': 0.2,
-    'noise.route': 2,
+    'noise.route': ROUTE.direct,
     'filter.1.enable': 1,
     'filter.1.cutoff': 3000,
     'filter.2.enable': 1,

@@ -21,6 +21,7 @@
   import { PARAMS, PARAM_ID } from '../../gen/params';
   import { toPlain } from '../../state/param-math';
   import { TYPE } from '../../state/recordings';
+  import { IN_SERIES } from '../../state/routing';
   import { pictureToAnalysis } from '../../state/spectral';
   import { editorView } from '../../editor/editor.svelte';
   import { sampleEditor } from '../../sampler/sampler.svelte';
@@ -61,6 +62,8 @@
   let audioInput = $state<HTMLInputElement>();
   let pictureInput = $state<HTMLInputElement>();
   let sfzInput = $state<HTMLInputElement>();
+  // in series the route list says Filters (the oscillator keeps its real target)
+  let serial = $state(plain('mix.filter_routing') < 0.5);
   onMount(() => {
     tableName = synth.tables.osc[osc]?.name ?? 'Saw';
     synth.tables.factoryList().then((l) => (factory = l));
@@ -75,6 +78,7 @@
       }),
       synth.recordings.subscribe((o) => o === osc && readRec()),
       synth.multis.subscribe((o) => o === osc && readMulti()),
+      synth.bank.subscribe(PARAM_ID['mix.filter_routing'], () => (serial = plain('mix.filter_routing') < 0.5)),
     ];
     return () => offs.forEach((f) => f());
   });
@@ -201,7 +205,7 @@
       title={type === TYPE.wavetable ? 'Edit this wavetable' : 'Edit this recording'}
       onclick={() => (type === TYPE.wavetable ? editorView.open(synth.tables, osc) : sampleEditor.open(osc))}>✎</button
     >
-    <div class="route"><Select param={k('route')} label="" /></div>
+    <div class="route"><Select param={k('route')} label="" join={serial ? IN_SERIES : null} /></div>
     <input bind:this={fileInput} type="file" accept=".wav,audio/wav" hidden onchange={(e) => {
       const f = (e.currentTarget as HTMLInputElement).files?.[0];
       if (f) void importWav(f);

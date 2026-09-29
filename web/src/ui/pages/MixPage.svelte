@@ -1,8 +1,10 @@
 <!-- MIX page: the routing diagram and a channel strip per source and filter. -->
 <script lang="ts">
-  import type { ParamKey } from '../../gen/params';
+  import { PARAMS, PARAM_ID, type ParamKey } from '../../gen/params';
   import type { Synth } from '../../synth';
-  import { getContext } from 'svelte';
+  import { getContext, onMount } from 'svelte';
+  import { toPlain } from '../../state/param-math';
+  import { IN_SERIES, routeTo, type RouteTo } from '../../state/routing';
   import Knob from '../primitives/Knob.svelte';
   import Select from '../primitives/Select.svelte';
   import Toggle from '../primitives/Toggle.svelte';
@@ -19,6 +21,23 @@
     { key: 'noise', name: 'NOISE', color: 'var(--noise)' },
   ];
   const p = (a: string, b: string) => `${a}.${b}` as ParamKey;
+
+  // each source's Split knob says which filter it sends to: the one its Route doesn't pick
+  const routeOf = (key: string) => {
+    const info = PARAMS[PARAM_ID[p(key, 'route')]];
+    return routeTo(key, toPlain(info, synth.bank.get(info.id)));
+  };
+  let routes = $state<Record<string, RouteTo>>(Object.fromEntries(SOURCES.map((s) => [s.key, routeOf(s.key)])));
+  const splitLabel = (to: RouteTo) => (to === 'f1' ? 'To F2' : to === 'f2' ? 'To F1' : 'Split');
+  // in series the route lists say Filters (each source keeps its real target)
+  const ROUTING = PARAMS[PARAM_ID['mix.filter_routing']];
+  const inSeries = () => toPlain(ROUTING, synth.bank.get(ROUTING.id)) < 0.5;
+  let serial = $state(inSeries());
+  onMount(() => {
+    const offs = SOURCES.map((s) => synth.bank.subscribe(PARAM_ID[p(s.key, 'route')], () => (routes[s.key] = routeOf(s.key))));
+    offs.push(synth.bank.subscribe(ROUTING.id, () => (serial = inSeries())));
+    return () => offs.forEach((f) => f());
+  });
 </script>
 
 <div class="mix-page">
@@ -31,9 +50,9 @@
           <Knob param={p(s.key, 'level')} size={24} color={s.color} compact />
           <Knob param={p(s.key, 'pan')} size={24} color={s.color} compact />
         </div>
-        <Select param={p(s.key, 'route')} label="Route" wide />
+        <Select param={p(s.key, 'route')} label="Route" wide join={serial ? IN_SERIES : null} />
         <div class="row">
-          <Knob param={p(s.key, 'balance')} size={22} color={s.color} compact />
+          <Knob param={p(s.key, 'balance')} label={splitLabel(routes[s.key])} size={22} color={s.color} compact />
           <Knob param={p(s.key, 'send1')} size={22} color={s.color} compact />
           <Knob param={p(s.key, 'send2')} size={22} color={s.color} compact />
         </div>

@@ -61,21 +61,21 @@ explain = "Stereo position of the sub. Bass usually stays centred."
 key = "route"
 name = "Route"
 curve = "enum"
-options = ["Filters", "Main", "Direct", "None"]
+options = ["Filter 1", "Filter 2", "Main", "Direct", "None"]
 default = 2
-explain = "Where it goes: through the filters (split by Balance), straight to the main FX, direct to the output, or nowhere (still a modulation source)."
+explain = "Where it goes: into Filter 1 or Filter 2 (Split sends part of it to the other), straight to the main FX, direct to the output, or nowhere (still a modulation source)."
 
 [[param]]
 key = "balance"
-name = "Filter Balance"
-short = "F1<>F2"
+name = "Filter Split"
+short = "Split"
 curve = "lin"
 min = 0.0
 max = 1.0
 default = 0.0
 unit = "%"
 flags = ["mod", "smooth"]
-explain = "Split between Filter 1 (left) and Filter 2 (right)."
+explain = "How much goes to the other filter instead of the one Route picks: none at the left, all of it at the right, both in between. Only for the filter routes."
 
 [[param]]
 key = "send1"

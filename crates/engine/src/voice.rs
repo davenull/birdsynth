@@ -36,10 +36,17 @@ pub const MACROS: usize = 8;
 const SOURCES: usize = OSC_COUNT + 2;
 const SUB: usize = OSC_COUNT;
 
-pub const ROUTE_FILTERS: u8 = 0;
-pub const ROUTE_MAIN: u8 = 1;
-pub const ROUTE_DIRECT: u8 = 2;
-pub const ROUTE_NONE: u8 = 3;
+/// A source's Route: into Filter 1 or Filter 2 (Split sends a share to the
+/// other), the main or direct bus, or nowhere.
+pub const ROUTE_F1: u8 = 0;
+pub const ROUTE_F2: u8 = 1;
+pub const ROUTE_MAIN: u8 = 2;
+pub const ROUTE_DIRECT: u8 = 3;
+pub const ROUTE_NONE: u8 = 4;
+
+const fn to_filters(route: u8) -> bool {
+    route == ROUTE_F1 || route == ROUTE_F2
+}
 
 /// Values shared by every voice for one sub-block.
 pub struct VoiceCtx<'a> {
@@ -670,11 +677,14 @@ impl Voice {
             let (kl, kp, kb, k1, k2, kr) = src_keys[s];
             let lv = res(kl);
             let (pl, pr) = math::balance(res(kp));
-            let now = LineState { gl: lv * pl, gr: lv * pr, bal: res(kb), s1: res(k1), s2: res(k2), primed: true };
+            let mut route = res(kr) as u8;
+            // Split is the share sent to the other filter; the line keeps it as a balance
+            // from all Filter 1 (0) to all Filter 2 (1), so a route change crossfades
+            let bal = if route == ROUTE_F2 { 1.0 - res(kb) } else { res(kb) };
+            let now = LineState { gl: lv * pl, gr: lv * pr, bal, s1: res(k1), s2: res(k2), primed: true };
             let was = if self.lines[s].primed { self.lines[s] } else { now };
             self.lines[s] = now;
-            let mut route = res(kr) as u8;
-            if route == ROUTE_FILTERS && !filter_on[0] && !filter_on[1] {
+            if to_filters(route) && !filter_on[0] && !filter_on[1] {
                 route = ROUTE_MAIN; // nothing to filter: go straight to the main bus
             }
             lines[s] = Line { gl: (was.gl, now.gl), gr: (was.gr, now.gr), bal: (was.bal, now.bal), s1: (was.s1, now.s1), s2: (was.s2, now.s2), route, on: true };
@@ -1094,7 +1104,7 @@ fn route_sample(
         let (xl, xr) = if s < OSC_COUNT { osc_lr[s] } else if s == SUB { (sn[0], sn[0]) } else { (sn[1], sn[1]) };
         let (l, r) = (xl * lerp(ln.gl), xr * lerp(ln.gr));
         match ln.route {
-            ROUTE_FILTERS => {
+            ROUTE_F1 | ROUTE_F2 => {
                 let bal = lerp(ln.bal);
                 f_in[0][0][i] += l * (1.0 - bal);
                 f_in[0][1][i] += r * (1.0 - bal);
@@ -1151,7 +1161,7 @@ fn route_block(
     let l = |i: usize| xl[i] * lerp(ln.gl, i);
     let r = |i: usize| xr[i] * lerp(ln.gr, i);
     match ln.route {
-        ROUTE_FILTERS => {
+        ROUTE_F1 | ROUTE_F2 => {
             for i in st..len {
                 let (l, r, bal) = (l(i), r(i), lerp(ln.bal, i));
                 f_in[0][0][i] += l * (1.0 - bal);

@@ -11,6 +11,7 @@
   import { SOURCES, TAP, TEL, TEL_COUNT, type TapName } from '../../gen/protocol';
   import { toPlain } from '../../state/param-math';
   import type { ModSlot } from '../../state/matrix';
+  import { filterShares, routeTo } from '../../state/routing';
   import type { Synth } from '../../synth';
   import { sourceColor } from '../mod/sources';
   import { nav } from '../nav.svelte';
@@ -85,16 +86,16 @@
       used.add(k);
       const lv = Math.min(1, plain(`${k}.level`));
       const color = byId[k].color;
-      let route = plain(`${k}.route`);
-      if (route === 0 && !f1On && !f2On) route = 1; // nothing to filter: straight on
-      const bal = plain(`${k}.balance`);
-      if (route === 0) {
-        if (bal < 1) ws.push({ from: k, to: 'f1', color, w: lv * (1 - bal) });
-        if (bal > 0) ws.push({ from: k, to: 'f2', color, w: lv * bal });
+      let to = routeTo(k, plain(`${k}.route`));
+      if ((to === 'f1' || to === 'f2') && !f1On && !f2On) to = 'main'; // nothing to filter: straight on
+      if (to === 'f1' || to === 'f2') {
+        const [x1, x2] = filterShares(to, plain(`${k}.balance`));
+        if (x1 > 0) ws.push({ from: k, to: 'f1', color, w: lv * x1 });
+        if (x2 > 0) ws.push({ from: k, to: 'f2', color, w: lv * x2 });
         used.add('f1').add('f2');
-      } else if (route === 1 || route === 2) {
+      } else if (to === 'main' || to === 'direct') {
         ws.push({ from: k, to: 'amp', color, w: lv });
-        if (route === 2) direct = true;
+        if (to === 'direct') direct = true;
       }
       const s1 = plain(`${k}.send1`);
       const s2 = plain(`${k}.send2`);

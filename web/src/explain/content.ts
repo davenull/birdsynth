@@ -68,7 +68,7 @@ const SOURCE_NAMES: Record<string, string> = { 'osc.a': 'Osc A', 'osc.b': 'Osc B
 function mix(key: string): Explanation {
   return {
     title: `${SOURCE_NAMES[key].replace(/^the /, '').replace(/^./, (c) => c.toUpperCase())} in the mix`,
-    text: `Where ${SOURCE_NAMES[key]} goes: its level and pan, then Route (through the filters, straight to the amp, or nowhere), the balance between Filter 1 and 2, and sends to the two FX buses.`,
+    text: `Where ${SOURCE_NAMES[key]} goes: its level and pan, then Route (into Filter 1 or Filter 2, straight to the amp, or nowhere), Split (a share for the other filter), and sends to the two FX buses.`,
   };
 }
 
@@ -236,7 +236,7 @@ export const CONTENT: Record<string, Explanation> = {
   },
   'mix.filter_routing': {
     title: 'Filter routing',
-    text: 'Series: Filter 1 feeds Filter 2, so their effects multiply (two low-passes make a steeper slope). Parallel: each source is split between them by its balance knob and the results are added.',
+    text: 'Series: Filter 1 feeds Filter 2, so their effects multiply (two low-passes make a steeper slope); the sources’ routes read Filters, and each keeps whether it enters the chain at Filter 1 or 2. Parallel: each source goes to the filter its Route names (Split sends a share to the other) and the results are added.',
   },
   fx: {
     title: 'Effects',

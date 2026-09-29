@@ -15,7 +15,7 @@ import { identityCurve, type RemapCurves } from './remap';
 import type { ArpPatterns, ClipStore } from './seq';
 
 export const PATCH_FORMAT = 'birdsynth-patch';
-export const PATCH_VERSION = 3;
+export const PATCH_VERSION = 4;
 
 export interface PatchMeta {
   name: string;
@@ -205,10 +205,38 @@ export function applyPatch(t: PatchTarget, patch: Patch): string[] {
 // ------------------------------------------------------------- migrations
 
 /**
+ * Version 4: a source's Route names the filter it goes into (Filter 1,
+ * Filter 2, Main, Direct, None) where it said Filters (Filters, Main,
+ * Direct, None) and left the choice to Balance, which became Split: the
+ * share sent to the other filter. Split means the old balance from Filter 1,
+ * so every patch sounds as it did; one that went mostly into Filter 2 routes
+ * there instead, unless its balance is modulated (that would turn the
+ * modulation around).
+ */
+function routesToFilters(old: Record<string, number>, matrix: MatrixRow[]): Record<string, number> {
+  const params = { ...old };
+  for (const src of ['osc.a', 'osc.b', 'osc.c', 'sub', 'noise']) {
+    const rk = `${src}.route`;
+    const bk = `${src}.balance`;
+    const was = Math.min(3, Math.max(0, Math.round((params[rk] ?? 0) * 3)));
+    const route = [0, 2, 3, 4][was]; // Filters became Filter 1; the rest moved up one
+    const balance = params[bk] ?? 0;
+    if (route === 0 && balance > 0.5 && !matrix.some((m) => m.dest === bk)) {
+      params[rk] = 1 / 4;
+      if (balance < 1) params[bk] = 1 - balance;
+      else delete params[bk];
+    } else if (route) params[rk] = route / 4;
+    else delete params[rk];
+  }
+  return params;
+}
+
+/**
  * Bring a patch from any earlier version to the current one. Version 0 is
  * the pre-release format of the first builds: each oscillator had an on/off
- * "filter" switch (now its Route, Filters or Main), and there was no FX,
- * LFO or remap state.
+ * "filter" switch (now its Route), and there was no FX, LFO or remap state.
+ * Parameters are stored normalized, so an enum's values move whenever its
+ * option list changes: version 4 re-spaces every source's Route.
  */
 export function migrate(raw: unknown): Patch {
   const p = raw as Record<string, unknown>;
@@ -220,9 +248,9 @@ export function migrate(raw: unknown): Patch {
     for (const o of ['a', 'b', 'c']) {
       const k = `osc.${o}.filter`;
       if (k in params) {
-        const route = PARAMS[PARAM_ID[`osc.${o}.route` as ParamKey]];
-        // on: through the filters (option 0); off: straight to the main bus (option 1)
-        params[`osc.${o}.route`] = params[k] >= 0.5 ? 0 : 1 / ((route.curve.kind === 'enum' ? route.curve.options.length : 2) - 1);
+        // on: through the filters; off: straight to the main bus (Filters and Main of the
+        // four routes of the time, which version 4 re-spaces)
+        params[`osc.${o}.route`] = params[k] >= 0.5 ? 0 : 1 / 3;
         delete params[k];
       }
     }
@@ -249,6 +277,10 @@ export function migrate(raw: unknown): Patch {
     // version 3 added the arpeggiator's patterns and the clips
     cur = { ...cur, version: 3, arp: Array(12).fill(null), clips: Array(12).fill(null) };
     version = 3;
+  }
+  if (version === 3) {
+    cur = { ...cur, version: 4, params: routesToFilters((cur.params as Record<string, number>) ?? {}, (cur.matrix as MatrixRow[]) ?? []) };
+    version = 4;
   }
   if (version > PATCH_VERSION) throw new Error(`this patch is from a newer birdsynth (format ${version})`);
   const out = cur as unknown as Patch;

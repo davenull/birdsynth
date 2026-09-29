@@ -1,0 +1,140 @@
+{
+ "format": "birdsynth-patch",
+ "version": 3,
+ "meta": {
+  "name": "Routes",
+  "author": "birdsynth tests",
+  "category": "Test",
+  "tags": [],
+  "rating": 0,
+  "notes": "Format 3: each source's Route said Filters (or Main, Direct, None) and its Balance chose between Filter 1 and 2."
+ },
+ "params": {
+  "osc.a.balance": 0.25,
+  "osc.b.enable": 1,
+  "osc.b.balance": 0.800000011920929,
+  "osc.c.enable": 1,
+  "osc.c.balance": 0.8999999761581421,
+  "sub.enable": 1,
+  "sub.route": 0.3333333432674408,
+  "noise.enable": 1,
+  "noise.route": 1
+ },
+ "matrix": [
+  {
+   "slot": 0,
+   "source": "LFO 1",
+   "aux": "None",
+   "dest": "osc.c.balance",
+   "amount": 0.1,
+   "curve": 0,
+   "output": 1,
+   "bipolar": true,
+   "bypass": false
+  }
+ ],
+ "lfo": {
+  "curves": [
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null
+  ],
+  "paths": [
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null
+  ]
+ },
+ "remap": [
+  null,
+  null,
+  null
+ ],
+ "fx": {
+  "chains": [
+   [],
+   [],
+   [],
+   [],
+   [],
+   [],
+   [],
+   [],
+   [],
+   [],
+   [],
+   [],
+   [],
+   [],
+   []
+  ]
+ },
+ "tables": [
+  null,
+  null,
+  null
+ ],
+ "irs": [
+  null,
+  null,
+  null,
+  null
+ ],
+ "recordings": [
+  null,
+  null,
+  null
+ ],
+ "multis": [
+  null,
+  null,
+  null
+ ],
+ "specFilter": [
+  null,
+  null,
+  null
+ ],
+ "arp": [
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null
+ ],
+ "clips": [
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null
+ ]
+}

@@ -8,6 +8,7 @@
   import { PARAMS, PARAM_ID, type ParamKey } from '../../gen/params';
   import type { TapName } from '../../gen/protocol';
   import { toPlain } from '../../state/param-math';
+  import { filterShares, routeTo } from '../../state/routing';
   import type { Synth } from '../../synth';
   import { onFrame } from '../frame';
 
@@ -60,15 +61,15 @@
       o[s.key] = !on;
       if (!on) return;
       const lv = Math.min(1, plain(`${s.key}.level`));
-      let route = plain(`${s.key}.route`);
-      if (route === 0 && !f1On && !f2On) route = 1; // nothing to filter: straight to main
-      const bal = plain(`${s.key}.balance`);
+      let to = routeTo(s.key, plain(`${s.key}.route`));
+      if ((to === 'f1' || to === 'f2') && !f1On && !f2On) to = 'main'; // nothing to filter: straight to main
       const a = L(150, srcY(i));
-      if (route === 0) {
-        if (bal < 1) ws.push({ from: a, to: L(NODE.f1.x - 50, NODE.f1.y), color: s.color, w: lv * (1 - bal) });
-        if (bal > 0) ws.push({ from: a, to: L(NODE.f2.x - 50, NODE.f2.y), color: s.color, w: lv * bal });
-      } else if (route === 1) ws.push({ from: a, to: L(NODE.main.x - 44, NODE.main.y), color: s.color, w: lv });
-      else if (route === 2) ws.push({ from: a, to: L(NODE.direct.x - 44, NODE.direct.y), color: s.color, w: lv });
+      if (to === 'f1' || to === 'f2') {
+        const [x1, x2] = filterShares(to, plain(`${s.key}.balance`));
+        if (x1 > 0) ws.push({ from: a, to: L(NODE.f1.x - 50, NODE.f1.y), color: s.color, w: lv * x1 });
+        if (x2 > 0) ws.push({ from: a, to: L(NODE.f2.x - 50, NODE.f2.y), color: s.color, w: lv * x2 });
+      } else if (to === 'main') ws.push({ from: a, to: L(NODE.main.x - 44, NODE.main.y), color: s.color, w: lv });
+      else if (to === 'direct') ws.push({ from: a, to: L(NODE.direct.x - 44, NODE.direct.y), color: s.color, w: lv });
       const s1 = plain(`${s.key}.send1`);
       const s2 = plain(`${s.key}.send2`);
       if (s1 > 0) ws.push({ from: a, to: L(NODE.bus1.x - 44, NODE.bus1.y), color: s.color, w: lv * s1 });
