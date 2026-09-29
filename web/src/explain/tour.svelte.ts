@@ -12,7 +12,9 @@ class TourRunner {
   index = $state(0);
   private synth: Synth | null = null;
   private timers: ReturnType<typeof setInterval>[] = [];
-  private saved: { patch: Patch; assets: Map<string, ArrayBuffer>; id: string; meta: PatchMeta } | null = null;
+  private saved: { patch: Patch; assets: Map<string, ArrayBuffer>; id: string; meta: PatchMeta; dirty: boolean } | null = null;
+  /** Whether this tour is holding the session (so it's released once, however the tour ends). */
+  private held = false;
   /** Serialises step changes (a step's enter can be async). */
   private busy: Promise<void> = Promise.resolve();
 
@@ -26,8 +28,17 @@ class TourRunner {
       if (!tour) throw new Error(`no tour ${id}`);
       if (this.tour) await this.finish();
       this.synth = synth;
-      const { patch, assets } = await synth.savePatch();
-      this.saved = { patch, assets, id: synth.presetId, meta: { ...synth.meta } };
+      // the teaching patches aren't your sound: don't keep them as the session
+      synth.holdSession(true);
+      this.held = true;
+      try {
+        const { patch, assets } = await synth.savePatch();
+        this.saved = { patch, assets, id: synth.presetId, meta: { ...synth.meta }, dirty: synth.history.dirty };
+      } catch (e) {
+        synth.holdSession(false);
+        this.held = false;
+        throw e;
+      }
       this.tour = tour;
       this.index = 0;
       await this.enter();
@@ -95,9 +106,15 @@ class TourRunner {
     s.setBandlimit(true);
     const saved = this.saved;
     this.saved = null;
-    if (saved) {
-      await s.loadPatch(saved.patch, async (h) => saved.assets.get(h), saved.id);
-      s.setMeta(saved.meta);
+    try {
+      if (saved) {
+        await s.loadPatch(saved.patch, async (h) => saved.assets.get(h), saved.id);
+        s.setMeta(saved.meta);
+        if (saved.dirty) s.history.markDirty();
+      }
+    } finally {
+      if (this.held) s.holdSession(false);
+      this.held = false;
     }
   }
 }

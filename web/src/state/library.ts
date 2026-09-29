@@ -32,23 +32,45 @@ interface PrefRecord {
   rating: number;
 }
 
-type StoreName = 'patches' | 'assets' | 'prefs';
+/** The working state, kept between visits (one record, id "current"). */
+interface SessionRecord {
+  id: string;
+  patch: Patch;
+  /** The preset it came from ("" for none), and whether it had unsaved changes. */
+  presetId: string;
+  dirty: boolean;
+  /** ms since the epoch */
+  saved: number;
+}
+
+export interface Session {
+  patch: Patch;
+  presetId: string;
+  dirty: boolean;
+  saved: number;
+}
+
+type StoreName = 'patches' | 'assets' | 'prefs' | 'session';
 
 /** Where the library keeps its records. */
 export interface Backend {
   all<T>(store: StoreName): Promise<T[]>;
+  keys(store: StoreName): Promise<string[]>;
   get<T>(store: StoreName, key: string): Promise<T | undefined>;
   put(store: StoreName, value: object): Promise<void>;
   delete(store: StoreName, key: string): Promise<void>;
 }
 
 export class MemoryBackend implements Backend {
-  private readonly stores: Record<StoreName, Map<string, object>> = { patches: new Map(), assets: new Map(), prefs: new Map() };
+  private readonly stores: Record<StoreName, Map<string, object>> = { patches: new Map(), assets: new Map(), prefs: new Map(), session: new Map() };
   private key(store: StoreName, v: object): string {
     return (store === 'assets' ? (v as AssetRecord).hash : (v as PatchRecord).id) as string;
   }
   async all<T>(store: StoreName): Promise<T[]> {
     return [...this.stores[store].values()] as T[];
+  }
+  async keys(store: StoreName): Promise<string[]> {
+    return [...this.stores[store].keys()];
   }
   async get<T>(store: StoreName, key: string): Promise<T | undefined> {
     return this.stores[store].get(key) as T | undefined;
@@ -71,14 +93,19 @@ export class IdbBackend implements Backend {
   private constructor(private readonly db: IDBDatabase) {}
 
   static async open(name: string, idb: IDBFactory = indexedDB): Promise<IdbBackend> {
-    const r = idb.open(name, 1);
+    // version 2 added the session store
+    const r = idb.open(name, 2);
     r.onupgradeneeded = () => {
       const db = r.result;
       if (!db.objectStoreNames.contains('patches')) db.createObjectStore('patches', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('assets')) db.createObjectStore('assets', { keyPath: 'hash' });
       if (!db.objectStoreNames.contains('prefs')) db.createObjectStore('prefs', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('session')) db.createObjectStore('session', { keyPath: 'id' });
     };
-    return new IdbBackend(await req(r));
+    const db = await req(r);
+    // a newer build opening the database in another tab: step aside rather than block it
+    db.onversionchange = () => db.close();
+    return new IdbBackend(db);
   }
 
   private store(name: StoreName, mode: IDBTransactionMode): IDBObjectStore {
@@ -86,6 +113,9 @@ export class IdbBackend implements Backend {
   }
   all<T>(store: StoreName): Promise<T[]> {
     return req(this.store(store, 'readonly').getAll()) as Promise<T[]>;
+  }
+  async keys(store: StoreName): Promise<string[]> {
+    return (await req(this.store(store, 'readonly').getAllKeys())) as string[];
   }
   get<T>(store: StoreName, key: string): Promise<T | undefined> {
     return req(this.store(store, 'readonly').get(key)) as Promise<T | undefined>;
@@ -146,7 +176,11 @@ export function search(entries: readonly Entry[], q: Query): Entry[] {
   const byName = (a: Entry, b: Entry) => a.patch.meta.name.localeCompare(b.patch.meta.name);
   const sorts: Record<Query['sort'], (a: Entry, b: Entry) => number> = {
     name: byName,
-    category: (a, b) => catRank(a.patch.meta.category) - catRank(b.patch.meta.category) || a.patch.meta.category.localeCompare(b.patch.meta.category) || (a.factory === b.factory ? 0 : a.factory ? -1 : 1) || byName(a, b),
+    category: (a, b) =>
+      catRank(a.patch.meta.category) - catRank(b.patch.meta.category) ||
+      a.patch.meta.category.localeCompare(b.patch.meta.category) ||
+      (a.factory === b.factory ? 0 : a.factory ? -1 : 1) ||
+      byName(a, b),
     rating: (a, b) => b.patch.meta.rating - a.patch.meta.rating || byName(a, b),
     modified: (a, b) => b.modified - a.modified || byName(a, b),
   };
@@ -166,6 +200,10 @@ export class Library {
   private user: Entry[] = [];
   private factory: Entry[] = [];
   private readonly subs = new Set<() => void>();
+  /** Writes run one at a time, so a clean-up never sees a preset half saved. */
+  private queue: Promise<unknown> = Promise.resolve();
+  /** The asset hashes stored (loaded on first need). */
+  private known: Set<string> | null = null;
   /** Whether the browser promised not to evict the library (null: not asked yet). */
   persisted: boolean | null = null;
 
@@ -241,9 +279,60 @@ export class Library {
     return this.persisted;
   }
 
+  private serial<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(fn, fn);
+    this.queue = run.catch(() => {});
+    return run;
+  }
+
+  /** Store the assets not stored yet (each once, by hash). `data` can be a function, so only new ones are copied. */
+  private async putAssets(assets: Map<string, ArrayBuffer | (() => ArrayBuffer)>): Promise<void> {
+    this.known ??= new Set(await this.db.keys('assets'));
+    for (const [hash, data] of assets) {
+      if (this.known.has(hash)) continue;
+      await this.db.put('assets', { hash, data: typeof data === 'function' ? data() : data } satisfies AssetRecord);
+      this.known.add(hash);
+    }
+  }
+
+  /**
+   * Delete the assets nothing refers to any more (deleted presets, earlier
+   * states of the session). What's in use is read from the stored records,
+   * not this tab's lists, so another tab's presets are safe; if any record
+   * can't be read, nothing is deleted.
+   */
+  private async collect(): Promise<number> {
+    const used = new Set<string>();
+    try {
+      for (const r of await this.db.all<PatchRecord>('patches')) for (const h of hashesOf(migrate(r.patch))) used.add(h);
+      const s = await this.db.get<SessionRecord>('session', 'current');
+      if (s) for (const h of hashesOf(migrate(s.patch))) used.add(h);
+    } catch {
+      return 0;
+    }
+    this.known = new Set(await this.db.keys('assets'));
+    let n = 0;
+    for (const h of [...this.known]) {
+      if (used.has(h)) continue;
+      await this.db.delete('assets', h);
+      this.known.delete(h);
+      n++;
+    }
+    return n;
+  }
+
+  /** Clear out assets nothing uses (at startup; also after a delete or a reset). */
+  collectGarbage(): Promise<number> {
+    return this.serial(() => this.collect());
+  }
+
   /** Save a patch and its assets: over `id` if it's a user preset, else as a new one. */
-  async save(patch: Patch, assets: Map<string, ArrayBuffer>, id?: string): Promise<Entry> {
-    for (const [hash, data] of assets) if (!(await this.db.get('assets', hash))) await this.db.put('assets', { hash, data } satisfies AssetRecord);
+  save(patch: Patch, assets: Map<string, ArrayBuffer>, id?: string): Promise<Entry> {
+    return this.serial(() => this.saveNow(patch, assets, id));
+  }
+
+  private async saveNow(patch: Patch, assets: Map<string, ArrayBuffer>, id?: string): Promise<Entry> {
+    await this.putAssets(assets);
     const keep = id?.startsWith('user:') && this.user.some((e) => e.id === id);
     const rec: PatchRecord = { id: keep ? id! : `user:${crypto.randomUUID()}`, patch: structuredClone(patch), modified: Date.now() };
     await this.db.put('patches', rec);
@@ -255,11 +344,39 @@ export class Library {
     return entry;
   }
 
-  async remove(id: string): Promise<void> {
-    if (!id.startsWith('user:')) return;
-    await this.db.delete('patches', id);
-    this.user = this.user.filter((e) => e.id !== id);
-    this.emit();
+  remove(id: string): Promise<void> {
+    if (!id.startsWith('user:')) return Promise.resolve();
+    return this.serial(async () => {
+      await this.db.delete('patches', id);
+      this.user = this.user.filter((e) => e.id !== id);
+      this.emit();
+      await this.collect();
+    });
+  }
+
+  // ---------------------------------------------------------------- session
+
+  /** The working state saved last time, or null. */
+  async loadSession(): Promise<Session | null> {
+    const r = await this.db.get<SessionRecord>('session', 'current');
+    if (!r) return null;
+    return { patch: migrate(r.patch), presetId: r.presetId, dirty: r.dirty, saved: r.saved };
+  }
+
+  /** Keep the working state: its assets (the new ones), then the record. */
+  saveSession(patch: Patch, assets: Map<string, ArrayBuffer | (() => ArrayBuffer)>, presetId: string, dirty: boolean): Promise<void> {
+    return this.serial(async () => {
+      await this.putAssets(assets);
+      await this.db.put('session', { id: 'current', patch, presetId, dirty, saved: Date.now() } satisfies SessionRecord);
+    });
+  }
+
+  /** Forget the working state (after a reset, the next visit starts fresh). */
+  clearSession(): Promise<void> {
+    return this.serial(async () => {
+      await this.db.delete('session', 'current');
+      await this.collect();
+    });
   }
 
   /** Change a preset's metadata (factory presets keep only a rating). */

@@ -27,7 +27,7 @@ no imports. It runs inside an AudioWorklet. The UI is Svelte 5 + TypeScript.
 - **Sequencing:** an arpeggiator with step lanes, twelve clips with a piano roll, automation and recording, and MIDI file import and export. Also transport, swing and MIDI clock-in.
 - **Wavetable editor:** draw tools, harmonics, a formula language, process and morph functions, and import from audio.
 - **Presets:** a library in IndexedDB with tags, ratings and search, 30 factory presets, previews and Hybridize.
-- **Other:** MIDI and MIDI learn, microtuning (.scl/.kbm/.tun), undo, and a CPU guard.
+- **Other:** your sound is kept between visits (Reset is on the GLOBAL page), MIDI and MIDI learn, microtuning (.scl/.kbm/.tun), undo, and a CPU guard.
 - **Explainer:** explain mode (click anything), six guided tours, and a FLOW page that shows the whole signal path as live scopes.
 
 [docs/plan.md](docs/plan.md) has the design, each phase's numeric acceptance gates and the measurements that met them.

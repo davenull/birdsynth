@@ -27,6 +27,37 @@
   let velCurve = $state(0);
   let dropping = $state(false);
   let followClock = $state(synth.followClock);
+  // the session: whether it's kept, and a reset that asks first
+  let session = $state({ state: synth.sessionState, saved: synth.sessionSaved });
+  let now = $state(Date.now());
+  let confirmReset = $state(false);
+  let resetting = $state(false);
+  const ago = (t: number) => {
+    const s = Math.round((now - t) / 1000);
+    return s < 5 ? 'just now' : s < 60 ? `${s} s ago` : s < 3600 ? `${Math.round(s / 60)} min ago` : new Date(t).toLocaleString();
+  };
+  const sessionText = $derived(
+    session.state === 'on'
+      ? `Your sound is kept in this browser as you work and comes back next time${session.saved ? ` (saved ${ago(session.saved)})` : ''}.`
+      : session.state === 'memory'
+        ? 'This browser isn’t keeping data for this site (a private window?), so the sound is lost on reload. Export presets you want to keep.'
+        : session.state === 'failed'
+          ? 'The last session couldn’t be read, so this one isn’t being kept (the old one is left as it was).'
+          : 'Restoring your last session…',
+  );
+  async function reset(): Promise<void> {
+    if (!confirmReset) {
+      confirmReset = true;
+      return;
+    }
+    confirmReset = false;
+    resetting = true;
+    try {
+      await synth.resetSession();
+    } finally {
+      resetting = false;
+    }
+  }
   let guardOn = $state(synth.guardOn);
   let guard = $state(0);
 
@@ -48,11 +79,15 @@
     const vc = PARAMS[PARAM_ID['voice.vel_curve']];
     velCurve = toPlain(vc, bank.get(vc.id));
     const offVel = bank.subscribe(vc.id, (v) => (velCurve = toPlain(vc, v)));
+    const offSession = synth.onSession(() => (session = { state: synth.sessionState, saved: synth.sessionSaved }));
+    const tick = setInterval(() => (now = Date.now()), 5000);
     return () => {
       offFrame();
       offTuning();
       offLearn();
       offVel();
+      offSession();
+      clearInterval(tick);
     };
   });
 
@@ -200,6 +235,16 @@
       <p>Right-click any knob and choose MIDI learn, then move a control on your controller.</p>
     {/if}
   </section>
+  <section class="panel" data-explain="session" aria-label="Session">
+    <h2>SESSION</h2>
+    <p role="status">{sessionText}</p>
+    <div class="row">
+      <button class="danger" class:confirm={confirmReset} disabled={resetting} onclick={reset} title="Go back to the Init sound. Your saved presets and this browser's settings stay."
+        >{resetting ? 'Resetting…' : confirmReset ? 'Really reset? Unsaved changes go' : 'Reset synth…'}</button
+      >
+      {#if confirmReset}<button onclick={() => (confirmReset = false)}>Keep my sound</button>{/if}
+    </div>
+  </section>
   <section class="panel" data-explain="master" aria-label="Master">
     <h2>MASTER</h2>
     <div class="row"><Knob param="master.volume" size={34} {color} /></div>
@@ -278,6 +323,11 @@
   button:disabled {
     color: var(--text-faint);
     cursor: default;
+  }
+  .danger.confirm {
+    color: #fff;
+    background: var(--clip);
+    border-color: var(--clip);
   }
   .clock[aria-pressed='true'] {
     color: #111;

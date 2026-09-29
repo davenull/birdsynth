@@ -54,6 +54,76 @@ describe('library', () => {
     expect(again.entry('factory:Reese')).toBeDefined();
   });
 
+  it('keeps the session between visits and clears out assets nothing uses', async () => {
+    const idb = new IDBFactory();
+    const lib = await Library.over(await IdbBackend.open('s', idb));
+    expect(await lib.loadSession()).toBeNull();
+    const t = stores();
+    t.bank.set(PARAM_ID['filter.1.cutoff'], 0.3);
+    const table = (f: (i: number) => number) => new Float32Array(2048).map((_, i) => f(i));
+    const [tableA, tableB, tableC] = [table((i) => Math.sin(i / 30)), table((i) => Math.cos(i / 20)), table(() => 0.25)];
+    const [ha, hb, hc] = await Promise.all([tableA, tableB, tableC].map((x) => hashBytes(x)));
+    const withTable = (h: string) => {
+      const p = capture(t, emptyMeta('Working'));
+      p.tables[1] = { name: 'mine', source: 'file:mine.wav', count: 1, hash: h };
+      return p;
+    };
+    // a user preset uses table A; the session uses table B
+    const kept = await lib.save(withTable(ha), new Map([[ha, tableA.buffer]]));
+    let copies = 0;
+    const lazyB = new Map([[hb, () => (copies++, tableB.buffer)]]);
+    await lib.saveSession(withTable(hb), lazyB, kept.id, true);
+    await lib.saveSession(withTable(hb), lazyB, kept.id, true);
+    expect(copies, 'an asset already stored is not copied again').toBe(1);
+
+    // the next visit
+    const again = await Library.over(await IdbBackend.open('s', idb));
+    const s = await again.loadSession();
+    expect(s).toMatchObject({ presetId: kept.id, dirty: true });
+    expect(s!.patch.params['filter.1.cutoff']).toBeCloseTo(0.3);
+    expect(new Float32Array((await again.asset(hb))!)).toEqual(tableB);
+
+    // the session moves on to another table: nothing uses B now
+    await again.saveSession(withTable(hc), new Map([[hc, () => tableC.buffer]]), '', false);
+    expect(await again.collectGarbage()).toBe(1);
+    expect(await again.asset(hb)).toBeUndefined();
+    expect(await again.asset(ha), 'a preset still uses A').toBeDefined();
+    expect(await again.asset(hc)).toBeDefined();
+    // a reset forgets the session and what only it used
+    await again.clearSession();
+    expect(await again.loadSession()).toBeNull();
+    expect(await again.asset(hc)).toBeUndefined();
+    expect(await again.asset(ha)).toBeDefined();
+    // deleting the preset frees its table too
+    await again.remove(kept.id);
+    expect(await again.asset(ha)).toBeUndefined();
+  });
+
+  it('opens a library from before sessions, and leaves a session it can’t read alone', async () => {
+    const idb = new IDBFactory();
+    // the version-1 database: presets, assets and prefs, no session store
+    await new Promise<void>((ok, fail) => {
+      const r = idb.open('old', 1);
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        db.createObjectStore('patches', { keyPath: 'id' }).put({ id: 'user:1', patch: capture(stores(), emptyMeta('Old one')), modified: 1 });
+        db.createObjectStore('assets', { keyPath: 'hash' }).put({ hash: 'abc', data: new ArrayBuffer(8) });
+        db.createObjectStore('prefs', { keyPath: 'id' });
+      };
+      r.onsuccess = () => (r.result.close(), ok());
+      r.onerror = () => fail(r.error);
+    });
+    const backend = await IdbBackend.open('old', idb);
+    const lib = await Library.over(backend);
+    expect(lib.entry('user:1')?.patch.meta.name).toBe('Old one');
+    expect(await lib.loadSession()).toBeNull();
+    // a session saved by a newer build: loading it fails, and the clean-up deletes nothing
+    await backend.put('session', { id: 'current', patch: { ...capture(stores(), emptyMeta('Future')), version: 999 }, presetId: '', dirty: false, saved: 1 });
+    await expect(lib.loadSession()).rejects.toThrow(/newer/);
+    expect(await lib.collectGarbage()).toBe(0);
+    expect(await lib.asset('abc')).toBeDefined();
+  });
+
   it('searches by words, tags (all, any, not), category, rating and source', () => {
     const e = (name: string, category: string, tags: string[], rating = 0, factory = true): Entry => ({
       id: `${factory ? 'factory' : 'user'}:${name}`,

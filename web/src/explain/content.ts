@@ -271,6 +271,10 @@ export const CONTENT: Record<string, Explanation> = {
     title: 'Tempo and rates',
     text: 'The tempo that synced LFOs, envelopes and delays follow, and two knobs that speed up or slow down every envelope or every LFO at once.',
   },
+  session: {
+    title: 'Your session',
+    text: 'Whatever you do to the sound is kept in this browser a moment after you do it: parameters, modulation, effects, wavetables and recordings, clips and arp patterns, and which preset it came from. Come back tomorrow and it’s as you left it. Reset goes back to the Init sound; your saved presets, MIDI mappings, tuning and settings stay. (Saving a preset is still the way to keep a sound for good, or to share it.)',
+  },
   hybrid: {
     title: 'Hybridize',
     text: 'Makes a new preset out of two: the one loaded and the one you pick. Each part (an oscillator with its wavetable, a filter, an envelope, an LFO, the effects, the matrix) comes whole from one or the other, by a roll of the dice, so the result still hangs together. Blend also moves the knobs part of the way toward the other preset. Roll again for another mix of the same two; save the ones you like.',

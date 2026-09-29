@@ -19,6 +19,8 @@ mount(App, {
   ]),
 });
 
-// Load the engine right away. Most browsers keep audio suspended until the
-// first click or key press; the page shows a prompt until then.
+// Put back the sound from the last visit, and load the engine right away.
+// Most browsers keep audio suspended until the first click or key press;
+// the page shows a prompt until then.
+void synth.restoreSession();
 synth.start().catch(() => {});

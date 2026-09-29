@@ -22,8 +22,8 @@ import { SpectralFilters, pictureToAnalysis } from './state/spectral';
 import { zoneInfo } from './state/multis';
 import { ArpPatterns, ClipStore } from './state/seq';
 import { History } from './state/history';
-import { Library, type Entry } from './state/library';
-import { applyPatch, capture, emptyMeta, hashBytes, type Patch, type PatchMeta, type PatchTarget } from './state/patch';
+import { Library, type Entry, type Session } from './state/library';
+import { applyPatch, capture, emptyMeta, hashBytes, migrate, type Patch, type PatchMeta, type PatchTarget } from './state/patch';
 import { parseMidi, type MidiSink } from './input/midi';
 import { MidiLearn } from './input/learn';
 import { WebMidi } from './input/webmidi';
@@ -86,6 +86,25 @@ export class Synth implements MidiSink {
   private readonly clock = new MidiClock();
   /** Per-note expression from MPE controllers (on with the voice.mpe parameter). */
   readonly mpe = new MpeChannels();
+  /** The working state kept between visits (see restoreSession): when it was last saved, and whether it's being kept. */
+  sessionSaved = 0;
+  sessionState: 'starting' | 'on' | 'memory' | 'failed' = 'starting';
+  private restoring: Promise<void> | null = null;
+  private sessionTimer: ReturnType<typeof setTimeout> | null = null;
+  private sessionSaving: Promise<void> | null = null;
+  private sessionAgain = false;
+  private sessionHolds = 0;
+  private persistAsked = false;
+  private readonly sessionSubs = new Set<() => void>();
+  /**
+   * The patch reference each file-born asset (a wavetable, recording, IR or
+   * multisample) had when last collected, so the quick save on leaving the
+   * page can name them without hashing. Any change to one drops it (and
+   * bumps the generation, so a collect already under way doesn't store a
+   * stale one).
+   */
+  private assetRefs = new WeakMap<object, unknown>();
+  private assetGen = 0;
   /** Eases the engine's load when it runs too high (a setting of this browser; on unless switched off). */
   readonly guard = new CpuGuard();
   guardOn = readSetting('birdsynth.cpu-guard') !== '0';
@@ -127,6 +146,31 @@ export class Synth implements MidiSink {
     };
     mpeOn();
     this.bank.subscribe(PARAM_ID['voice.mpe'], mpeOn);
+    // anything that changes the sound (or which preset it is) is kept for next time, once it settles
+    const keep = () => this.touchSession();
+    this.bank.onAny(keep);
+    for (const store of [this.matrix, this.lfo, this.remap, this.fx, this.arp, this.clips, this.recordings, this.multis, this.specFilters, this.ir, this.history]) store.subscribe(keep);
+    this.tables.onChange(keep);
+    this.onPatch(keep);
+    // an asset that changes loses its remembered reference (tables change in place as the editor draws)
+    this.tables.onChange((_, t) => {
+      this.assetGen++;
+      this.assetRefs.delete(t);
+    });
+    this.recordings.subscribe((o) => {
+      this.assetGen++;
+      for (const x of [this.recordings.osc[o], this.recordings.picture[o]]) if (x) this.assetRefs.delete(x);
+    });
+    this.multis.subscribe((o) => {
+      this.assetGen++;
+      const m = this.multis.osc[o];
+      if (m) this.assetRefs.delete(m);
+    });
+    this.ir.subscribe((i) => {
+      this.assetGen++;
+      const u = this.ir.userIr(i);
+      if (u) this.assetRefs.delete(u);
+    });
     this.matrix.attach((i, s) => this.host?.send((w) => writeSlot(w, i, s)));
     this.remap.attach((osc, lut) => this.host?.send((w) => w.setOscCurve(0, osc, lut.length, lut)));
     this.fx.attach((chain, refs) =>
@@ -203,7 +247,9 @@ export class Synth implements MidiSink {
         if (host.ctx.state !== 'running') await host.ctx.resume().catch(() => {});
         follow();
         // every oscillator starts on the factory saw (the engine's built-in
-        // saw covers the moment before it arrives)
+        // saw covers the moment before it arrives), unless the last session
+        // being restored gives it its own
+        await this.restoring;
         await Promise.all([0, 1, 2].map((o) => (this.tables.osc[o] ? null : this.tables.loadFactory(o, 'Saw'))));
         await this.noise.load();
       } catch (e) {
@@ -295,8 +341,16 @@ export class Synth implements MidiSink {
 
   /** The current state as a patch, with the wavetables and impulse responses that came from files. */
   async savePatch(meta: PatchMeta = this.meta): Promise<{ patch: Patch; assets: Map<string, ArrayBuffer> }> {
+    const { patch, assets } = await this.collectPatch(meta);
+    return { patch, assets: new Map([...assets].map(([h, get]) => [h, get()])) };
+  }
+
+  /** The current state as a patch, and its file-born assets by hash, each copied only when asked for (the session keeps just the new ones). */
+  async collectPatch(meta: PatchMeta = this.meta): Promise<{ patch: Patch; assets: Map<string, () => ArrayBuffer> }> {
     const patch = capture(this.target, meta);
-    const assets = new Map<string, ArrayBuffer>();
+    const assets = new Map<string, () => ArrayBuffer>();
+    const gen = this.assetGen;
+    const refs: [object, unknown][] = [];
     for (let o = 0; o < patch.tables.length; o++) {
       const t = this.tables.osc[o];
       if (!t) continue;
@@ -304,8 +358,10 @@ export class Synth implements MidiSink {
         patch.tables[o] = { name: t.name, source: t.source, count: t.count };
       } else {
         const hash = await hashBytes(t.frames);
-        assets.set(hash, t.frames.slice().buffer);
+        const frames = t.frames;
+        assets.set(hash, () => frames.slice().buffer);
         patch.tables[o] = { name: t.name, source: t.source, count: t.count, hash };
+        refs.push([t, patch.tables[o]]);
       }
     }
     for (let i = 0; i < patch.irs.length; i++) {
@@ -315,34 +371,61 @@ export class Synth implements MidiSink {
       data.set(u.l);
       data.set(u.r, u.l.length);
       const hash = await hashBytes(data);
-      assets.set(hash, data.buffer);
+      assets.set(hash, () => data.buffer);
       patch.irs[i] = { name: u.name, hash, rate: u.rate };
+      refs.push([u, patch.irs[i]]);
     }
     for (let o = 0; o < patch.recordings.length; o++) {
       const pic = this.recordings.picture[o];
       const r = this.recordings.osc[o];
       if (pic) {
         const hash = await hashBytes(pic.bytes);
-        assets.set(hash, pic.bytes.slice(0));
+        const bytes = pic.bytes;
+        assets.set(hash, () => bytes.slice(0));
         patch.recordings[o] = { kind: 'picture', name: pic.name, hash, seconds: pic.seconds };
+        refs.push([pic, patch.recordings[o]]);
       } else if (r) {
         const n = r.channels[0].length;
         const data = new Float32Array(n * r.channels.length);
         r.channels.forEach((c, i) => data.set(c, i * n));
         const hash = await hashBytes(data);
-        assets.set(hash, data.buffer);
+        assets.set(hash, () => data.buffer);
         patch.recordings[o] = { kind: 'audio', name: r.name, hash, rate: r.rate, channels: r.channels.length, frames: n, slices: [...r.slices] };
+        refs.push([r, patch.recordings[o]]);
       }
       const m = this.multis.osc[o];
       if (m?.source.startsWith('factory:')) patch.multis[o] = { name: m.name, source: m.source };
       else if (m) {
         const hash = await hashBytes(m.data);
-        assets.set(hash, m.data.slice().buffer);
+        const mdata = m.data;
+        assets.set(hash, () => mdata.slice().buffer);
         patch.multis[o] = { name: m.name, source: m.source, hash, zones: m.zones.length };
+        refs.push([m, patch.multis[o]]);
       }
       if (!this.specFilters.isFlat(o)) patch.specFilter[o] = Array.from(this.specFilters.points[o]);
     }
+    if (gen === this.assetGen) for (const [obj, ref] of refs) this.assetRefs.set(obj, ref);
     return { patch, assets };
+  }
+
+  /**
+   * The current state as a patch, at once (no hashing): assets are named by
+   * the references they had at their last collect, and one changed since is
+   * left out. For the quick save on leaving the page.
+   */
+  private snapshotNow(): Patch {
+    const patch = capture(this.target, this.meta);
+    const ref = <T>(obj: object | null | undefined) => (obj ? ((this.assetRefs.get(obj) as T | undefined) ?? null) : null);
+    for (let o = 0; o < patch.tables.length; o++) {
+      const t = this.tables.osc[o];
+      patch.tables[o] = t?.source.startsWith('factory:') ? { name: t.name, source: t.source, count: t.count } : ref(t);
+      patch.recordings[o] = ref(this.recordings.picture[o] ?? this.recordings.osc[o]);
+      const m = this.multis.osc[o];
+      patch.multis[o] = m?.source.startsWith('factory:') ? { name: m.name, source: m.source } : ref(m);
+      if (!this.specFilters.isFlat(o)) patch.specFilter[o] = Array.from(this.specFilters.points[o]);
+    }
+    for (let i = 0; i < patch.irs.length; i++) patch.irs[i] = ref(this.ir.userIr(i));
+    return patch;
   }
 
   /**
@@ -456,6 +539,142 @@ export class Synth implements MidiSink {
   setMeta(meta: Partial<PatchMeta>): void {
     this.meta = { ...this.meta, ...meta };
     this.emitPatch();
+  }
+
+  // ------------------------------------------------------------ session
+
+  onSession(fn: () => void): () => void {
+    this.sessionSubs.add(fn);
+    return () => this.sessionSubs.delete(fn);
+  }
+
+  private emitSession(): void {
+    for (const fn of this.sessionSubs) fn();
+  }
+
+  /**
+   * At startup: put back the sound from the last visit (the library keeps
+   * it), then keep it as it changes. If the last session can't be read, it's
+   * left alone and nothing is saved over it.
+   */
+  restoreSession(): Promise<void> {
+    return (this.restoring ??= (async () => {
+      try {
+        const lib = await Promise.race([this.openLibrary(), new Promise<never>((_, fail) => setTimeout(() => fail(new Error('the library took too long to open')), 5000))]);
+        if (!lib.durable) {
+          this.sessionState = 'memory';
+          return;
+        }
+        const stored = await lib.loadSession();
+        // the quick save from leaving the page, if it's newer than the last full one
+        let tail: Session | null = null;
+        try {
+          const t = readTail();
+          if (t && (!stored || t.saved > stored.saved)) tail = { ...t, patch: migrate(t.patch) };
+        } catch {
+          // unreadable: the full session stands
+        }
+        const s = tail ?? stored;
+        if (s) {
+          const warnings = await this.loadPatch(s.patch, (h) => lib.asset(h), s.presetId);
+          if (s.dirty) this.history.markDirty();
+          if (warnings.length) console.warn(`birdsynth: restoring your last session: ${warnings.join('; ')}`);
+          this.sessionSaved = s.saved;
+        }
+        this.sessionState = 'on';
+        // a newer tail becomes the full session (and the clean-up waits for that, so its assets are counted)
+        if (s && s === tail) await this.saveSession();
+        else writeSetting(TAIL_KEY, null);
+        void lib.collectGarbage();
+        if (typeof window !== 'undefined') {
+          // leaving (or hiding) the page: a full save may not finish in time, so the state
+          // also goes to localStorage at once (without assets: they're stored already)
+          const leave = () => {
+            if (this.sessionTimer || this.sessionSaving) this.writeTail();
+            void this.saveSession();
+          };
+          window.addEventListener('pagehide', leave);
+          document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && leave());
+        }
+      } catch (e) {
+        this.sessionState = 'failed';
+        console.warn("birdsynth: the last session could not be restored, so this one won't be kept:", e);
+      } finally {
+        this.emitSession();
+      }
+    })());
+  }
+
+  private touchSession(): void {
+    if (this.sessionState !== 'on' || this.sessionHolds) return;
+    if (this.sessionTimer) clearTimeout(this.sessionTimer);
+    this.sessionTimer = setTimeout(() => void this.saveSession(), SESSION_SETTLE_MS);
+  }
+
+  /** Keep the current state now (it's also kept a moment after each change). */
+  saveSession(): Promise<void> {
+    if (this.sessionTimer) clearTimeout(this.sessionTimer);
+    this.sessionTimer = null;
+    if (this.sessionState !== 'on' || this.sessionHolds) return Promise.resolve();
+    if (this.sessionSaving) {
+      this.sessionAgain = true;
+      return this.sessionSaving;
+    }
+    this.sessionSaving = (async () => {
+      try {
+        const started = Date.now();
+        const lib = await this.openLibrary();
+        const { patch, assets } = await this.collectPatch();
+        await lib.saveSession(patch, assets, this.presetId, this.history.dirty);
+        this.sessionSaved = Date.now();
+        const tail = readTail();
+        if (tail && tail.saved <= started) writeSetting(TAIL_KEY, null);
+        if (!this.persistAsked) {
+          this.persistAsked = true;
+          void lib.persist();
+        }
+      } catch (e) {
+        console.warn('birdsynth: could not keep the session:', e);
+      } finally {
+        this.sessionSaving = null;
+        this.emitSession();
+        if (this.sessionAgain) {
+          this.sessionAgain = false;
+          void this.saveSession();
+        }
+      }
+    })();
+    return this.sessionSaving;
+  }
+
+  /** The quick save: the state as it is this moment, to localStorage (read back at the next start if it's newer). */
+  private writeTail(): void {
+    if (this.sessionState !== 'on' || this.sessionHolds) return;
+    try {
+      writeSetting(TAIL_KEY, JSON.stringify({ saved: Date.now(), patch: this.snapshotNow(), presetId: this.presetId, dirty: this.history.dirty }));
+    } catch {
+      // too big for localStorage: the full save is all there is
+    }
+  }
+
+  /** Stop keeping the session while something borrows the synth (a tour's teaching patches), and start again after. */
+  holdSession(on: boolean): void {
+    this.sessionHolds = Math.max(0, this.sessionHolds + (on ? 1 : -1));
+    if (!this.sessionHolds) this.touchSession();
+  }
+
+  /**
+   * Start over: the Init sound, as a fresh session. The library's presets
+   * and this browser's setup (MIDI mappings, tuning, settings) stay.
+   */
+  async resetSession(): Promise<void> {
+    this.stopPreview();
+    this.transport(false);
+    this.setBandlimit(true);
+    await this.loadEntry('factory:Init');
+    writeSetting(TAIL_KEY, null);
+    await this.saveSession();
+    if (this.sessionState === 'on') void (await this.openLibrary()).collectGarbage();
   }
 
   // ----------------------------------------------------------- previews
@@ -770,6 +989,20 @@ export class Synth implements MidiSink {
 function writeSlot(w: CmdWriter, i: number, s: ModSlot | null): void {
   if (s) w.setModSlot(0, i, s.source, s.aux, slotFlags(s), s.dest, s.amount, s.curve, s.output);
   else w.setModSlot(0, i, 0, 0, 0, 0, 0, 0, 1);
+}
+
+/** Quiet time after a change before the session is saved. */
+const SESSION_SETTLE_MS = 700;
+/** Where the quick save on leaving the page goes. */
+const TAIL_KEY = 'birdsynth.session-tail';
+
+function readTail(): { saved: number; patch: Patch; presetId: string; dirty: boolean } | null {
+  try {
+    const t = JSON.parse(readSetting(TAIL_KEY) ?? 'null');
+    return t && typeof t.saved === 'number' && t.patch ? t : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Preview phrases play on their own MIDI channel (16). */

@@ -345,6 +345,12 @@ export function installTestApi(synth: Synth): void {
         stolen: t[TEL.grainsStolen],
       };
     },
+    /** The working state kept between visits. */
+    session: {
+      state: () => ({ state: synth.sessionState, saved: synth.sessionSaved, preset: synth.presetId, dirty: synth.history.dirty }),
+      save: () => synth.saveSession(),
+      reset: () => synth.resetSession(),
+    },
     /** The transport, the arpeggiator's patterns and the clips. */
     seq: {
       play: (on = true) => synth.transport(on),

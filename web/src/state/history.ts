@@ -55,6 +55,12 @@ export class History {
     this.emit();
   }
 
+  /** The state already differs from its preset (a session restored with unsaved changes). */
+  markDirty(): void {
+    this.clean = -1;
+    this.emit();
+  }
+
   /** Whether the state differs from the preset as loaded or last saved. */
   get dirty(): boolean {
     return this.index !== this.clean || this.timer !== null;
