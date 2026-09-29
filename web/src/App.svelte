@@ -40,6 +40,7 @@
   import { guardText } from './audio/guard';
 
   const synth = getContext<Synth>('synth');
+  const SOURCE_URL = 'https://github.com/davenull/birdsynth';
   const W = 1280;
   const H = 800;
 
@@ -119,11 +120,24 @@
         {/each}
       </nav>
       <MidiButton {synth} />
-      <button class="help explain-ui" aria-pressed={explainMode.on} title="Explain mode (?): click any part of the synth to learn what it does" onclick={() => explainMode.toggle()}>?</button>
+      <div class="aside">
+        <button class="help explain-ui" aria-pressed={explainMode.on} title="Explain mode (?): click any part of the synth to learn what it does" onclick={() => explainMode.toggle()}>?</button>
+        <a class="help source explain-ui" href={SOURCE_URL} target="_blank" rel="noopener" title="birdsynth's source code on GitHub (BSD 3-Clause)" aria-label="Source code on GitHub">
+          <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"
+            ><path
+              fill="currentColor"
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+            /></svg
+          >
+        </a>
+      </div>
       <div class="readout" aria-live="polite">
-        <span>{voices} voice{voices === 1 ? '' : 's'}</span>
-        <span class:guarded={guard > 0} title={guard ? `CPU guard: ${guardText(guard)} while the load is high` : 'Share of real time the engine takes'}>CPU {cpu.toFixed(1)}%{guard ? ' ⚠' : ''}</span>
         <span class="state {status}" title={`Audio ${status}`} aria-label={`Audio ${status}`}>{status === 'running' ? '●' : status}</span>
+        <!-- two short lines, so a busy moment (32 voices, CPU 100%) can't widen the bar -->
+        <span class="counts">
+          <span>{voices} voice{voices === 1 ? '' : 's'}</span>
+          <span class:guarded={guard > 0} title={guard ? `CPU guard: ${guardText(guard)} while the load is high` : 'Share of real time the engine takes'}>CPU {cpu.toFixed(1)}%{guard ? ' ⚠' : ''}</span>
+        </span>
       </div>
       <div class="master" data-explain="master">
         <Meter {synth} />
@@ -238,7 +252,7 @@
     background: transparent;
     border: 0;
     border-bottom: 2px solid transparent;
-    padding: 6px 6px;
+    padding: 6px 5px;
     cursor: pointer;
   }
   .tabs button.on {
@@ -261,6 +275,18 @@
     border-radius: 50%;
     cursor: pointer;
   }
+  .aside {
+    display: flex;
+    gap: 4px;
+  }
+  .source {
+    display: grid;
+    place-items: center;
+  }
+  .source:hover {
+    color: var(--text);
+    border-color: var(--text-dim);
+  }
   .help[aria-pressed='true'] {
     color: #111;
     background: var(--accent);
@@ -268,11 +294,16 @@
   }
   .readout {
     display: flex;
-    gap: 10px;
+    align-items: center;
+    gap: 6px;
     white-space: nowrap;
-    font: 11px var(--font-num);
+    font: 10.5px/1.3 var(--font-num);
     color: var(--text-dim);
     margin-left: auto;
+  }
+  .counts {
+    display: grid;
+    min-width: 11ch;
   }
   .guarded {
     color: #ffb142;
